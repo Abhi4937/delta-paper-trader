@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { Minus, Plus, RefreshCw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { type PayoffData, fetchMargin, fetchPayoff } from "@/lib/api";
 import { impliedVol } from "@/lib/bs";
 import { legIv, legMark, money, moneyBoth, useStore } from "@/lib/store";
@@ -265,6 +265,8 @@ function PayoffView() {
   const currency = useStore((s) => s.currency);
   const spot = useStore((s) => s.chain?.spot ?? 0);
   const baseDte = selected[0]?.dte ?? 7;
+  // options expire 12:00 UTC (17:30 IST); used to label the DTE control with a date
+  const expiryMs = selected[0]?.expiry ? new Date(`${selected[0].expiry}T12:00:00Z`).getTime() : 0;
 
   // null = follow the default (live spot / basket DTE); a number = user override
   const [targetSpot, setTargetSpot] = useState<number | null>(null);
@@ -282,7 +284,14 @@ function PayoffView() {
   const lo = spot > 0 ? Math.max(aMinF - padF, 1) : 0;
   const hi = spot > 0 ? aMaxF + padF : 0;
   const ts = targetSpot ?? spot;
+  const spotStep = Math.max(Math.round(spot * 0.0005), 1); // fine spot tick for the −/＋ stepper
   const dte = dteOverride ?? baseDte;
+  // map the DTE slider to a wall-clock scenario time (DTE 0.01d ≈ 14 min before
+  // expiry); shown next to the slider in IST.
+  const dtLabel = expiryMs
+    ? new Date(expiryMs - dte * 86_400_000).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "";
+  const dteDisplay = dte >= 1 ? `${dte.toFixed(dte < 3 ? 1 : 0)}d` : dte * 24 >= 1 ? `${(dte * 24).toFixed(1)}h` : `${Math.round(dte * 24 * 60)}m`;
   const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}`).join(",");
 
   // one debounced backend call per slider settle (no per-pixel round-trips)
@@ -336,6 +345,8 @@ function PayoffView() {
   const tsExpiry = data?.expiry[tsIdx] ?? 0;
   const tsProj = data?.projected[tsIdx] ?? 0;
   const levels = [0.9, 0.95, 1.0, 1.05, 1.1].map((m) => spot * m);
+  // "live" = sliders at defaults (target≈spot, current DTE, no IV shift) → real now P&L
+  const isLive = Math.abs(ts - spot) < Math.max(spotStep, 1) && dteOverride === null && ivShift === 0;
 
   return (
     <div className="min-h-0 flex-1 space-y-3 overflow-auto px-3 py-3">
@@ -363,9 +374,14 @@ function PayoffView() {
         <span>{viewHi.toFixed(0)}</span>
       </div>
 
-      {/* live P&L at the target-spot marker (updates as you drag the slider) */}
+      {/* P&L at the marker: "now (live)" at defaults, else a "what-if" projection */}
       <div className="flex items-center justify-between rounded-[5px] bg-surface-2 px-2.5 py-1.5 text-[11px]">
-        <span className="text-text-mute">P&amp;L @ target <span className="tnum text-accent">{ts.toFixed(0)}</span></span>
+        <span className="text-text-mute">
+          P&amp;L @ <span className="tnum text-accent">{ts.toFixed(0)}</span>{" "}
+          <span className={clsx("rounded-[3px] px-1 py-0.5 text-[9px] uppercase", isLive ? "bg-pos/15 text-pos" : "bg-accent/15 text-accent")}>
+            {isLive ? "now · live" : "what-if"}
+          </span>
+        </span>
         <span className="flex gap-3">
           <span className="text-text-mute">at&nbsp;expiry <span className={clsx("tnum font-medium", tsExpiry >= 0 ? "text-pos" : "text-neg")}>{data ? money(tsExpiry, currency) : "—"}</span></span>
           <span className="text-text-mute">projected <span className={clsx("tnum font-medium", tsProj >= 0 ? "text-pos" : "text-neg")}>{data ? money(tsProj, currency) : "—"}</span></span>
@@ -376,15 +392,35 @@ function PayoffView() {
         <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-accent" /> projected (date · IV)</span>
       </div>
 
-      <div className="space-y-2.5 rounded-[6px] border border-line bg-surface-2 p-2.5">
-        <Slider label="Target spot" value={ts} min={lo} max={hi || 1} step={(hi - lo) / 200 || 1} display={ts.toFixed(0)} onChange={setTargetSpot} />
-        <Slider label="Days to expiry" value={dte} min={0} max={Math.max(baseDte, 1)} step={Math.max(baseDte / 100, 0.01)} display={`${dte.toFixed(dte < 2 ? 2 : 0)}d`} onChange={setDteOverride} />
-        <Slider label="IV shift" value={ivShift} min={-20} max={20} step={0.5} display={`${ivShift >= 0 ? "+" : ""}${ivShift.toFixed(1)} pts`} onChange={setIvShift} />
-        {(targetSpot !== null || dteOverride !== null || ivShift !== 0) && (
-          <button onClick={() => { setTargetSpot(null); setDteOverride(null); setIvShift(0); }} className="text-[10px] text-accent hover:underline">
-            reset scenario
-          </button>
-        )}
+      <div className="space-y-3 rounded-[6px] border border-line bg-surface-2 p-2.5">
+        <div className="flex items-center justify-between text-[10px] text-text-mute">
+          <span className="font-semibold uppercase tracking-wider">Scenario</span>
+          {(targetSpot !== null || dteOverride !== null || ivShift !== 0) && (
+            <button onClick={() => { setTargetSpot(null); setDteOverride(null); setIvShift(0); }} className="text-accent hover:underline">reset all</button>
+          )}
+        </div>
+        <ScenarioCtl
+          label="Target spot"
+          sub={spot ? `${(((ts - spot) / spot) * 100).toFixed(2)}%` : ""}
+          onReset={targetSpot !== null ? () => setTargetSpot(null) : undefined}
+          stepper={<Stepper text={ts.toFixed(0)} onStep={(d) => setTargetSpot(clampN((ts + d * spotStep), lo, hi))} />}
+          slider={<input type="range" min={lo} max={hi || 1} step={(hi - lo) / 600 || 1} value={ts} onChange={(e) => setTargetSpot(Number(e.target.value))} className={SLIDER} />}
+        />
+        <ScenarioCtl
+          label="Date / DTE"
+          sub={dtLabel ? `${dtLabel} IST` : ""}
+          onReset={dteOverride !== null ? () => setDteOverride(null) : undefined}
+          stepper={<Stepper text={dteDisplay} onStep={(d) => setDteOverride(clampN(dte + (d / 24), 0, baseDte))} />}
+          slider={<input type="range" min={0} max={Math.max(baseDte, 0.01)} step={Math.max(baseDte / 400, 0.005)} value={dte} onChange={(e) => setDteOverride(Number(e.target.value))} className={SLIDER} />}
+        />
+        <ScenarioCtl
+          label="IV shift"
+          sub="vol points"
+          onReset={ivShift !== 0 ? () => setIvShift(0) : undefined}
+          stepper={<Stepper text={`${ivShift >= 0 ? "+" : ""}${ivShift.toFixed(1)}`} onStep={(d) => setIvShift(clampN(ivShift + d * 0.5, -50, 50))} />}
+          slider={<input type="range" min={-20} max={20} step={0.5} value={ivShift} onChange={(e) => setIvShift(Number(e.target.value))} className={SLIDER} />}
+        />
+        <p className="text-[9px] text-text-mute">−/＋ for fine steps, drag for big moves. Spot ±tick, DTE ±1h, IV ±0.5pt.</p>
       </div>
 
       <div className="grid grid-cols-4 gap-2 text-[11px]">
@@ -419,24 +455,36 @@ function PayoffView() {
   );
 }
 
-function Slider({
-  label, value, min, max, step, display, onChange,
-}: { label: string; value: number; min: number; max: number; step: number; display: string; onChange: (v: number) => void }) {
+const SLIDER = "h-1 w-full cursor-pointer appearance-none rounded bg-surface-3 accent-accent";
+const clampN = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+// one scenario control: −/＋ stepper (precise) + slider (coarse) + sub-label + reset
+function ScenarioCtl({
+  label, sub, onReset, stepper, slider,
+}: { label: string; sub?: string; onReset?: () => void; stepper: ReactNode; slider: ReactNode }) {
   return (
     <div>
-      <div className="mb-0.5 flex items-center justify-between text-[10px]">
+      <div className="mb-1 flex items-center justify-between text-[10px]">
         <span className="text-text-mute">{label}</span>
-        <span className="tnum text-text-dim">{display}</span>
+        <div className="flex items-center gap-2">
+          {sub && <span className="tnum text-text-dim">{sub}</span>}
+          {onReset && <button onClick={onReset} className="text-accent hover:underline">reset</button>}
+        </div>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1 w-full cursor-pointer appearance-none rounded bg-surface-3 accent-accent"
-      />
+      <div className="flex items-center gap-2">
+        {stepper}
+        <div className="min-w-0 flex-1">{slider}</div>
+      </div>
+    </div>
+  );
+}
+
+function Stepper({ text, onStep }: { text: string; onStep: (dir: -1 | 1) => void }) {
+  return (
+    <div className="flex flex-none items-center rounded-[4px] border border-line">
+      <button onClick={() => onStep(-1)} className="px-1.5 py-0.5 text-text-mute hover:text-text">−</button>
+      <span className="tnum w-14 text-center text-[11px] text-text">{text}</span>
+      <button onClick={() => onStep(1)} className="px-1.5 py-0.5 text-text-mute hover:text-text">＋</button>
     </div>
   );
 }
