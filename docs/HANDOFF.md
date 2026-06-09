@@ -57,27 +57,22 @@ Goal: move the simulation from client-side Zustand to a **server-authoritative e
 - **`backend/app/db/`** — `base.py` (DeclarativeBase), `session.py` (async engine + `get_session` dep, commits on success), `models.py`: **users, accounts, positions, legs, ledger_entries, logs, notes, strategy_series** — all `user_id`-isolated, mypy-strict clean. Field names mirror `frontend/src/lib/types.ts` (snake_case). `positions` has `margin` (rolling) + `entry_margin`. `strategy_series` PK `(time, position_id)`, JSONB `atm_iv` + `legs`.
 - **Alembic** (async) wired to `app.config` + `Base.metadata` (`migrations/env.py`). Migration `df58c58a8bf9` applied; **`strategy_series` is a live TimescaleDB hypertable** (verified). Docker DB+Redis running.
 
-### TODO — Phase 2: services + tick loop (`backend/app/sim/`, build TDD vs live DB)
-- **`user.py`** — `ensure_stub_user(session)` seeds a `User` + `Account` (start balance **$5000**; client `START_BALANCE=5000`) if absent; a `get_current_user` dep returns the stub user id. (Add `STUB_USER_EMAIL` to settings.)
-- **`marketview.py`** — adapter over `app.state.market` (the `MarketDataIngestor`). Read live quotes per symbol from **`market.tickers[symbol]`**: `mark_price`, `quotes.best_bid`, `quotes.best_ask`, `quotes.mark_iv`, `greeks.{delta,gamma,theta,vega}` (see `main.py` `/api/marks` lines 77–101 for exact extraction). **spot** = `market.chain(underlying, exp).spot`; **atm_iv** = `market.chain(underlying, exp).atm_iv`; expiries = `market.expiries(underlying)`. Mark age for staleness: tickers carry timestamps via the ingestor (see `market.feed_status()`).
-- **`service.py`** — async ops `(session, user_id, market, ...)`, porting the EXACT balance math from `frontend/src/lib/store.ts` (place ~L368, closePosition ~L404, closeLeg ~L448):
-  - **place**: entry fill = `entry_fill(side, bid, ask, fallback=mark)`; margin from `MarginService` (Delta exact) else local estimate; reserve = balance−margin; persist Position+Legs + ledger `margin_reserve` (−margin) + log `PLACE`; seed one `strategy_series` row.
-  - **close**: gross = `net_pnl` at **exit fills** (`exit_fill`: long→bid, short→ask); fees = entry+exit `leg_fee` per leg; net = gross−fees; balance += margin (release) − fees + gross; ledger realized(gross)/fee(−fees)/margin_release(margin); mark legs closed (exit_price/at/reason/gross/fees).
-  - **close_leg**: per-leg realize; re-fetch exact margin for remaining legs; release the diff; last leg closes the strategy.
-  - **set_position_risk / set_leg_risk / add_note**.
-- **`exit_engine.py`** — port `frontend/src/lib/exit.ts` `evaluateExit` (stale→suspend, combined SL, per-leg TP/SL with leg/strategy scope). Already pure; mirror it + tests.
-- **`ticker.py`** — background task (start in `main.py` lifespan after `market.start()`): every ~1s, per open position: recompute MTM from marketview, set `auto_exit_suspended` on stale, run `evaluateExit` → call close/close_leg services; **every 60s** append a `strategy_series` row (net pnl/Δ/Θ/Vega + per-leg `{pnl,iv,delta,bid,ask}` + atm_iv); **every ~30s** refresh exact margin. Update `account.balance` cache.
+### DONE (Phase 2 + 3 — committed `de0d3de`; VERIFIED end-to-end vs live DB + Delta feed)
+Server is now authoritative. `backend/app/sim/`:
+- **`marketview.py`** — read-only adapter: `quote(symbol)` (mark/bid/ask/iv/greeks), `spot(underlying)` (ticker `spot_price`), `atm_iv`, `fresh()` (whole-feed staleness).
+- **`exit_engine.py`** — `evaluate_exit(...)` ported from exit.ts (stale→suspend, combined SL, per-leg TP/SL w/ leg|strategy scope).
+- **`service.py`** — `place_strategy` / `close_position` / `close_leg` / `set_position_risk` / `set_leg_risk` / `add_note`; balance math ported verbatim from store.ts; uses `engines/money.py`. Plus `build_sample` (per-leg pnl/iv/delta/**bid/ask**), `position_dict`/`position_live_dict`/`get_state` (camelCase, epoch-ms).
+- **`ticker.py`** — 1s `SimTicker` (started in `main.py` lifespan): MTM + auto-exit 24/7, **in-memory per-second series ring** `app.state.sim_series` (keeps 1s charts), **1-min** rows → hypertable, exact-margin refresh /30s.
+- **`user.py`** — stub user/account + opening deposit seed (`stub_user_email`, $5000). **`margin_helper.py`** — exact-margin quote reused by place/close-leg.
+- **`api/sim.py`** — `GET /api/state`; `POST /api/strategies` (place), `POST /api/strategies/{id}/close`, `POST /api/strategies/{id}/legs/{leg_id}/close`, `PATCH /api/strategies/{id}/risk`, `PATCH /api/legs/{id}/risk`, `POST /api/strategies/{id}/notes`; **`WS /api/ws/state`** (1s tick: `{type:"tick", balance, currency, openIds, positions:[{…live fields…, sample}]}`). Every route resolves the stub user + filters by `user_id`. mypy-strict clean. ⚠️ only cosmetic `ruff E501` (line-length ×55 in sim/) left.
+- **Verified:** placed a real short strangle → exact margin "matched" $1.087, entry@bid, bid/ask/spread saved; closed → exit@ask, realized/fee/margin_release ledger, balance settled. `curl localhost:8010/api/state` works.
 
-### TODO — Phase 3: state API + WS (`backend/app/api/sim.py`)
-- `GET /api/state` → `{account:{balance,currency}, positions:[…+legs], ledger, logs, notes}` for the user. Pydantic schemas mirroring `types.ts` (camelCase out for the FE, or map in FE).
-- POST/PATCH: place, close, leg-close, position-risk, leg-risk, add-note.
-- `WS /ws/state` → push live computed positions (current MTM/greeks) + balance every ~1s.
-- Stub-user dependency on every route (isolation: filter every query by `user_id`).
-- Register router + start ticker in `main.py`.
-
-### TODO — Phase 4: frontend swap (`frontend/src/lib/`)
-- `api.ts`: `fetchState`, `placeStrategy`, `closePosition`, `closeLeg`, `setRisk`, `addNote` (POST), `connectState` (WS).
-- `store.ts`: actions call the API then refresh from server; hydrate from `GET /api/state` on load; live via WS. Keep component-facing selectors. **One-time import** of existing localStorage state → POST to seed (so nothing is lost). This is the big/risky refactor — components mostly read the store unchanged.
+### TODO — Phase 4: frontend swap (`frontend/src/lib/`) — the only thing left
+Server returns camelCase already matching `types.ts` (so `Position`/`Leg`/`LedgerEntry`/`LogEntry` shapes line up; `Position.series` is `SeriesSample[]`; legs carry live `mark`/`iv`/`bid`/`ask`/`spread`/`pnl`; positions carry live `pnl`/`delta`/`theta`/`vega`/`entrySlippage`).
+- `api.ts`: `fetchState()` (GET /api/state), `placeStrategy`, `closePosition`, `closeLeg`, `setPositionRisk`, `setLegRisk`, `addNote` (POST/PATCH — **each returns the fresh full state**), `connectState()` (WS `/api/ws/state`).
+- `store.ts`: replace the local-mutation actions with API calls (set state from each POST's returned state); hydrate from `GET /api/state` on load; on each WS tick, update each position's live fields + **append `position.sample` to its series** + set balance; if a previously-open id is missing from `openIds`, refetch state (server auto-exit). Components mostly read the store unchanged. Drop the client money model / marks polling (server-driven now).
+- **One-time localStorage import** so nothing is lost: read the old persisted positions and re-`POST /api/strategies` them once (or accept a clean start — confirm with user).
+- Stale guard: keep using `GET /api/feed` (unchanged) for the placement block + banner.
 
 ---
 
