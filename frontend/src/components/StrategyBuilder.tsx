@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PayoffPanel from "@/components/PayoffPanel";
 import { fetchMargin } from "@/lib/api";
-import { money, moneyBoth, useStore } from "@/lib/store";
+import { legBasketPrice, money, moneyBoth, useStore } from "@/lib/store";
 import type { Leg } from "@/lib/types";
 
 function legLabel(l: Leg): string {
@@ -67,6 +67,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   const currency = useStore((s) => s.currency);
   const feedFresh = useStore((s) => s.feedFresh);
   const spot = useStore((s) => s.chain?.spot ?? 0);
+  useStore((s) => s.tickN); // re-render on each chain tick so the live preview moves
   const router = useRouter();
 
   const [tab, setTab] = useState<"basket" | "payoff">("basket");
@@ -98,8 +99,9 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
     };
   }, [key, underlying, selected]);
 
+  // net credit/debit on the LIVE would-fill premium (moves in real time until execute)
   const net = selected.reduce(
-    (s, l) => s + (l.side === "sell" ? 1 : -1) * l.qty * l.entry * l.contractValue,
+    (s, l) => s + (l.side === "sell" ? 1 : -1) * l.qty * legBasketPrice(l) * l.contractValue,
     0,
   );
 
@@ -183,7 +185,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-text-mute">
                         <span className="rounded bg-surface-3 px-1 text-[9px] font-semibold text-text-dim">M</span>
-                        Market Price <span className="tnum">· ${l.entry.toFixed(1)}</span>
+                        Market Price <span className="tnum">· ${legBasketPrice(l).toFixed(1)}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

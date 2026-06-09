@@ -2,14 +2,26 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { connectChain, fetchAtmIv, fetchExpiries, fetchFeed, fetchMargin, fetchMarks } from "./api";
-import { estimateMargin, legPnl, netPnl } from "./engine";
-import { type ExitDecision, type ExitInput, evaluateExit } from "./exit";
+import {
+  type PlaceLegIn,
+  type ServerState,
+  type StateTick,
+  addNoteApi,
+  closeLegApi,
+  closePositionApi,
+  connectChain,
+  connectState,
+  fetchExpiries,
+  fetchFeed,
+  fetchState,
+  placeStrategy as placeStrategyApi,
+  setLegRiskApi,
+  setPositionRiskApi,
+} from "./api";
 import type {
   Contract,
   LedgerEntry,
   Leg,
-  LegSample,
   LogEntry,
   MarginBadge,
   OptionChain,
@@ -22,16 +34,19 @@ import type {
 let counter = 0;
 const uid = () => `${Date.now()}-${counter++}`;
 // Paper account in USD (Delta crypto options settle in USD). 1 lot = 0.001 BTC.
+// Display-only default until the server state hydrates (server seeds the same).
 const START_BALANCE = 5000;
-// MTM is sampled ~1/sec; retain the full series from position open (12h safety
-// ceiling) so 1m/5m timeframe charts can aggregate the whole life of the trade.
+// Retain the live per-second series the server streams (12h safety ceiling) so
+// the 1m/5m timeframe charts can aggregate the whole life of the trade.
 const MTM_CAP = 12 * 60 * 60;
 export const USDINR = 85; // Delta uses a fixed 1 USD = 85 INR
 
 export type Currency = "USD" | "INR";
 
-// live mark map (symbol -> latest mark/bid/ask/iv + per-option greeks), fed by the
-// chain WS + marks poll. Greeks are read-only from Delta; the client aggregates.
+// Live chain feed (symbol -> latest mark/bid/ask/iv + per-option greeks), fed by
+// the chain WS. Used ONLY for the builder/basket PREVIEW (live premium of unplaced
+// legs) and the payoff "now" baseline — placed positions get their live values
+// from the server state tick. Greeks are read-only from Delta.
 interface Mark {
   mark: number;
   bid: number;
@@ -41,140 +56,94 @@ interface Mark {
   gamma: number;
   theta: number;
   vega: number;
-  ts: number; // when this mark was last written (for stale-mark detection)
+  ts: number;
 }
 const marks = new Map<string, Mark>();
-const STALE_MS = 10_000; // suspend auto-exit if a held leg's mark is older than this
 const spots = new Map<string, number>(); // underlying -> latest spot (for notional fee)
 const atmIvs = new Map<string, number>(); // `${underlying}|${expiry}` -> ATM mark IV
-// still-open legs of a position (closed legs are realized; excluded from live PnL/greeks)
+
+// still-open legs of a position (closed legs are realized; excluded from live PnL/fees)
 const openLegs = (p: Position): Leg[] => p.legs.filter((l) => l.status === "open");
-function markRecord(legs: Leg[]): Record<string, number> {
-  const m: Record<string, number> = {};
-  for (const l of legs) m[l.symbol] = marks.get(l.symbol)?.mark ?? l.entry;
-  return m;
-}
-// Exit fills cross the spread the other way (close a long at bid, a short at ask)
-// → realized PnL on close carries exit slippage; live MTM keeps using the mark.
-function exitFillRecord(legs: Leg[]): Record<string, number> {
-  const m: Record<string, number> = {};
-  for (const l of legs) {
-    const q = marks.get(l.symbol);
-    m[l.symbol] = l.side === "buy" ? q?.bid || q?.mark || l.entry : q?.ask || q?.mark || l.entry;
-  }
-  return m;
-}
 
-// --- position-analytics sampling -------------------------------------------
-// Net greek = Σ (signed_qty × contract_value × per-option greek). Delta → BTC,
-// theta → USD/day, vega → USD per 1 vol-point. Standard aggregation; validate
-// vs a real Delta account before relying on the absolute numbers.
-const legSign = (side: Side): number => (side === "buy" ? 1 : -1);
+// --- server state plumbing -------------------------------------------------- //
+let disconnectChain: (() => void) | null = null;
+let stateDisconnect: (() => void) | null = null;
+let feedTimer: ReturnType<typeof setInterval> | null = null;
+let refetching = false;
 
-function netGreeks(legs: Leg[]): { delta: number; theta: number; vega: number } {
-  let delta = 0;
-  let theta = 0;
-  let vega = 0;
-  for (const l of legs) {
-    const m = marks.get(l.symbol);
-    if (!m) continue;
-    const k = legSign(l.side) * l.qty * l.contractValue;
-    delta += k * m.delta;
-    theta += k * m.theta;
-    vega += k * m.vega;
-  }
-  return { delta, theta, vega };
+function applyServerState(st: ServerState): void {
+  // Positions/balance/ledger/logs are server-owned. Currency stays a client-only
+  // display toggle, so we deliberately do NOT overwrite it from the server here.
+  useStore.setState({
+    positions: st.positions,
+    balance: st.account.balance,
+    ledger: st.ledger,
+    logs: st.logs,
+  });
 }
 
-function sampleLegs(legs: Leg[]): Record<string, LegSample> {
-  const out: Record<string, LegSample> = {};
-  for (const l of legs) {
-    const m = marks.get(l.symbol);
-    out[l.id] = {
-      pnl: legPnl(l, m?.mark ?? l.entry),
-      iv: m?.iv ?? 0,
-      delta: legSign(l.side) * l.qty * l.contractValue * (m?.delta ?? 0),
-    };
+async function hydrate(): Promise<void> {
+  const st = await fetchState();
+  if (st) applyServerState(st);
+}
+
+// Append one server sample to a position's series (~1s; throttle guards races
+// between a refetch and an in-flight tick). Capped at MTM_CAP.
+function appendSample(series: SeriesSample[], sample?: SeriesSample): SeriesSample[] {
+  if (!sample) return series;
+  const last = series[series.length - 1];
+  if (last && sample.t - last.t < 950) return series;
+  return [...series, sample].slice(-MTM_CAP);
+}
+
+function onStateTick(t: StateTick): void {
+  const s = useStore.getState();
+  const openIds = new Set(t.openIds);
+  // server auto-exit (a known-open id vanished) or a position placed elsewhere
+  // (an unknown open id) → resync the full state instead of merging.
+  const closedHere = s.positions.some((p) => p.status === "open" && !openIds.has(p.id));
+  const placedElsewhere = t.openIds.some((id) => !s.positions.some((p) => p.id === id));
+  if ((closedHere || placedElsewhere) && !refetching) {
+    refetching = true;
+    hydrate().finally(() => {
+      refetching = false;
+    });
+    return;
   }
+  const byId = new Map(t.positions.map((p) => [p.id, p]));
+  const positions = s.positions.map((p) => {
+    const live = byId.get(p.id);
+    if (!live) return p; // closed positions aren't in the tick
+    const { sample, ...fields } = live;
+    return { ...p, ...fields, series: appendSample(p.series, sample) };
+  });
+  useStore.setState({ positions, balance: t.balance, tickN: s.tickN + 1 });
+}
+
+async function pollFeed(): Promise<void> {
+  const f = await fetchFeed();
+  useStore.setState({ feedFresh: f.fresh, feedAge: f.ageSeconds });
+}
+
+// camelCase risk patches -> the server's snake_case; only keys PRESENT in the
+// patch are forwarded (the server uses model_fields_set to tell "set null" from
+// "leave unchanged").
+function posRiskPatch(patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit">>) {
+  const out: Record<string, unknown> = {};
+  if ("targetPnl" in patch) out.target_pnl = patch.targetPnl;
+  if ("stopLossAmount" in patch) out.stop_loss_amount = patch.stopLossAmount;
+  if ("stopLossPctOfMargin" in patch) out.stop_loss_pct_of_margin = patch.stopLossPctOfMargin;
+  if ("autoExit" in patch) out.auto_exit = patch.autoExit;
   return out;
 }
-
-// One sampled row (net + per-leg) for a position at time `now`. ATM IV is sampled
-// for every distinct expiry the legs span (so calendars get one ATM line each).
-function buildSample(p: Position, now: number): SeriesSample {
-  const legs = openLegs(p);
-  const ng = netGreeks(legs);
-  const atmIv: Record<string, number> = {};
-  for (const e of new Set(legs.map((l) => l.expiry))) {
-    atmIv[e] = atmIvs.get(`${p.underlying}|${e}`) ?? 0;
-  }
-  return {
-    t: now,
-    pnl: netPnl(legs, markRecord(legs)),
-    delta: ng.delta,
-    theta: ng.theta,
-    vega: ng.vega,
-    atmIv,
-    legs: sampleLegs(legs),
-  };
+function legRiskPatch(patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) {
+  const out: Record<string, unknown> = {};
+  if ("targetPnl" in patch) out.target_pnl = patch.targetPnl;
+  if ("stopPnl" in patch) out.stop_pnl = patch.stopPnl;
+  if ("autoExit" in patch) out.auto_exit = patch.autoExit;
+  if ("closeScope" in patch) out.close_scope = patch.closeScope;
+  return out;
 }
-
-// --- auto-exit -------------------------------------------------------------
-const legMarkAge = (sym: string, now: number): number => {
-  const m = marks.get(sym);
-  return m ? now - m.ts : Infinity; // no mark yet → treat as stale
-};
-
-function buildExitInput(p: Position, now: number): ExitInput {
-  return {
-    legs: p.legs.map((l) => ({
-      id: l.id,
-      pnl: legPnl(l, legMark(l)),
-      markAgeMs: legMarkAge(l.symbol, now),
-      targetPnl: l.targetPnl,
-      stopPnl: l.stopPnl,
-      autoExit: l.autoExit,
-      closeScope: l.closeScope,
-      status: l.status,
-    })),
-    netPnl: netPnl(openLegs(p), markRecord(openLegs(p))),
-    margin: p.margin,
-    combinedStop: { lossAmount: p.stopLossAmount, lossPctOfMargin: p.stopLossPctOfMargin },
-    combinedAutoExit: p.autoExit,
-    staleMs: STALE_MS,
-  };
-}
-
-// Sample each open position's series + evaluate auto-exit. Returns the next
-// positions (with `autoExitSuspended` set) and the exit actions to apply AFTER
-// the state update (closing strategies/legs is done via store actions).
-function tickPositions(positions: Position[], now: number): {
-  positions: Position[];
-  actions: { posId: string; decision: ExitDecision }[];
-} {
-  const actions: { posId: string; decision: ExitDecision }[] = [];
-  const next = positions.map((p) => {
-    if (p.status === "closed") return p;
-    const decision = evaluateExit(buildExitInput(p, now));
-    if (decision.kind === "close-strategy" || decision.kind === "close-legs") {
-      actions.push({ posId: p.id, decision });
-    }
-    const last = p.series[p.series.length - 1];
-    const series = !last || now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
-    return { ...p, series, autoExitSuspended: decision.kind === "suspended" };
-  });
-  return { positions: next, actions };
-}
-
-function applyExitActions(actions: { posId: string; decision: ExitDecision }[]): void {
-  const s = useStore.getState();
-  for (const { posId, decision } of actions) {
-    if (decision.kind === "close-strategy") s.closePosition(posId, decision.reason);
-    else if (decision.kind === "close-legs") for (const id of decision.legIds) s.closeLeg(posId, id, decision.reason);
-  }
-}
-
-let disconnect: (() => void) | null = null;
 
 interface State {
   underlying: Underlying;
@@ -211,400 +180,208 @@ interface State {
   addNote: (id: string, kind: "entry" | "exit", body: string) => void;
 }
 
-function log(logs: LogEntry[], action: string, detail: string, tone?: LogEntry["tone"]): LogEntry[] {
-  return [{ t: Date.now(), action, detail, tone }, ...logs].slice(0, 200);
+// Build an unplaced basket leg. `entry` is a snapshot fallback only — the live
+// builder preview reads legBasketPrice(), and the SERVER sets the real fill at
+// execute time from the then-current quote.
+function newLeg(c: Contract, side: Side, chain: OptionChain, u: Underlying): Leg {
+  return {
+    id: uid(),
+    symbol: c.symbol,
+    productId: c.productId,
+    underlying: u,
+    type: c.type,
+    strike: c.strike,
+    contractValue: c.contractValue,
+    expiry: chain.expiry,
+    dte: chain.dte,
+    side,
+    qty: 1,
+    entry: side === "buy" ? c.ask || c.mark : c.bid || c.mark,
+    markAtEntry: c.mark,
+    spotAtEntry: chain.spot,
+    targetPnl: null,
+    stopPnl: null,
+    autoExit: false,
+    closeScope: "leg",
+    status: "open",
+    exitPrice: null,
+    exitAt: null,
+    exitReason: null,
+    exitGross: null,
+    exitFees: null,
+  };
 }
 
 export const useStore = create<State>()(
   persist(
     (set, get) => ({
-  underlying: "BTC",
-  expiry: null,
-  chain: null,
-  expiries: [],
-  conn: "connecting",
-  feedFresh: true, // optimistic until the first feed poll
-  feedAge: null,
-  tickN: 0,
-  selected: [],
-  positions: [],
-  balance: START_BALANCE,
-  currency: "USD",
-  ledger: [{ t: Date.now(), type: "deposit", amount: START_BALANCE, balanceAfter: START_BALANCE, ref: "seed" }],
-  logs: [{ t: Date.now(), action: "session", detail: "Paper account funded $5,000", tone: "info" }],
+      underlying: "BTC",
+      expiry: null,
+      chain: null,
+      expiries: [],
+      conn: "connecting",
+      feedFresh: true, // optimistic until the first feed poll
+      feedAge: null,
+      tickN: 0,
+      selected: [],
+      positions: [],
+      balance: START_BALANCE,
+      currency: "USD",
+      ledger: [],
+      logs: [],
 
-  connect: () => {
-    disconnect?.();
-    set({ conn: "connecting" });
-    const { underlying, expiry } = get();
-    fetchExpiries(underlying).then((e) => set({ expiries: e })).catch(() => {});
-    disconnect = connectChain(
-      underlying,
-      expiry,
-      ({ chain, expiries }) => {
-        // merge live marks + greeks + spot + ATM IV
-        const now = Date.now();
-        for (const r of chain.rows) {
-          for (const c of [r.call, r.put])
-            marks.set(c.symbol, {
-              mark: c.mark, bid: c.bid, ask: c.ask, iv: c.iv,
-              delta: c.greeks.delta, gamma: c.greeks.gamma, theta: c.greeks.theta, vega: c.greeks.vega, ts: now,
-            });
-        }
-        spots.set(chain.underlying, chain.spot);
-        atmIvs.set(`${chain.underlying}|${chain.expiry}`, chain.atmIv);
-        const s = get();
-        const { positions, actions } = tickPositions(s.positions, now);
-        set({
-          chain,
-          expiries,
-          expiry: s.expiry ?? chain.expiry,
-          conn: "live",
-          tickN: s.tickN + 1,
-          positions,
-        });
-        applyExitActions(actions);
+      connect: () => {
+        disconnectChain?.();
+        set({ conn: "connecting" });
+        const { underlying, expiry } = get();
+        fetchExpiries(underlying).then((e) => set({ expiries: e })).catch(() => {});
+        disconnectChain = connectChain(
+          underlying,
+          expiry,
+          ({ chain, expiries }) => {
+            const now = Date.now();
+            for (const r of chain.rows) {
+              for (const c of [r.call, r.put])
+                marks.set(c.symbol, {
+                  mark: c.mark, bid: c.bid, ask: c.ask, iv: c.iv,
+                  delta: c.greeks.delta, gamma: c.greeks.gamma, theta: c.greeks.theta, vega: c.greeks.vega, ts: now,
+                });
+            }
+            spots.set(chain.underlying, chain.spot);
+            atmIvs.set(`${chain.underlying}|${chain.expiry}`, chain.atmIv);
+            const s = get();
+            // bump tickN so the live basket preview (legBasketPrice) re-renders
+            set({ chain, expiries, expiry: s.expiry ?? chain.expiry, conn: "live", tickN: s.tickN + 1 });
+          },
+          (st) => set({ conn: st === "live" ? "live" : "down" }),
+        );
       },
-      (st) => set({ conn: st === "live" ? "live" : "down" }),
-    );
-  },
 
-  setUnderlying: (u) => {
-    set({ underlying: u, expiry: null, chain: null });
-    get().connect();
-  },
-  setExpiry: (e) => {
-    set({ expiry: e, chain: null });
-    get().connect();
-  },
-  setCurrency: (c) => set({ currency: c }),
+      setUnderlying: (u) => {
+        set({ underlying: u, expiry: null, chain: null });
+        get().connect();
+      },
+      setExpiry: (e) => {
+        set({ expiry: e, chain: null });
+        get().connect();
+      },
+      setCurrency: (c) => set({ currency: c }),
 
-  addLeg: (c, side) =>
-    set((s) => {
-      if (!s.chain) return s;
-      const leg: Leg = {
-        id: uid(),
-        symbol: c.symbol,
-        productId: c.productId,
-        underlying: s.underlying,
-        type: c.type,
-        strike: c.strike,
-        contractValue: c.contractValue,
-        expiry: s.chain.expiry,
-        dte: s.chain.dte,
-        side,
-        qty: 1,
-        entry: side === "buy" ? c.ask || c.mark : c.bid || c.mark,
-        markAtEntry: c.mark,
-        spotAtEntry: s.chain.spot,
-        targetPnl: null,
-        stopPnl: null,
-        autoExit: false,
-        closeScope: "leg",
-        status: "open",
-        exitPrice: null,
-        exitAt: null,
-        exitReason: null,
-        exitGross: null,
-        exitFees: null,
-      };
-      return { selected: [...s.selected, leg] };
-    }),
-  // set-or-add: if this contract is already in the basket, set its side; else add
-  selectLeg: (c, side) =>
-    set((s) => {
-      if (!s.chain) return s;
-      const entry = side === "buy" ? c.ask || c.mark : c.bid || c.mark;
-      if (s.selected.some((l) => l.symbol === c.symbol)) {
-        return {
-          selected: s.selected.map((l) => (l.symbol === c.symbol ? { ...l, side, entry } : l)),
-        };
-      }
-      const leg: Leg = {
-        id: uid(),
-        symbol: c.symbol,
-        productId: c.productId,
-        underlying: s.underlying,
-        type: c.type,
-        strike: c.strike,
-        contractValue: c.contractValue,
-        expiry: s.chain.expiry,
-        dte: s.chain.dte,
-        side,
-        qty: 1,
-        entry,
-        markAtEntry: c.mark,
-        spotAtEntry: s.chain.spot,
-        targetPnl: null,
-        stopPnl: null,
-        autoExit: false,
-        closeScope: "leg",
-        status: "open",
-        exitPrice: null,
-        exitAt: null,
-        exitReason: null,
-        exitGross: null,
-        exitFees: null,
-      };
-      return { selected: [...s.selected, leg] };
-    }),
-  removeLeg: (id) => set((s) => ({ selected: s.selected.filter((l) => l.id !== id) })),
-  setLegQty: (id, qty) =>
-    set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, qty: Math.max(1, qty) } : l)) })),
-  toggleLegSide: (id) =>
-    set((s) => ({
-      selected: s.selected.map((l) => {
-        if (l.id !== id) return l;
-        const side: Side = l.side === "buy" ? "sell" : "buy";
-        const m = marks.get(l.symbol);
-        const entry = side === "buy" ? m?.ask || l.entry : m?.bid || l.entry;
-        return { ...l, side, entry };
-      }),
-    })),
-  setLegRisk: (id, patch) =>
-    set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
-  clearLegs: () => set({ selected: [] }),
+      addLeg: (c, side) =>
+        set((s) => (s.chain ? { selected: [...s.selected, newLeg(c, side, s.chain, s.underlying)] } : s)),
+      // set-or-add: if this contract is already in the basket, set its side; else add
+      selectLeg: (c, side) =>
+        set((s) => {
+          if (!s.chain) return s;
+          const entry = side === "buy" ? c.ask || c.mark : c.bid || c.mark;
+          if (s.selected.some((l) => l.symbol === c.symbol)) {
+            return { selected: s.selected.map((l) => (l.symbol === c.symbol ? { ...l, side, entry } : l)) };
+          }
+          return { selected: [...s.selected, newLeg(c, side, s.chain, s.underlying)] };
+        }),
+      removeLeg: (id) => set((s) => ({ selected: s.selected.filter((l) => l.id !== id) })),
+      setLegQty: (id, qty) =>
+        set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, qty: Math.max(1, qty) } : l)) })),
+      toggleLegSide: (id) =>
+        set((s) => ({
+          selected: s.selected.map((l) => {
+            if (l.id !== id) return l;
+            const side: Side = l.side === "buy" ? "sell" : "buy";
+            const m = marks.get(l.symbol);
+            const entry = side === "buy" ? m?.ask || l.entry : m?.bid || l.entry;
+            return { ...l, side, entry };
+          }),
+        })),
+      setLegRisk: (id, patch) =>
+        set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
+      clearLegs: () => set({ selected: [] }),
 
-  placeStrategy: (name, opts) =>
-    set((s) => {
-      if (s.selected.length === 0 || !s.chain) return s;
-      // margin from /api/margin (or fallback) is USD -> INR
-      const margin = (opts.margin ?? estimateMargin(s.selected, s.chain.spot));
-      const pos: Position = {
-        id: uid(),
-        name,
-        underlying: s.underlying,
-        expiry: s.chain.expiry,
-        legs: s.selected,
-        margin,
-        marginBadge: opts.badge ?? "est",
-        openedAt: Date.now(),
-        status: "open",
-        targetPnl: opts.target,
-        stopLossAmount: opts.stopLossAmount,
-        stopLossPctOfMargin: opts.stopLossPctOfMargin,
-        autoExit: opts.autoExit,
-        autoExitSuspended: false,
-        closedAt: null,
-        closeReason: null,
-        series: [],
-        notes: [],
-      };
-      pos.series = [buildSample(pos, Date.now())]; // seed the first sample from open
-      const balanceAfter = s.balance - margin;
-      // keep `selected` (the basket) — the user navigates to Positions instead
-      return {
-        positions: [pos, ...s.positions],
-        balance: balanceAfter,
-        ledger: [{ t: Date.now(), type: "margin_reserve", amount: -margin, balanceAfter, ref: pos.name }, ...s.ledger],
-        logs: log(s.logs, "PLACE", `${pos.name} · ${pos.legs.length} legs · margin $${fmt(margin)}`, "info"),
-      };
-    }),
+      // Server fills each leg at the live quote at execute time and computes
+      // margin/badge itself — opts.margin/badge are ignored (kept for signature
+      // compatibility). On success the returned full state replaces ours.
+      placeStrategy: async (name, opts) => {
+        const s = get();
+        if (s.selected.length === 0) return;
+        const legs: PlaceLegIn[] = s.selected.map((l) => ({
+          symbol: l.symbol, product_id: l.productId, underlying: l.underlying, type: l.type,
+          strike: l.strike, contract_value: l.contractValue, expiry: l.expiry, dte: l.dte,
+          side: l.side, qty: l.qty,
+        }));
+        const st = await placeStrategyApi({
+          name,
+          legs,
+          target_pnl: opts.target,
+          stop_loss_amount: opts.stopLossAmount,
+          stop_loss_pct_of_margin: opts.stopLossPctOfMargin,
+          auto_exit: opts.autoExit,
+        });
+        if (st) applyServerState(st);
+      },
 
-  closePosition: (id, reason) =>
-    set((s) => {
-      const pos = s.positions.find((p) => p.id === id);
-      if (!pos || pos.status === "closed") return s;
-      const legs = openLegs(pos);
-      const fills = exitFillRecord(legs);
-      // gross at exit fills (carries exit slippage); net = gross − entry fee − exit fee
-      const gross = netPnl(legs, fills);
-      const fees = entryFee(pos) + exitFee(pos);
-      const net = gross - fees;
-      const afterRelease = s.balance + pos.margin;
-      const afterFees = afterRelease - fees;
-      const balanceAfter = afterFees + gross;
-      const now = Date.now();
-      const why = reason ?? "manual";
-      const markClosed = (l: Leg): Leg => {
-        if (l.status !== "open") return l;
-        const exitFill = fills[l.symbol];
-        const spotNow = spots.get(l.underlying) ?? l.spotAtEntry;
-        const g = legPnl(l, exitFill);
-        const f = legFee(l.entry, l.spotAtEntry, l.contractValue, l.qty) + legFee(exitFill, spotNow, l.contractValue, l.qty);
-        return { ...l, status: "closed", exitPrice: exitFill, exitAt: now, exitReason: why, exitGross: g, exitFees: f };
-      };
-      return {
-        positions: s.positions.map((p) =>
-          p.id === id ? { ...p, status: "closed", closedAt: now, closeReason: why, legs: p.legs.map(markClosed) } : p,
-        ),
-        balance: balanceAfter,
-        ledger: [
-          { t: now, type: "realized", amount: gross, balanceAfter, ref: pos.name },
-          { t: now, type: "fee", amount: -fees, balanceAfter: afterFees, ref: pos.name },
-          { t: now, type: "margin_release", amount: pos.margin, balanceAfter: afterRelease, ref: pos.name },
-          ...s.ledger,
-        ],
-        logs: log(s.logs, `CLOSE (${why})`,
-          `${pos.name} · net ${net >= 0 ? "+" : ""}$${fmt(net)} (gross ${gross >= 0 ? "+" : ""}$${fmt(gross)} − fees $${fmt(fees)})`,
-          net >= 0 ? "pos" : "neg"),
-      };
-    }),
-
-  // close ONE leg: realize it (record exit price/PnL/reason), recompute exact
-  // margin for the still-open legs, free the difference. The closed leg stays in
-  // the strategy (status="closed") so its exit details remain visible. Closing the
-  // last open leg closes the whole strategy.
-  closeLeg: async (id, legId, reason) => {
-    const pos = get().positions.find((p) => p.id === id);
-    if (!pos || pos.status === "closed") return;
-    const leg = pos.legs.find((l) => l.id === legId && l.status === "open");
-    if (!leg) return;
-    const remaining = openLegs(pos).filter((l) => l.id !== legId); // still-open after this
-
-    const exitFill = exitFillRecord([leg])[leg.symbol];
-    const grossLeg = legPnl(leg, exitFill);
-    const spotNow = spots.get(leg.underlying) ?? leg.spotAtEntry;
-    const feesLeg =
-      legFee(leg.entry, leg.spotAtEntry, leg.contractValue, leg.qty) +
-      legFee(exitFill, spotNow, leg.contractValue, leg.qty);
-    const why = reason ?? "manual";
-
-    let newMargin = 0;
-    let badge: MarginBadge = pos.marginBadge;
-    if (remaining.length > 0) {
-      const r = await fetchMargin(
-        pos.underlying,
-        remaining.map((l) => ({ product_id: l.productId, side: l.side, size: l.qty })),
-      );
-      if (r) {
-        newMargin = r.margin;
-        badge = r.badge as MarginBadge;
-      } else {
-        newMargin = pos.margin; // margin fetch failed → keep the reserve unchanged
-      }
-    }
-    const label = `${leg.strike}${leg.type === "call" ? "CE" : "PE"}`;
-    const now = Date.now();
-
-    set((s) => {
-      const p = s.positions.find((x) => x.id === id);
-      if (!p || p.status === "closed") return s;
-      const closing = remaining.length === 0;
-      const released = p.margin - newMargin; // freed margin back to balance
-      const balanceAfter = s.balance + grossLeg - feesLeg + released;
-      const net = grossLeg - feesLeg;
-      const closedLeg = (l: Leg): Leg =>
-        l.id === legId
-          ? { ...l, status: "closed", exitPrice: exitFill, exitAt: now, exitReason: why, exitGross: grossLeg, exitFees: feesLeg }
-          : l;
-      return {
-        positions: s.positions.map((x) =>
-          x.id !== id
-            ? x
-            : {
-                ...x,
-                legs: x.legs.map(closedLeg),
-                margin: closing ? x.margin : newMargin,
-                marginBadge: closing ? x.marginBadge : badge,
-                ...(closing ? { status: "closed" as const, closedAt: now, closeReason: why } : {}),
-              },
-        ),
-        balance: balanceAfter,
-        ledger: [
-          { t: now, type: "realized", amount: grossLeg, balanceAfter, ref: `${p.name} · ${label}` },
-          { t: now, type: "fee", amount: -feesLeg, balanceAfter, ref: p.name },
-          { t: now, type: "margin_release", amount: released, balanceAfter, ref: p.name },
-          ...s.ledger,
-        ],
-        logs: log(
-          s.logs,
-          `LEG EXIT (${why})`,
-          `${p.name} · ${label} · exit ${exitFill.toFixed(1)} · net ${net >= 0 ? "+" : ""}$${fmt(net)}${closing ? " · strategy closed" : ""}`,
-          net >= 0 ? "pos" : "neg",
-        ),
-      };
-    });
-  },
-
-  setPositionStop: (id, patch) =>
-    set((s) => ({ positions: s.positions.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
-  setPositionLegRisk: (id, legId, patch) =>
-    set((s) => ({
-      positions: s.positions.map((p) =>
-        p.id === id ? { ...p, legs: p.legs.map((l) => (l.id === legId ? { ...l, ...patch } : l)) } : p,
-      ),
-    })),
-
-  addNote: (id, kind, body) =>
-    set((s) => ({
-      positions: s.positions.map((p) =>
-        p.id === id ? { ...p, notes: [...p.notes, { kind, body, at: Date.now() }] } : p,
-      ),
-    })),
+      closePosition: async (id, reason) => {
+        const st = await closePositionApi(id, reason);
+        if (st) applyServerState(st);
+      },
+      closeLeg: async (id, legId, reason) => {
+        const st = await closeLegApi(id, legId, reason);
+        if (st) applyServerState(st);
+      },
+      setPositionStop: async (id, patch) => {
+        const st = await setPositionRiskApi(id, posRiskPatch(patch));
+        if (st) applyServerState(st);
+      },
+      setPositionLegRisk: async (id, legId, patch) => {
+        const st = await setLegRiskApi(legId, legRiskPatch(patch));
+        if (st) applyServerState(st);
+      },
+      addNote: async (id, kind, body) => {
+        const st = await addNoteApi(id, kind, body);
+        if (st) applyServerState(st);
+      },
     }),
     {
       name: "paper-trader-v1",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
-      // persist account + positions/basket; NOT live data (chain/marks/conn re-stream
-      // on load) and NOT the per-second `series` (large + writes every tick; the MTM
-      // chart history restarts on refresh, but the position/PnL/risk survive).
+      // Server owns positions/balance/ledger/logs now — persist ONLY UI prefs (the
+      // builder basket + view selection + currency toggle). v2 migrate drops any
+      // legacy persisted positions/account so we cleanly start from server state.
       partialize: (s) => ({
-        positions: s.positions.map((p) => ({ ...p, series: [] as SeriesSample[] })),
-        balance: s.balance,
-        currency: s.currency,
-        ledger: s.ledger,
-        logs: s.logs,
         selected: s.selected,
         underlying: s.underlying,
         expiry: s.expiry,
+        currency: s.currency,
       }),
+      // default shallow merge applies this over the initial state, so a partial is
+      // fine at runtime; cast to satisfy the migrate signature.
+      migrate: (persisted) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        return {
+          selected: p.selected ?? [],
+          underlying: p.underlying ?? "BTC",
+          expiry: p.expiry ?? null,
+          currency: p.currency ?? "USD",
+        } as unknown as State;
+      },
     },
   ),
 );
 
-// Keep held-position marks live for ALL expiries (the chain WS only covers the
-// viewed one) — so every isolated strategy MTMs independently.
-let posMarkTimer: ReturnType<typeof setInterval> | null = null;
-async function pollPositionMarks(): Promise<void> {
-  const open = useStore.getState().positions.filter((p) => p.status === "open");
-  const syms = [...new Set(open.flatMap((p) => p.legs.map((l) => l.symbol)))];
-  if (syms.length === 0) return;
-  // pull fresh marks (+greeks) for held legs and ATM IV for every leg-expiry
-  const expiryPairs = [
-    ...new Map(
-      open.flatMap((p) => p.legs.map((l) => [`${p.underlying}|${l.expiry}`, { underlying: p.underlying, expiry: l.expiry }])),
-    ).values(),
-  ];
-  const [data] = await Promise.all([
-    fetchMarks(syms),
-    fetchAtmIv(expiryPairs).then((iv) => {
-      for (const [k, v] of Object.entries(iv)) atmIvs.set(k, v);
-    }),
-  ]);
-  const now = Date.now();
-  for (const [sym, m] of Object.entries(data)) marks.set(sym, { ...m, ts: now });
-  let actions: { posId: string; decision: ExitDecision }[] = [];
-  useStore.setState((s) => {
-    const t = tickPositions(s.positions, now);
-    actions = t.actions;
-    return { tickN: s.tickN + 1, positions: t.positions };
-  });
-  applyExitActions(actions);
-}
-
-// Poll the Delta-feed freshness (drives the stale-data guard) independently of
-// the localhost socket — so we know if the backend's Delta prices are frozen.
-let feedTimer: ReturnType<typeof setInterval> | null = null;
-async function pollFeed(): Promise<void> {
-  const f = await fetchFeed();
-  useStore.setState({ feedFresh: f.fresh, feedAge: f.ageSeconds });
-}
-
+// Hydrate server state + open the chain WS (basket preview) + the state WS (live
+// positions) + the feed poll (stale guard). Returns a teardown fn.
 export function startStream(): () => void {
+  hydrate();
   useStore.getState().connect();
-  if (!posMarkTimer) posMarkTimer = setInterval(pollPositionMarks, 1500);
+  if (!stateDisconnect) stateDisconnect = connectState(onStateTick);
   if (!feedTimer) {
     pollFeed();
     feedTimer = setInterval(pollFeed, 2000);
   }
   return () => {
-    disconnect?.();
-    if (posMarkTimer) {
-      clearInterval(posMarkTimer);
-      posMarkTimer = null;
-    }
+    disconnectChain?.();
+    disconnectChain = null;
+    stateDisconnect?.();
+    stateDisconnect = null;
     if (feedTimer) {
       clearInterval(feedTimer);
       feedTimer = null;
@@ -612,21 +389,30 @@ export function startStream(): () => void {
   };
 }
 
+// --- live read helpers (used by components) --------------------------------- //
+// Placed-position legs carry server live values (leg.mark/iv/pnl). Unplaced basket
+// legs fall back to the live chain feed, then to the entry snapshot.
 export function legMark(leg: Leg): number {
-  return marks.get(leg.symbol)?.mark ?? leg.entry;
+  return leg.mark ?? marks.get(leg.symbol)?.mark ?? leg.entry;
 }
 export function legIv(leg: Leg): number {
-  return marks.get(leg.symbol)?.iv ?? 0;
+  return leg.iv ?? marks.get(leg.symbol)?.iv ?? 0;
+}
+// Live would-fill premium for an UNPLACED basket leg (buy crosses to ask, sell to
+// bid) — drives the builder's real-time premium/net until the order is executed.
+export function legBasketPrice(leg: Leg): number {
+  const m = marks.get(leg.symbol);
+  if (!m) return leg.entry;
+  return leg.side === "buy" ? m.ask || m.mark || leg.entry : m.bid || m.mark || leg.entry;
 }
 export function spotOf(u: Underlying): number {
   return spots.get(u) ?? 0;
 }
 export function positionPnl(p: Position): number {
-  const legs = openLegs(p);
-  return netPnl(legs, markRecord(legs));
+  return p.pnl ?? 0;
 }
-// Cost of crossing the spread on entry (USD). Already reflected in MTM via the
-// fill price; shown separately for transparency. Brokerage is NOT included here.
+// Cost of crossing the spread on entry (USD) — computed from the leg's STATIC
+// entry/markAtEntry, so it's stable regardless of live marks.
 export function entrySlippage(p: Position): number {
   return openLegs(p).reduce(
     (s, l) => s + Math.abs(l.entry - l.markAtEntry) * l.qty * l.contractValue,
@@ -638,10 +424,10 @@ export function entrySlippage(p: Position): number {
 // referral discount, then +18% GST. Per leg, on entry AND exit.
 // notional = spot·cv·qty, premium = price·cv·qty.
 //
-// Delta runs promos that change the options rate, so the OFFER is a first-class,
-// explicit choice — "check the offer before the brokerage calculation". Each
-// schedule is named; ACTIVE_FEE selects the one in force. Verified to the cent
-// against Delta's own fee calculator. Re-check delta.exchange/fees when promos change.
+// The AUTHORITATIVE fee/fill/margin model now lives server-side (backend money
+// engine). These constants + entryFee remain client-side ONLY to render the
+// entry-fee line + tooltip, computed from the leg's static entry data (no live
+// marks). Verified to the cent against Delta's calculator; mirrors the server.
 // Sources: delta.exchange/support .../80001177864 · delta.exchange/fees
 export interface FeeSchedule {
   name: string;
@@ -667,14 +453,7 @@ function legFee(price: number, spot: number, cv: number, qty: number): number {
 export function entryFee(p: Position): number {
   return openLegs(p).reduce((s, l) => s + legFee(l.entry, l.spotAtEntry, l.contractValue, l.qty), 0);
 }
-export function exitFee(p: Position): number {
-  const legs = openLegs(p);
-  const fills = exitFillRecord(legs);
-  return legs.reduce((s, l) => {
-    const spot = spots.get(l.underlying) ?? l.spotAtEntry;
-    return s + legFee(fills[l.symbol], spot, l.contractValue, l.qty);
-  }, 0);
-}
+
 // USD money formatter (2 decimals).
 export function fmt(x: number): string {
   return x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

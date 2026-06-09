@@ -63,6 +63,14 @@ export interface Leg {
   exitReason: string | null; // "manual" | "leg TP/SL" | "combined SL" | ...
   exitGross: number | null; // gross PnL at exit fill (before fees)
   exitFees: number | null; // entry + exit fee for this leg
+  // live values the server stamps onto each leg (undefined on a client-only basket
+  // leg until it's placed; read via legMark/legIv which fall back to the chain feed).
+  mark?: number; // live mark
+  iv?: number; // live mark IV (fraction)
+  bid?: number; // live best bid
+  ask?: number; // live best ask
+  spread?: number; // ask − bid
+  pnl?: number; // live (open) or realized (closed) leg PnL, server-computed
 }
 
 // One sampled MTM/IV/greeks row for a position (taken ~1/sec from open). Net
@@ -105,6 +113,13 @@ export interface Position {
   closeReason: string | null; // reason the strategy closed (manual / SL / ...)
   series: SeriesSample[]; // per-second net + per-leg MTM/IV/greeks, from open
   notes: { kind: "entry" | "exit"; body: string; at: number }[];
+  // live aggregates the server stamps on (read via positionPnl/entrySlippage)
+  entryMargin?: number; // margin reserved at entry (rolling `margin` may differ)
+  pnl?: number; // net live PnL (USD), server-computed
+  delta?: number; // net delta (BTC)
+  theta?: number; // net theta (USD/day)
+  vega?: number; // net vega (USD per 1 vol-point)
+  entrySlippage?: number; // server's entry-slippage (we recompute client-side too)
 }
 
 export interface LedgerEntry {

@@ -10,7 +10,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import clsx from "clsx";
 import { type PayoffData, fetchPayoff } from "@/lib/api";
 import { greeks as bsGreeks, impliedVol } from "@/lib/bs";
-import { type Currency, legMark, money, useStore } from "@/lib/store";
+import { type Currency, legBasketPrice, legMark, money, useStore } from "@/lib/store";
 import type { Leg, OptionChain } from "@/lib/types";
 
 type Tab = "graph" | "table" | "greeks";
@@ -20,6 +20,10 @@ const clampN = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), 
 export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
   const storeSelected = useStore((s) => s.selected);
   const selected = legs ?? storeSelected; // analyse a placed position, or the builder basket
+  const isBasket = !legs; // basket legs aren't filled yet → price them off the LIVE feed
+  useStore((s) => s.tickN); // basket: re-render on chain ticks so the live entry tracks
+  // entry cost: a placed leg has a fixed fill; an unplaced basket leg uses the live would-fill
+  const entryOf = (l: Leg) => (isBasket ? legBasketPrice(l) : l.entry);
   const currency = useStore((s) => s.currency);
   const chain = useStore((s) => s.chain);
   const spot = chain?.spot ?? 0;
@@ -53,14 +57,18 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
   const padF = Math.max(0.18 * spot, 0.8 * (aMaxF - aMinF));
   const lo = spot > 0 ? Math.max(aMinF - padF, 1) : 0;
   const hi = spot > 0 ? aMaxF + padF : 0;
-  const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}:${legIvAdj[l.id] ?? 0}`).join(",");
+  // basket: bucket the live entry (≥0.5 move) into the key so the curve refreshes
+  // as the premium drifts — without re-fetching on every sub-tick.
+  const key = selected
+    .map((l) => `${l.productId}:${l.side}:${l.qty}:${legIvAdj[l.id] ?? 0}${isBasket ? `:${Math.round(legBasketPrice(l) * 2)}` : ""}`)
+    .join(",");
 
   useEffect(() => {
     if (selected.length === 0 || spot <= 0) return;
     const h = setTimeout(async () => {
       const d = await fetchPayoff({
         legs: selected.map((l) => ({
-          option_type: l.type, side: l.side, qty: l.qty, strike: l.strike, entry: l.entry,
+          option_type: l.type, side: l.side, qty: l.qty, strike: l.strike, entry: entryOf(l),
           iv: Math.max(baseIv(l) + (legIvAdj[l.id] ?? 0) / 100, 1e-3),
           contract_value: l.contractValue,
         })),

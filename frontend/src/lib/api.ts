@@ -1,7 +1,16 @@
 // Real Delta data via the backend: all expiries + a live chain WebSocket.
 // Maps the backend (/v2/tickers-derived) shape into the UI types.
 
-import type { ChainRow, Contract, OptionChain, Underlying } from "./types";
+import type {
+  ChainRow,
+  Contract,
+  LedgerEntry,
+  LogEntry,
+  OptionChain,
+  Position,
+  Side,
+  Underlying,
+} from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8010";
 const WS = process.env.NEXT_PUBLIC_WS_BASE ?? "ws://localhost:8010";
@@ -257,4 +266,126 @@ export async function fetchMargin(
   } catch {
     return null;
   }
+}
+
+// --- server-authoritative sim state ---------------------------------------- //
+// The backend owns positions/balance/ledger/logs (Postgres+Timescale). All
+// mutations return the FRESH full state; a WS pushes a ~1s live tick. Shapes are
+// camelCase + epoch-ms, matching ./types directly (see backend/app/sim/service.py).
+
+export interface Account {
+  balance: number;
+  currency: string;
+  startBalance: number;
+}
+export interface ServerState {
+  account: Account;
+  positions: Position[];
+  ledger: LedgerEntry[];
+  logs: LogEntry[];
+}
+
+export interface PlaceLegIn {
+  symbol: string;
+  product_id: number;
+  underlying: Underlying;
+  type: "call" | "put";
+  strike: number;
+  contract_value: number;
+  expiry: string;
+  dte: number;
+  side: Side;
+  qty: number;
+}
+export interface PlaceStrategyIn {
+  name: string;
+  legs: PlaceLegIn[];
+  target_pnl: number | null;
+  stop_loss_amount: number | null;
+  stop_loss_pct_of_margin: number | null;
+  auto_exit: boolean;
+}
+
+async function postJson(path: string, body?: unknown): Promise<ServerState | null> {
+  try {
+    const r = await fetch(`${API}${path}`, {
+      method: body && (body as { __patch?: boolean }).__patch ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(stripMeta(body)) : undefined,
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as ServerState;
+  } catch {
+    return null;
+  }
+}
+function stripMeta(b: unknown): unknown {
+  if (b && typeof b === "object" && "__patch" in (b as object)) {
+    const rest: Record<string, unknown> = { ...(b as Record<string, unknown>) };
+    delete rest.__patch;
+    return rest;
+  }
+  return b;
+}
+
+export async function fetchState(): Promise<ServerState | null> {
+  try {
+    const r = await fetch(`${API}/api/state`);
+    if (!r.ok) return null;
+    return (await r.json()) as ServerState;
+  } catch {
+    return null;
+  }
+}
+
+export const placeStrategy = (req: PlaceStrategyIn): Promise<ServerState | null> =>
+  postJson(`/api/strategies`, req);
+
+export const closePositionApi = (id: string, reason?: string): Promise<ServerState | null> =>
+  postJson(`/api/strategies/${id}/close`, { reason: reason ?? null });
+
+export const closeLegApi = (id: string, legId: string, reason?: string): Promise<ServerState | null> =>
+  postJson(`/api/strategies/${id}/legs/${legId}/close`, { reason: reason ?? null });
+
+// PATCH risk — only the keys present in `patch` are sent (server uses model_fields_set
+// to distinguish "set to null" from "leave unchanged"); __patch flags the verb.
+export const setPositionRiskApi = (
+  id: string,
+  patch: Partial<{ target_pnl: number | null; stop_loss_amount: number | null; stop_loss_pct_of_margin: number | null; auto_exit: boolean }>,
+): Promise<ServerState | null> => postJson(`/api/strategies/${id}/risk`, { ...patch, __patch: true });
+
+export const setLegRiskApi = (
+  legId: string,
+  patch: Partial<{ target_pnl: number | null; stop_pnl: number | null; auto_exit: boolean; close_scope: string }>,
+): Promise<ServerState | null> => postJson(`/api/legs/${legId}/risk`, { ...patch, __patch: true });
+
+export const addNoteApi = (id: string, kind: "entry" | "exit", body: string): Promise<ServerState | null> =>
+  postJson(`/api/strategies/${id}/notes`, { kind, body });
+
+export interface StateTick {
+  type: "tick";
+  balance: number;
+  currency: string;
+  openIds: string[];
+  positions: (Partial<Position> & { id: string; sample?: import("./types").SeriesSample })[];
+}
+
+/** Connect the live state WS (~1s tick). Returns a disconnect fn. */
+export function connectState(
+  onTick: (t: StateTick) => void,
+  onState?: (s: "live" | "down") => void,
+): () => void {
+  let closed = false;
+  const ws = new WebSocket(`${WS}/api/ws/state`);
+  ws.onopen = () => onState?.("live");
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === "tick") onTick(m as StateTick);
+  };
+  ws.onclose = () => !closed && onState?.("down");
+  ws.onerror = () => onState?.("down");
+  return () => {
+    closed = true;
+    ws.close();
+  };
 }
