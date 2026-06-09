@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { connectChain, fetchAtmIv, fetchExpiries, fetchMargin, fetchMarks } from "./api";
 import { estimateMargin, legPnl, netPnl } from "./engine";
 import { type ExitDecision, type ExitInput, evaluateExit } from "./exit";
@@ -156,7 +157,7 @@ function tickPositions(positions: Position[], now: number): {
       actions.push({ posId: p.id, decision });
     }
     const last = p.series[p.series.length - 1];
-    const series = now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
+    const series = !last || now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
     return { ...p, series, autoExitSuspended: decision.kind === "suspended" };
   });
   return { positions: next, actions };
@@ -209,7 +210,9 @@ function log(logs: LogEntry[], action: string, detail: string, tone?: LogEntry["
   return [{ t: Date.now(), action, detail, tone }, ...logs].slice(0, 200);
 }
 
-export const useStore = create<State>((set, get) => ({
+export const useStore = create<State>()(
+  persist(
+    (set, get) => ({
   underlying: "BTC",
   expiry: null,
   chain: null,
@@ -484,7 +487,27 @@ export const useStore = create<State>((set, get) => ({
         p.id === id ? { ...p, notes: [...p.notes, { kind, body, at: Date.now() }] } : p,
       ),
     })),
-}));
+    }),
+    {
+      name: "paper-trader-v1",
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      // persist account + positions/basket; NOT live data (chain/marks/conn re-stream
+      // on load) and NOT the per-second `series` (large + writes every tick; the MTM
+      // chart history restarts on refresh, but the position/PnL/risk survive).
+      partialize: (s) => ({
+        positions: s.positions.map((p) => ({ ...p, series: [] as SeriesSample[] })),
+        balance: s.balance,
+        currency: s.currency,
+        ledger: s.ledger,
+        logs: s.logs,
+        selected: s.selected,
+        underlying: s.underlying,
+        expiry: s.expiry,
+      }),
+    },
+  ),
+);
 
 // Keep held-position marks live for ALL expiries (the chain WS only covers the
 // viewed one) — so every isolated strategy MTMs independently.
