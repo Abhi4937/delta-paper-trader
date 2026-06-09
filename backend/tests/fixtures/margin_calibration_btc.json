@@ -1,0 +1,263 @@
+{
+  "captured_dte": 10,
+  "spot": 63383.9,
+  "baskets": [
+    {
+      "name": "short_atm_call",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 0.86238165144,
+      "local_margin": 0.8611218609980424,
+      "legs": [
+        {
+          "symbol": "C-BTC-63500-190626",
+          "product_id": 137201,
+          "option_type": "call",
+          "side": "sell",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1968.29158627,
+          "iv": 0.46915592,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "long_atm_call",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 2.0049646656,
+      "local_margin": 1.96829158627,
+      "legs": [
+        {
+          "symbol": "C-BTC-63500-190626",
+          "product_id": 137201,
+          "option_type": "call",
+          "side": "buy",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1968.29158627,
+          "iv": 0.46915592,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "short_atm_put",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 0.91728479747,
+      "local_margin": 0.8460563529048922,
+      "legs": [
+        {
+          "symbol": "P-BTC-63500-190626",
+          "product_id": 137200,
+          "option_type": "put",
+          "side": "sell",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1993.60353777,
+          "iv": 0.44766478,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "short_straddle",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 1.15668235325,
+      "local_margin": 1.0882754072081298,
+      "legs": [
+        {
+          "symbol": "C-BTC-63500-190626",
+          "product_id": 137201,
+          "option_type": "call",
+          "side": "sell",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1968.29158627,
+          "iv": 0.46915592,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "P-BTC-63500-190626",
+          "product_id": 137200,
+          "option_type": "put",
+          "side": "sell",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1993.60353777,
+          "iv": 0.44766478,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "long_straddle",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 4.0089271128,
+      "local_margin": 3.9618951240399998,
+      "legs": [
+        {
+          "symbol": "C-BTC-63500-190626",
+          "product_id": 137201,
+          "option_type": "call",
+          "side": "buy",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1968.29158627,
+          "iv": 0.46915592,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "P-BTC-63500-190626",
+          "product_id": 137200,
+          "option_type": "put",
+          "side": "buy",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1993.60353777,
+          "iv": 0.44766478,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "short_strangle",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 1.0915881754,
+      "local_margin": 1.0199917175723459,
+      "legs": [
+        {
+          "symbol": "C-BTC-65500-190626",
+          "product_id": 136987,
+          "option_type": "call",
+          "side": "sell",
+          "size": 1,
+          "strike": 65500.0,
+          "mark": 1080.94386682,
+          "iv": 0.44689453,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "P-BTC-61500-190626",
+          "product_id": 137325,
+          "option_type": "put",
+          "side": "sell",
+          "size": 1,
+          "strike": 61500.0,
+          "mark": 1237.24630667,
+          "iv": 0.48026505,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "bull_call_spread",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 2.02101112052,
+      "local_margin": 1.96829158627,
+      "legs": [
+        {
+          "symbol": "C-BTC-63500-190626",
+          "product_id": 137201,
+          "option_type": "call",
+          "side": "buy",
+          "size": 1,
+          "strike": 63500.0,
+          "mark": 1968.29158627,
+          "iv": 0.46915592,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "C-BTC-65500-190626",
+          "product_id": 136987,
+          "option_type": "call",
+          "side": "sell",
+          "size": 1,
+          "strike": 65500.0,
+          "mark": 1080.94386682,
+          "iv": 0.44689453,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "iron_condor",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 0.88442113297,
+      "local_margin": 1.067860898720003,
+      "legs": [
+        {
+          "symbol": "C-BTC-65500-190626",
+          "product_id": 136987,
+          "option_type": "call",
+          "side": "sell",
+          "size": 1,
+          "strike": 65500.0,
+          "mark": 1080.94386682,
+          "iv": 0.44689453,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "C-BTC-67000-190626",
+          "product_id": 136279,
+          "option_type": "call",
+          "side": "buy",
+          "size": 1,
+          "strike": 67000.0,
+          "mark": 638.59448287,
+          "iv": 0.43540897,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "P-BTC-61500-190626",
+          "product_id": 137325,
+          "option_type": "put",
+          "side": "sell",
+          "size": 1,
+          "strike": 61500.0,
+          "mark": 1237.24630667,
+          "iv": 0.48026505,
+          "contract_value": 0.001
+        },
+        {
+          "symbol": "P-BTC-59500-190626",
+          "product_id": 137679,
+          "option_type": "put",
+          "side": "buy",
+          "size": 1,
+          "strike": 59500.0,
+          "mark": 747.45658934,
+          "iv": 0.51521455,
+          "contract_value": 0.001
+        }
+      ]
+    },
+    {
+      "name": "short_call_x10",
+      "spot": 63383.9,
+      "dte_days": 10,
+      "delta_margin": 8.8076356798,
+      "local_margin": 8.611218609980424,
+      "legs": [
+        {
+          "symbol": "C-BTC-63500-190626",
+          "product_id": 137201,
+          "option_type": "call",
+          "side": "sell",
+          "size": 10,
+          "strike": 63500.0,
+          "mark": 1968.29158627,
+          "iv": 0.46915592,
+          "contract_value": 0.001
+        }
+      ]
+    }
+  ]
+}

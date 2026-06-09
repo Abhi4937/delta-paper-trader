@@ -1,0 +1,154 @@
+"""FastAPI application entrypoint.
+
+Walking skeleton: a health endpoint + an app WebSocket that streams a heartbeat.
+This proves the backend->browser realtime path before any Delta wiring lands.
+Run: uv run uvicorn app.main:app --reload --port 8010
+(Port 8010 by default to avoid colliding with other local services on 8000.)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+from collections.abc import AsyncIterator
+from datetime import UTC, date, datetime
+
+import httpx
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+
+from app import __version__
+from app.api import chain as chain_api
+from app.api import margin as margin_api
+from app.config import get_settings
+from app.delta.rest import DeltaRestClient
+from app.services import chain as chain_svc
+from app.services.margin import MarginService
+from app.services.market_data import MarketDataIngestor
+
+settings = get_settings()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Own the shared Delta client, httpx client, margin service, and WS ingestor."""
+    app.state.delta = DeltaRestClient(settings)
+    app.state.http = httpx.AsyncClient(timeout=20.0)
+    app.state.margin = MarginService(settings)
+    app.state.market = MarketDataIngestor(settings)
+    await app.state.market.start()
+    try:
+        yield
+    finally:
+        await app.state.market.stop()
+        await app.state.delta.aclose()
+        await app.state.http.aclose()
+
+
+app = FastAPI(title="Paper Trader API", version=__version__, lifespan=lifespan)
+app.include_router(chain_api.router)
+app.include_router(margin_api.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    """Liveness probe."""
+    return {"status": "ok", "version": __version__, "env": settings.app_env}
+
+
+@app.get("/api/marks")
+async def marks(symbols: str) -> dict:
+    """Latest mark/bid/ask for arbitrary symbols (any expiry) from the WS cache —
+    powers live MTM for held positions regardless of the chain currently viewed."""
+    cache = app.state.market.tickers
+    out: dict[str, dict] = {}
+    for s in (sym for sym in symbols.split(",") if sym):
+        t = cache.get(s)
+        if not t:
+            continue
+        q = t.get("quotes") or {}
+        out[s] = {
+            "mark": float(t.get("mark_price") or 0),
+            "bid": float(q.get("best_bid") or 0),
+            "ask": float(q.get("best_ask") or 0),
+            "iv": float(q.get("mark_iv") or 0),
+        }
+    return out
+
+
+@app.get("/api/orderbook")
+async def orderbook(symbol: str) -> dict:
+    """Live L2 order book (depth) for a contract — Delta /v2/l2orderbook."""
+    data = await app.state.delta.get(f"/v2/l2orderbook/{symbol}")
+    res = data.get("result", data) if isinstance(data, dict) else {}
+    return {
+        "symbol": symbol,
+        "buy": res.get("buy", []),
+        "sell": res.get("sell", []),
+    }
+
+
+@app.websocket("/ws")
+async def ws(websocket: WebSocket) -> None:
+    """App heartbeat WebSocket (liveness)."""
+    await websocket.accept()
+    try:
+        n = 0
+        while True:
+            await websocket.send_json(
+                {"type": "heartbeat", "seq": n, "ts": datetime.now(UTC).isoformat()}
+            )
+            n += 1
+            await asyncio.sleep(1.0)
+    except WebSocketDisconnect:
+        return
+    except asyncio.CancelledError:
+        with contextlib.suppress(Exception):
+            await websocket.close()
+        raise
+
+
+@app.websocket("/ws/chain")
+async def ws_chain(websocket: WebSocket) -> None:
+    """Stream the LIVE Delta option chain for an underlying+expiry.
+
+    Client sends `{"underlying":"BTC","expiry":"2026-06-19"}` once; we push the
+    real chain (+ all expiries) from the native Delta-WS ingestor cache, pushed
+    every ~0.3s. Live push data — no REST polling.
+    """
+    await websocket.accept()
+    market = app.state.market
+    try:
+        params = await websocket.receive_json()
+        underlying = str(params.get("underlying", "BTC")).upper()
+        expiry_str = params.get("expiry")
+        while True:
+            expiries = market.expiries(underlying)
+            exp = (
+                date.fromisoformat(expiry_str)
+                if expiry_str
+                else chain_svc.default_expiry(expiries)
+            )
+            chain = market.chain(underlying, exp)
+            await websocket.send_json(
+                {
+                    "type": "chain",
+                    "chain": chain.model_dump(mode="json"),
+                    "expiries": [e.isoformat() for e in expiries],
+                }
+            )
+            await asyncio.sleep(0.3)
+    except WebSocketDisconnect:
+        return
+    except asyncio.CancelledError:
+        with contextlib.suppress(Exception):
+            await websocket.close()
+        raise

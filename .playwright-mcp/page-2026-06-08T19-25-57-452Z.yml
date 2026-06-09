@@ -1,0 +1,14 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "404 Error" [level=2] [ref=e7]
+      - heading "Page not found.." [level=2] [ref=e8]
+      - heading "Sorry, the page you are looking for doesn’t exist or it is under maintenance. please try again after some time." [level=2] [ref=e9]
+      - button "Back to Homepage" [ref=e11] [cursor=pointer]
+    - img "not-found" [ref=e12]
+  - generic [ref=e14]:
+    - img [ref=e15]
+    - link "Connected" [ref=e20] [cursor=pointer]:
+      - /url: https://status.delta.exchange
+      - text: Connected
+      - img [ref=e21]

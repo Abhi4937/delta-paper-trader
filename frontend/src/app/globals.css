@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────────────────
+   Delta Paper — industrial crypto-options terminal
+   Near-black canvas, sharp data grids, electric accent, tabular numerics.
+   ───────────────────────────────────────────────────────────── */
+@theme {
+  /* Delta Exchange-matched palette (warm charcoal, green bid / red ask, orange) */
+  --color-base: #18191e;
+  --color-surface: #1e2027;
+  --color-surface-2: #24262e;
+  --color-surface-3: #2b2d37;
+  --color-line: #2c2e38;
+  --color-line-strong: #3a3d49;
+
+  --color-text: #f6f7f9;
+  --color-text-dim: #c2c7d0;
+  --color-text-mute: #848a94;
+
+  --color-accent: #fb8b1e; /* Delta orange */
+  --color-accent-dim: #7a4a14;
+  --color-pos: #33b991; /* bid / profit */
+  --color-neg: #ff5c5c; /* ask / loss */
+  --color-warn: #f5b53d;
+  --color-info: #3d9bff;
+
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+
+  --radius: 5px;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-base);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* tabular numerics everywhere numbers live */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
+
+/* faint engineering grid texture for panels */
+.grid-tex {
+  background-image:
+    linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+  opacity: 0.35;
+}
+
+/* price flash micro-interactions */
+@keyframes flash-up {
+  0% { background-color: rgba(34, 201, 138, 0.28); }
+  100% { background-color: transparent; }
+}
+@keyframes flash-down {
+  0% { background-color: rgba(255, 77, 94, 0.26); }
+  100% { background-color: transparent; }
+}
+.flash-up { animation: flash-up 0.45s ease-out; }
+.flash-down { animation: flash-down 0.45s ease-out; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* thin custom scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--color-line-strong);
+  border-radius: 4px;
+}
+::selection { background: rgba(0, 229, 168, 0.25); }

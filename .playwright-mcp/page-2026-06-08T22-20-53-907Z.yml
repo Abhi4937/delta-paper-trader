@@ -1,0 +1,2126 @@
+- main [ref=e4]:
+  - navigation [ref=e5]:
+    - link [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img [ref=e7]
+    - button "Markets" [ref=e31] [cursor=pointer]
+    - button "Futures" [ref=e32] [cursor=pointer]
+    - button "Options" [ref=e33] [cursor=pointer]
+    - generic [ref=e35] [cursor=pointer]:
+      - text: AlgoHub
+      - img [ref=e36]
+    - generic [ref=e39] [cursor=pointer]:
+      - text: More
+      - img [ref=e40]
+    - generic [ref=e46]:
+      - img [ref=e48]
+      - textbox "Search" [ref=e55]
+    - generic [ref=e57] [cursor=pointer]:
+      - button "Log In" [ref=e58]
+      - button "Sign Up" [ref=e59]
+    - button [ref=e61] [cursor=pointer]:
+      - img [ref=e62]
+    - button [ref=e65] [cursor=pointer]:
+      - img [ref=e66]
+    - link [ref=e68] [cursor=pointer]:
+      - /url: https://www.delta.exchange/support
+      - img [ref=e69]
+    - button [ref=e72] [cursor=pointer]:
+      - img [ref=e73]
+  - generic [ref=e76]:
+    - button [disabled] [ref=e78]:
+      - img [ref=e79]
+    - button [ref=e82] [cursor=pointer]:
+      - img [ref=e83]
+    - generic [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - button [disabled] [ref=e89]:
+            - img [ref=e90]:
+              - img [ref=e91]
+          - button [ref=e93] [cursor=pointer]:
+            - img [ref=e94]:
+              - img [ref=e95]
+        - generic [ref=e97]:
+          - generic [ref=e98]: Top Coins
+          - table [ref=e100]:
+            - rowgroup [ref=e101]:
+              - row "BTC BTCUSD $63279.5 -0.44%" [ref=e102]:
+                - cell "BTC BTCUSD" [ref=e103]:
+                  - generic [ref=e104]:
+                    - img "BTC" [ref=e105]
+                    - generic [ref=e106]: BTCUSD
+                - cell "$63279.5 -0.44%" [ref=e107]:
+                  - generic [ref=e108]:
+                    - generic [ref=e109]: $63279.5
+                    - generic [ref=e110]: "-0.44%"
+            - rowgroup [ref=e111]:
+              - row "ETH ETHUSD $1691.45 +0.01%" [ref=e112]:
+                - cell "ETH ETHUSD" [ref=e113]:
+                  - generic [ref=e114]:
+                    - img "ETH" [ref=e115]
+                    - generic [ref=e116]: ETHUSD
+                - cell "$1691.45 +0.01%" [ref=e117]:
+                  - generic [ref=e118]:
+                    - generic [ref=e119]: $1691.45
+                    - generic [ref=e120]: +0.01%
+            - rowgroup [ref=e121]:
+              - row "PIPPIN PIPPINUSD $0.02397 +42.68%" [ref=e122]:
+                - cell "PIPPIN PIPPINUSD" [ref=e123]:
+                  - generic [ref=e124]:
+                    - img "PIPPIN" [ref=e125]
+                    - generic [ref=e126]: PIPPINUSD
+                - cell "$0.02397 +42.68%" [ref=e127]:
+                  - generic [ref=e128]:
+                    - generic [ref=e129]: $0.02397
+                    - generic [ref=e130]: +42.68%
+            - rowgroup [ref=e131]:
+              - row "LAYER LAYERUSD $0.0771 +19.91%" [ref=e132]:
+                - cell "LAYER LAYERUSD" [ref=e133]:
+                  - generic [ref=e134]:
+                    - img "LAYER" [ref=e135]
+                    - generic [ref=e136]: LAYERUSD
+                - cell "$0.0771 +19.91%" [ref=e137]:
+                  - generic [ref=e138]:
+                    - generic [ref=e139]: $0.0771
+                    - generic [ref=e140]: +19.91%
+      - link "signup" [ref=e141] [cursor=pointer]:
+        - /url: https://www.delta.exchange/app/signup
+        - img "signup" [ref=e142]
+      - link "Refer_Earn" [ref=e143] [cursor=pointer]:
+        - /url: https://www.delta.exchange/offers
+        - img "Refer_Earn" [ref=e144]
+      - link "gold" [ref=e145] [cursor=pointer]:
+        - /url: https://www.delta.exchange/app/futures/trade/XAUT/XAUTUSD?type=rwa
+        - img "gold" [ref=e146]
+      - link "BTC Futures Scalper" [ref=e147] [cursor=pointer]:
+        - /url: https://www.delta.exchange/app/signup
+        - img "BTC Futures Scalper" [ref=e148]
+  - generic [ref=e149]:
+    - generic [ref=e151]:
+      - link "Watchlist" [ref=e152] [cursor=pointer]:
+        - /url: /app/
+        - generic [ref=e155]: Watchlist
+      - link "Futures" [ref=e156] [cursor=pointer]:
+        - /url: /app/futures/markets
+        - generic [ref=e157]: Futures
+      - link "Options" [ref=e158] [cursor=pointer]:
+        - /url: /app/options_chain/markets
+        - generic [ref=e159]: Options
+      - link "RWA Tokens" [ref=e161] [cursor=pointer]:
+        - /url: /app/futures/markets?tab=rwa
+        - generic [ref=e162]: RWA Tokens
+      - link "Straddle" [ref=e163] [cursor=pointer]:
+        - /url: /app/move_options/markets
+        - generic [ref=e164]: Straddle
+      - link "Spot" [ref=e165] [cursor=pointer]:
+        - /url: /app/spot/markets
+        - generic [ref=e166]: Spot
+      - link "Analytics" [ref=e167] [cursor=pointer]:
+        - /url: /app/options_analytics/markets
+        - generic [ref=e168]: Analytics
+    - generic [ref=e169]:
+      - generic [ref=e171]:
+        - generic [ref=e172]: 24 hr Volume
+        - text: $5295.5M
+      - button "Download" [ref=e174] [cursor=pointer]:
+        - generic [ref=e175]:
+          - generic [ref=e176]: Download
+          - img [ref=e177]
+  - generic [ref=e180]:
+    - generic [ref=e181]:
+      - generic [ref=e182]:
+        - generic [ref=e183]:
+          - tab "BTC" [ref=e184] [cursor=pointer]
+          - tab "ETH" [ref=e185] [cursor=pointer]
+        - button "19th Jun 2026" [ref=e188] [cursor=pointer]:
+          - generic [ref=e189]:
+            - generic [ref=e190]: 19th Jun 2026
+            - img [ref=e191]
+      - generic [ref=e193]:
+        - generic "Hide/Show Columns" [ref=e194]:
+          - button [ref=e195] [cursor=pointer]:
+            - img [ref=e197]
+        - button "Resources" [ref=e200] [cursor=pointer]:
+          - img [ref=e202]
+          - generic [ref=e204]:
+            - generic [ref=e205]: Resources
+            - img [ref=e206]
+    - generic [ref=e208]:
+      - generic [ref=e209]:
+        - generic [ref=e210]:
+          - generic [ref=e211]: Calls
+          - generic [ref=e212]: "BTC: $63310.1"
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - text: "Time to Expiry:"
+            - time [ref=e215]: 10d:13h:39m
+          - generic [ref=e216]: Puts
+      - generic [ref=e217]:
+        - grid [ref=e218]:
+          - row "Bid Qty BTC Bid Price / IV Ask Price / IV Ask Qty BTC Delta 6H OI Chg. OI Strike OI 6H OI Chg. Delta Bid Qty BTC Bid Price / IV Ask Price / IV Ask Qty BTC" [ref=e220]:
+            - columnheader "Bid Qty BTC" [ref=e221]:
+              - generic [ref=e223]:
+                - generic [ref=e224]: Bid Qty
+                - generic [ref=e225]: BTC
+            - columnheader "Bid Price / IV" [ref=e226]:
+              - generic [ref=e228]:
+                - generic [ref=e229]: Bid
+                - generic [ref=e230]: Price / IV
+            - columnheader "Ask Price / IV" [ref=e231]:
+              - generic [ref=e233]:
+                - generic [ref=e234]: Ask
+                - generic [ref=e235]: Price / IV
+            - columnheader "Ask Qty BTC" [ref=e236]:
+              - generic [ref=e238]:
+                - generic [ref=e239]: Ask Qty
+                - generic [ref=e240]: BTC
+            - columnheader "Delta" [ref=e241]:
+              - generic [ref=e242]: Delta
+            - columnheader "6H OI Chg." [ref=e243]:
+              - generic [ref=e244]: 6H OI Chg.
+            - columnheader "OI" [ref=e245]:
+              - generic [ref=e246]: OI
+            - columnheader "Strike" [ref=e247] [cursor=pointer]:
+              - generic [ref=e249]:
+                - generic [ref=e250]: Strike
+                - img [ref=e252]
+            - columnheader "OI" [ref=e259]:
+              - generic [ref=e260]: OI
+            - columnheader "6H OI Chg." [ref=e261]:
+              - generic [ref=e262]: 6H OI Chg.
+            - columnheader "Delta" [ref=e263]:
+              - generic [ref=e264]: Delta
+            - columnheader "Bid Qty BTC" [ref=e265]:
+              - generic [ref=e267]:
+                - generic [ref=e268]: Bid Qty
+                - generic [ref=e269]: BTC
+            - columnheader "Bid Price / IV" [ref=e270]:
+              - generic [ref=e272]:
+                - generic [ref=e273]: Bid
+                - generic [ref=e274]: Price / IV
+            - columnheader "Ask Price / IV" [ref=e275]:
+              - generic [ref=e277]:
+                - generic [ref=e278]: Ask
+                - generic [ref=e279]: Price / IV
+            - columnheader "Ask Qty BTC" [ref=e280]:
+              - generic [ref=e282]:
+                - generic [ref=e283]: Ask Qty
+                - generic [ref=e284]: BTC
+          - generic [ref=e285]:
+            - rowgroup [ref=e286]:
+              - row "8.552 $10480.0 67.1% $10589.0 75.2% 5.717 0.94 63.27 $11.07K 53000 $682.46K -15.56K -0.05 8.552 $145.0 64.9% $150.0 65.3% 6.460" [ref=e287]:
+                - gridcell "8.552" [ref=e288] [cursor=pointer]:
+                  - generic [ref=e290]: "8.552"
+                - gridcell "$10480.0 67.1%" [ref=e291] [cursor=pointer]:
+                  - generic [ref=e293]:
+                    - generic "10480" [ref=e294]: $10480.0
+                    - generic [ref=e295]: 67.1%
+                - gridcell "$10589.0 75.2%" [ref=e296] [cursor=pointer]:
+                  - generic [ref=e298]:
+                    - generic "10589" [ref=e299]: $10589.0
+                    - generic [ref=e300]: 75.2%
+                - gridcell "5.717" [ref=e301] [cursor=pointer]:
+                  - generic [ref=e303]: "5.717"
+                - gridcell "0.94" [ref=e304] [cursor=pointer]:
+                  - generic [ref=e306]: "0.94"
+                - gridcell "63.27" [ref=e307] [cursor=pointer]:
+                  - generic "63.2700" [ref=e309]: "63.27"
+                - gridcell "$11.07K" [ref=e310] [cursor=pointer]:
+                  - generic "11068.2250" [ref=e313]: $11.07K
+                - gridcell "53000" [ref=e315] [cursor=pointer]:
+                  - generic "BTC" [ref=e317]: "53000"
+                - gridcell "$682.46K" [ref=e318] [cursor=pointer]:
+                  - generic "682463.9412" [ref=e321]: $682.46K
+                - gridcell "-15.56K" [ref=e323] [cursor=pointer]:
+                  - generic "-15564.0300" [ref=e325]: "-15.56K"
+                - gridcell "-0.05" [ref=e326] [cursor=pointer]:
+                  - generic [ref=e328]: "-0.05"
+                - gridcell "8.552" [ref=e329] [cursor=pointer]:
+                  - generic [ref=e331]: "8.552"
+                - gridcell "$145.0 64.9%" [ref=e332] [cursor=pointer]:
+                  - generic [ref=e334]:
+                    - generic "145" [ref=e335]: $145.0
+                    - generic [ref=e336]: 64.9%
+                - gridcell "$150.0 65.3%" [ref=e337] [cursor=pointer]:
+                  - generic [ref=e339]:
+                    - generic "150" [ref=e340]: $150.0
+                    - generic [ref=e341]: 65.3%
+                - gridcell "6.460" [ref=e342] [cursor=pointer]:
+                  - generic [ref=e344]: "6.460"
+            - rowgroup [ref=e345]:
+              - row "0 - - - 0.94 0.00 $0.00 54000 $200.34K 3.80K -0.06 8.552 $184.0 62.5% $190.0 63.0% 5.902" [ref=e346]:
+                - gridcell "0" [ref=e347] [cursor=pointer]:
+                  - generic [ref=e349]: "0"
+                - gridcell "-" [ref=e350] [cursor=pointer]:
+                  - generic [ref=e352]: "-"
+                - gridcell "-" [ref=e353] [cursor=pointer]:
+                  - generic [ref=e355]: "-"
+                - gridcell "-" [ref=e356] [cursor=pointer]:
+                  - generic [ref=e358]: "-"
+                - gridcell "0.94" [ref=e359] [cursor=pointer]:
+                  - generic [ref=e361]: "0.94"
+                - gridcell "0.00" [ref=e362] [cursor=pointer]:
+                  - generic "0.0000" [ref=e364]: "0.00"
+                - gridcell "$0.00" [ref=e365] [cursor=pointer]:
+                  - generic "0.0000" [ref=e368]: $0.00
+                - gridcell "54000" [ref=e369] [cursor=pointer]:
+                  - generic "BTC" [ref=e371]: "54000"
+                - gridcell "$200.34K" [ref=e372] [cursor=pointer]:
+                  - generic "200343.1532" [ref=e375]: $200.34K
+                - gridcell "3.80K" [ref=e377] [cursor=pointer]:
+                  - generic "3796.1000" [ref=e379]: 3.80K
+                - gridcell "-0.06" [ref=e380] [cursor=pointer]:
+                  - generic [ref=e382]: "-0.06"
+                - gridcell "8.552" [ref=e383] [cursor=pointer]:
+                  - generic [ref=e385]: "8.552"
+                - gridcell "$184.0 62.5%" [ref=e386] [cursor=pointer]:
+                  - generic [ref=e388]:
+                    - generic "184" [ref=e389]: $184.0
+                    - generic [ref=e390]: 62.5%
+                - gridcell "$190.0 63.0%" [ref=e391] [cursor=pointer]:
+                  - generic [ref=e393]:
+                    - generic "190" [ref=e394]: $190.0
+                    - generic [ref=e395]: 63.0%
+                - gridcell "5.902" [ref=e396] [cursor=pointer]:
+                  - generic [ref=e398]: "5.902"
+            - rowgroup [ref=e399]:
+              - row "8.552 $8582.0 62.4% $8673.0 67.5% 5.702 0.91 0.00 $253.10 55000 $55.13K 1.58K -0.08 8.594 $237.0 60.3% $244.0 60.8% 5.702" [ref=e400]:
+                - gridcell "8.552" [ref=e401] [cursor=pointer]:
+                  - generic [ref=e403]: "8.552"
+                - gridcell "$8582.0 62.4%" [ref=e404] [cursor=pointer]:
+                  - generic [ref=e406]:
+                    - generic "8582" [ref=e407]: $8582.0
+                    - generic [ref=e408]: 62.4%
+                - gridcell "$8673.0 67.5%" [ref=e409] [cursor=pointer]:
+                  - generic [ref=e411]:
+                    - generic "8673" [ref=e412]: $8673.0
+                    - generic [ref=e413]: 67.5%
+                - gridcell "5.702" [ref=e414] [cursor=pointer]:
+                  - generic [ref=e416]: "5.702"
+                - gridcell "0.91" [ref=e417] [cursor=pointer]:
+                  - generic [ref=e419]: "0.91"
+                - gridcell "0.00" [ref=e420] [cursor=pointer]:
+                  - generic "0.0000" [ref=e422]: "0.00"
+                - gridcell "$253.10" [ref=e423] [cursor=pointer]:
+                  - generic "253.1000" [ref=e426]: $253.10
+                - gridcell "55000" [ref=e427] [cursor=pointer]:
+                  - generic "BTC" [ref=e429]: "55000"
+                - gridcell "$55.13K" [ref=e430] [cursor=pointer]:
+                  - generic "55129.7584" [ref=e433]: $55.13K
+                - gridcell "1.58K" [ref=e435] [cursor=pointer]:
+                  - generic "1581.7100" [ref=e437]: 1.58K
+                - gridcell "-0.08" [ref=e438] [cursor=pointer]:
+                  - generic [ref=e440]: "-0.08"
+                - gridcell "8.594" [ref=e441] [cursor=pointer]:
+                  - generic [ref=e443]: "8.594"
+                - gridcell "$237.0 60.3%" [ref=e444] [cursor=pointer]:
+                  - generic [ref=e446]:
+                    - generic "237" [ref=e447]: $237.0
+                    - generic [ref=e448]: 60.3%
+                - gridcell "$244.0 60.8%" [ref=e449] [cursor=pointer]:
+                  - generic [ref=e451]:
+                    - generic "244" [ref=e452]: $244.0
+                    - generic [ref=e453]: 60.8%
+                - gridcell "5.702" [ref=e454] [cursor=pointer]:
+                  - generic [ref=e456]: "5.702"
+            - rowgroup [ref=e457]:
+              - row "8.552 $7656.0 60.4% $7738.0 64.4% 5.701 0.89 0.00 $63.27 56000 $35.99K -30.24K -0.10 8.551 $304.0 58.2% $312.0 58.6% 5.713" [ref=e458]:
+                - gridcell "8.552" [ref=e459] [cursor=pointer]:
+                  - generic [ref=e461]: "8.552"
+                - gridcell "$7656.0 60.4%" [ref=e462] [cursor=pointer]:
+                  - generic [ref=e464]:
+                    - generic "7656" [ref=e465]: $7656.0
+                    - generic [ref=e466]: 60.4%
+                - gridcell "$7738.0 64.4%" [ref=e467] [cursor=pointer]:
+                  - generic [ref=e469]:
+                    - generic "7738" [ref=e470]: $7738.0
+                    - generic [ref=e471]: 64.4%
+                - gridcell "5.701" [ref=e472] [cursor=pointer]:
+                  - generic [ref=e474]: "5.701"
+                - gridcell "0.89" [ref=e475] [cursor=pointer]:
+                  - generic [ref=e477]: "0.89"
+                - gridcell "0.00" [ref=e478] [cursor=pointer]:
+                  - generic "0.0000" [ref=e480]: "0.00"
+                - gridcell "$63.27" [ref=e481] [cursor=pointer]:
+                  - generic "63.2674" [ref=e484]: $63.27
+                - gridcell "56000" [ref=e485] [cursor=pointer]:
+                  - generic "BTC" [ref=e487]: "56000"
+                - gridcell "$35.99K" [ref=e488] [cursor=pointer]:
+                  - generic "35989.7052" [ref=e491]: $35.99K
+                - gridcell "-30.24K" [ref=e493] [cursor=pointer]:
+                  - generic "-30242.3000" [ref=e495]: "-30.24K"
+                - gridcell "-0.10" [ref=e496] [cursor=pointer]:
+                  - generic [ref=e498]: "-0.10"
+                - gridcell "8.551" [ref=e499] [cursor=pointer]:
+                  - generic [ref=e501]: "8.551"
+                - gridcell "$304.0 58.2%" [ref=e502] [cursor=pointer]:
+                  - generic [ref=e504]:
+                    - generic "304" [ref=e505]: $304.0
+                    - generic [ref=e506]: 58.2%
+                - gridcell "$312.0 58.6%" [ref=e507] [cursor=pointer]:
+                  - generic [ref=e509]:
+                    - generic "312" [ref=e510]: $312.0
+                    - generic [ref=e511]: 58.6%
+                - gridcell "5.713" [ref=e512] [cursor=pointer]:
+                  - generic [ref=e514]: "5.713"
+            - rowgroup [ref=e515]:
+              - row "8.552 $6753.0 58.3% $6826.0 61.3% 5.701 0.86 0.00 $0.00 57000 $107.35K 4.87K -0.13 8.552 $392.0 56.1% $401.0 56.5% 5.797" [ref=e516]:
+                - gridcell "8.552" [ref=e517] [cursor=pointer]:
+                  - generic [ref=e519]: "8.552"
+                - gridcell "$6753.0 58.3%" [ref=e520] [cursor=pointer]:
+                  - generic [ref=e522]:
+                    - generic "6753" [ref=e523]: $6753.0
+                    - generic [ref=e524]: 58.3%
+                - gridcell "$6826.0 61.3%" [ref=e525] [cursor=pointer]:
+                  - generic [ref=e527]:
+                    - generic "6826" [ref=e528]: $6826.0
+                    - generic [ref=e529]: 61.3%
+                - gridcell "5.701" [ref=e530] [cursor=pointer]:
+                  - generic [ref=e532]: "5.701"
+                - gridcell "0.86" [ref=e533] [cursor=pointer]:
+                  - generic [ref=e535]: "0.86"
+                - gridcell "0.00" [ref=e536] [cursor=pointer]:
+                  - generic "0.0000" [ref=e538]: "0.00"
+                - gridcell "$0.00" [ref=e539] [cursor=pointer]:
+                  - generic "0.0000" [ref=e542]: $0.00
+                - gridcell "57000" [ref=e543] [cursor=pointer]:
+                  - generic "BTC" [ref=e545]: "57000"
+                - gridcell "$107.35K" [ref=e546] [cursor=pointer]:
+                  - generic "107348.8288" [ref=e549]: $107.35K
+                - gridcell "4.87K" [ref=e551] [cursor=pointer]:
+                  - generic "4871.6700" [ref=e553]: 4.87K
+                - gridcell "-0.13" [ref=e554] [cursor=pointer]:
+                  - generic [ref=e556]: "-0.13"
+                - gridcell "8.552" [ref=e557] [cursor=pointer]:
+                  - generic [ref=e559]: "8.552"
+                - gridcell "$392.0 56.1%" [ref=e560] [cursor=pointer]:
+                  - generic [ref=e562]:
+                    - generic "392" [ref=e563]: $392.0
+                    - generic [ref=e564]: 56.1%
+                - gridcell "$401.0 56.5%" [ref=e565] [cursor=pointer]:
+                  - generic [ref=e567]:
+                    - generic "401" [ref=e568]: $401.0
+                    - generic [ref=e569]: 56.5%
+                - gridcell "5.797" [ref=e570] [cursor=pointer]:
+                  - generic [ref=e572]: "5.797"
+            - rowgroup [ref=e573]:
+              - row "8.552 $5874.0 56.1% $5939.0 58.5% 5.702 0.83 379.61 $633.09 58000 $275.22K 24.55K -0.16 8.552 $506.0 54.0% $517.0 54.4% 5.869" [ref=e574]:
+                - gridcell "8.552" [ref=e575] [cursor=pointer]:
+                  - generic [ref=e577]: "8.552"
+                - gridcell "$5874.0 56.1%" [ref=e578] [cursor=pointer]:
+                  - generic [ref=e580]:
+                    - generic "5874" [ref=e581]: $5874.0
+                    - generic [ref=e582]: 56.1%
+                - gridcell "$5939.0 58.5%" [ref=e583] [cursor=pointer]:
+                  - generic [ref=e585]:
+                    - generic "5939" [ref=e586]: $5939.0
+                    - generic [ref=e587]: 58.5%
+                - gridcell "5.702" [ref=e588] [cursor=pointer]:
+                  - generic [ref=e590]: "5.702"
+                - gridcell "0.83" [ref=e591] [cursor=pointer]:
+                  - generic [ref=e593]: "0.83"
+                - gridcell "379.61" [ref=e594] [cursor=pointer]:
+                  - generic "379.6100" [ref=e596]: "379.61"
+                - gridcell "$633.09" [ref=e597] [cursor=pointer]:
+                  - generic "633.0850" [ref=e600]: $633.09
+                - gridcell "58000" [ref=e602] [cursor=pointer]:
+                  - generic "BTC" [ref=e604]: "58000"
+                - gridcell "$275.22K" [ref=e605] [cursor=pointer]:
+                  - generic "275215.2306" [ref=e608]: $275.22K
+                - gridcell "24.55K" [ref=e610] [cursor=pointer]:
+                  - generic "24548.1400" [ref=e612]: 24.55K
+                - gridcell "-0.16" [ref=e613] [cursor=pointer]:
+                  - generic [ref=e615]: "-0.16"
+                - gridcell "8.552" [ref=e616] [cursor=pointer]:
+                  - generic [ref=e618]: "8.552"
+                - gridcell "$506.0 54.0%" [ref=e619] [cursor=pointer]:
+                  - generic [ref=e621]:
+                    - generic "506" [ref=e622]: $506.0
+                    - generic [ref=e623]: 54.0%
+                - gridcell "$517.0 54.4%" [ref=e624] [cursor=pointer]:
+                  - generic [ref=e626]:
+                    - generic "517" [ref=e627]: $517.0
+                    - generic [ref=e628]: 54.4%
+                - gridcell "5.869" [ref=e629] [cursor=pointer]:
+                  - generic [ref=e631]: "5.869"
+            - rowgroup [ref=e632]:
+              - row "8.552 $5441.0 55.1% $5502.0 57.1% 5.706 0.81 0.00 $2.53K 58500 $17.90K 0.00 -0.18 8.551 $574.0 53.0% $586.0 53.4% 5.729" [ref=e633]:
+                - gridcell "8.552" [ref=e634] [cursor=pointer]:
+                  - generic [ref=e636]: "8.552"
+                - gridcell "$5441.0 55.1%" [ref=e637] [cursor=pointer]:
+                  - generic [ref=e639]:
+                    - generic "5441" [ref=e640]: $5441.0
+                    - generic [ref=e641]: 55.1%
+                - gridcell "$5502.0 57.1%" [ref=e642] [cursor=pointer]:
+                  - generic [ref=e644]:
+                    - generic "5502" [ref=e645]: $5502.0
+                    - generic [ref=e646]: 57.1%
+                - gridcell "5.706" [ref=e647] [cursor=pointer]:
+                  - generic [ref=e649]: "5.706"
+                - gridcell "0.81" [ref=e650] [cursor=pointer]:
+                  - generic [ref=e652]: "0.81"
+                - gridcell "0.00" [ref=e653] [cursor=pointer]:
+                  - generic "0.0000" [ref=e655]: "0.00"
+                - gridcell "$2.53K" [ref=e656] [cursor=pointer]:
+                  - generic "2532.5280" [ref=e659]: $2.53K
+                - gridcell "58500" [ref=e661] [cursor=pointer]:
+                  - generic "BTC" [ref=e663]: "58500"
+                - gridcell "$17.90K" [ref=e664] [cursor=pointer]:
+                  - generic "17903.5139" [ref=e667]: $17.90K
+                - gridcell "0.00" [ref=e669] [cursor=pointer]:
+                  - generic "0.0000" [ref=e671]: "0.00"
+                - gridcell "-0.18" [ref=e672] [cursor=pointer]:
+                  - generic [ref=e674]: "-0.18"
+                - gridcell "8.551" [ref=e675] [cursor=pointer]:
+                  - generic [ref=e677]: "8.551"
+                - gridcell "$574.0 53.0%" [ref=e678] [cursor=pointer]:
+                  - generic [ref=e680]:
+                    - generic "574" [ref=e681]: $574.0
+                    - generic [ref=e682]: 53.0%
+                - gridcell "$586.0 53.4%" [ref=e683] [cursor=pointer]:
+                  - generic [ref=e685]:
+                    - generic "586" [ref=e686]: $586.0
+                    - generic [ref=e687]: 53.4%
+                - gridcell "5.729" [ref=e688] [cursor=pointer]:
+                  - generic [ref=e690]: "5.729"
+            - rowgroup [ref=e691]:
+              - row "8.552 $5023.0 54.1% $5079.0 55.9% 5.708 0.79 0.00 $3.80K 59000 $104.14K 3.42K -0.20 8.552 $653.0 52.0% $666.0 52.4% 5.713" [ref=e692]:
+                - gridcell "8.552" [ref=e693] [cursor=pointer]:
+                  - generic [ref=e695]: "8.552"
+                - gridcell "$5023.0 54.1%" [ref=e696] [cursor=pointer]:
+                  - generic [ref=e698]:
+                    - generic "5023" [ref=e699]: $5023.0
+                    - generic [ref=e700]: 54.1%
+                - gridcell "$5079.0 55.9%" [ref=e701] [cursor=pointer]:
+                  - generic [ref=e703]:
+                    - generic "5079" [ref=e704]: $5079.0
+                    - generic [ref=e705]: 55.9%
+                - gridcell "5.708" [ref=e706] [cursor=pointer]:
+                  - generic [ref=e708]: "5.708"
+                - gridcell "0.79" [ref=e709] [cursor=pointer]:
+                  - generic [ref=e711]: "0.79"
+                - gridcell "0.00" [ref=e712] [cursor=pointer]:
+                  - generic "0.0000" [ref=e714]: "0.00"
+                - gridcell "$3.80K" [ref=e715] [cursor=pointer]:
+                  - generic "3796.1220" [ref=e718]: $3.80K
+                - gridcell "59000" [ref=e720] [cursor=pointer]:
+                  - generic "BTC" [ref=e722]: "59000"
+                - gridcell "$104.14K" [ref=e723] [cursor=pointer]:
+                  - generic "104136.5605" [ref=e726]: $104.14K
+                - gridcell "3.42K" [ref=e728] [cursor=pointer]:
+                  - generic "3416.4900" [ref=e730]: 3.42K
+                - gridcell "-0.20" [ref=e731] [cursor=pointer]:
+                  - generic [ref=e733]: "-0.20"
+                - gridcell "8.552" [ref=e734] [cursor=pointer]:
+                  - generic [ref=e736]: "8.552"
+                - gridcell "$653.0 52.0%" [ref=e737] [cursor=pointer]:
+                  - generic [ref=e739]:
+                    - generic "653" [ref=e740]: $653.0
+                    - generic [ref=e741]: 52.0%
+                - gridcell "$666.0 52.4%" [ref=e742] [cursor=pointer]:
+                  - generic [ref=e744]:
+                    - generic "666" [ref=e745]: $666.0
+                    - generic [ref=e746]: 52.4%
+                - gridcell "5.713" [ref=e747] [cursor=pointer]:
+                  - generic [ref=e749]: "5.713"
+            - rowgroup [ref=e750]:
+              - row "8.552 $4617.0 53.0% $4669.0 54.6% 5.702 0.77 0.00 $0.00 59500 $67.22K 3.16K -0.23 8.552 $744.0 51.1% $757.0 51.5% 5.799" [ref=e751]:
+                - gridcell "8.552" [ref=e752] [cursor=pointer]:
+                  - generic [ref=e754]: "8.552"
+                - gridcell "$4617.0 53.0%" [ref=e755] [cursor=pointer]:
+                  - generic [ref=e757]:
+                    - generic "4617" [ref=e758]: $4617.0
+                    - generic [ref=e759]: 53.0%
+                - gridcell "$4669.0 54.6%" [ref=e760] [cursor=pointer]:
+                  - generic [ref=e762]:
+                    - generic "4669" [ref=e763]: $4669.0
+                    - generic [ref=e764]: 54.6%
+                - gridcell "5.702" [ref=e765] [cursor=pointer]:
+                  - generic [ref=e767]: "5.702"
+                - gridcell "0.77" [ref=e768] [cursor=pointer]:
+                  - generic [ref=e770]: "0.77"
+                - gridcell "0.00" [ref=e771] [cursor=pointer]:
+                  - generic "0.0000" [ref=e773]: "0.00"
+                - gridcell "$0.00" [ref=e774] [cursor=pointer]:
+                  - generic "0.0000" [ref=e777]: $0.00
+                - gridcell "59500" [ref=e778] [cursor=pointer]:
+                  - generic "BTC" [ref=e780]: "59500"
+                - gridcell "$67.22K" [ref=e781] [cursor=pointer]:
+                  - generic "67220.7768" [ref=e784]: $67.22K
+                - gridcell "3.16K" [ref=e786] [cursor=pointer]:
+                  - generic "3163.4200" [ref=e788]: 3.16K
+                - gridcell "-0.23" [ref=e789] [cursor=pointer]:
+                  - generic [ref=e791]: "-0.23"
+                - gridcell "8.552" [ref=e792] [cursor=pointer]:
+                  - generic [ref=e794]: "8.552"
+                - gridcell "$744.0 51.1%" [ref=e795] [cursor=pointer]:
+                  - generic [ref=e797]:
+                    - generic "744" [ref=e798]: $744.0
+                    - generic [ref=e799]: 51.1%
+                - gridcell "$757.0 51.5%" [ref=e800] [cursor=pointer]:
+                  - generic [ref=e802]:
+                    - generic "757" [ref=e803]: $757.0
+                    - generic [ref=e804]: 51.5%
+                - gridcell "5.799" [ref=e805] [cursor=pointer]:
+                  - generic [ref=e807]: "5.799"
+            - rowgroup [ref=e808]:
+              - row "8.579 $4227.0 52.2% $4275.0 53.5% 5.701 0.74 6.33K $19.10K 60000 $390.45K -3.16K -0.25 8.552 $845.0 50.1% $859.0 50.5% 5.812" [ref=e809]:
+                - gridcell "8.579" [ref=e810] [cursor=pointer]:
+                  - generic [ref=e812]: "8.579"
+                - gridcell "$4227.0 52.2%" [ref=e813] [cursor=pointer]:
+                  - generic [ref=e815]:
+                    - generic "4227" [ref=e816]: $4227.0
+                    - generic [ref=e817]: 52.2%
+                - gridcell "$4275.0 53.5%" [ref=e818] [cursor=pointer]:
+                  - generic [ref=e820]:
+                    - generic "4275" [ref=e821]: $4275.0
+                    - generic [ref=e822]: 53.5%
+                - gridcell "5.701" [ref=e823] [cursor=pointer]:
+                  - generic [ref=e825]: "5.701"
+                - gridcell "0.74" [ref=e826] [cursor=pointer]:
+                  - generic [ref=e828]: "0.74"
+                - gridcell "6.33K" [ref=e829] [cursor=pointer]:
+                  - generic "6326.8400" [ref=e831]: 6.33K
+                - gridcell "$19.10K" [ref=e832] [cursor=pointer]:
+                  - generic "19100.5336" [ref=e835]: $19.10K
+                - gridcell "60000" [ref=e837] [cursor=pointer]:
+                  - generic "BTC" [ref=e839]: "60000"
+                - gridcell "$390.45K" [ref=e840] [cursor=pointer]:
+                  - generic "390451.4325" [ref=e843]: $390.45K
+                - gridcell "-3.16K" [ref=e845] [cursor=pointer]:
+                  - generic "-3163.4200" [ref=e847]: "-3.16K"
+                - gridcell "-0.25" [ref=e848] [cursor=pointer]:
+                  - generic [ref=e850]: "-0.25"
+                - gridcell "8.552" [ref=e851] [cursor=pointer]:
+                  - generic [ref=e853]: "8.552"
+                - gridcell "$845.0 50.1%" [ref=e854] [cursor=pointer]:
+                  - generic [ref=e856]:
+                    - generic "845" [ref=e857]: $845.0
+                    - generic [ref=e858]: 50.1%
+                - gridcell "$859.0 50.5%" [ref=e859] [cursor=pointer]:
+                  - generic [ref=e861]:
+                    - generic "859" [ref=e862]: $859.0
+                    - generic [ref=e863]: 50.5%
+                - gridcell "5.812" [ref=e864] [cursor=pointer]:
+                  - generic [ref=e866]: "5.812"
+            - rowgroup [ref=e867]:
+              - row "8.552 $3840.0 51.2% $3884.0 52.4% 5.767 0.71 0.00 $42.53K 60500 $52.38K 0.00 -0.28 8.552 $959.0 49.2% $975.0 49.7% 5.783" [ref=e868]:
+                - gridcell "8.552" [ref=e869] [cursor=pointer]:
+                  - generic [ref=e871]: "8.552"
+                - gridcell "$3840.0 51.2%" [ref=e872] [cursor=pointer]:
+                  - generic [ref=e874]:
+                    - generic "3840" [ref=e875]: $3840.0
+                    - generic [ref=e876]: 51.2%
+                - gridcell "$3884.0 52.4%" [ref=e877] [cursor=pointer]:
+                  - generic [ref=e879]:
+                    - generic "3884" [ref=e880]: $3884.0
+                    - generic [ref=e881]: 52.4%
+                - gridcell "5.767" [ref=e882] [cursor=pointer]:
+                  - generic [ref=e884]: "5.767"
+                - gridcell "0.71" [ref=e885] [cursor=pointer]:
+                  - generic [ref=e887]: "0.71"
+                - gridcell "0.00" [ref=e888] [cursor=pointer]:
+                  - generic "0.0000" [ref=e890]: "0.00"
+                - gridcell "$42.53K" [ref=e891] [cursor=pointer]:
+                  - generic "42529.0656" [ref=e894]: $42.53K
+                - gridcell "60500" [ref=e896] [cursor=pointer]:
+                  - generic "BTC" [ref=e898]: "60500"
+                - gridcell "$52.38K" [ref=e899] [cursor=pointer]:
+                  - generic "52377.1353" [ref=e902]: $52.38K
+                - gridcell "0.00" [ref=e904] [cursor=pointer]:
+                  - generic "0.0000" [ref=e906]: "0.00"
+                - gridcell "-0.28" [ref=e907] [cursor=pointer]:
+                  - generic [ref=e909]: "-0.28"
+                - gridcell "8.552" [ref=e910] [cursor=pointer]:
+                  - generic [ref=e912]: "8.552"
+                - gridcell "$959.0 49.2%" [ref=e913] [cursor=pointer]:
+                  - generic [ref=e915]:
+                    - generic "959" [ref=e916]: $959.0
+                    - generic [ref=e917]: 49.2%
+                - gridcell "$975.0 49.7%" [ref=e918] [cursor=pointer]:
+                  - generic [ref=e920]:
+                    - generic "975" [ref=e921]: $975.0
+                    - generic [ref=e922]: 49.7%
+                - gridcell "5.783" [ref=e923] [cursor=pointer]:
+                  - generic [ref=e925]: "5.783"
+            - rowgroup [ref=e926]:
+              - row "8.552 $3472.0 50.3% $3511.0 51.3% 5.702 0.68 0.00 $9.62K 61000 $176.52K 94.27K -0.31 8.552 $1088.0 48.3% $1104.0 48.7% 5.895" [ref=e927]:
+                - gridcell "8.552" [ref=e928] [cursor=pointer]:
+                  - generic [ref=e930]: "8.552"
+                - gridcell "$3472.0 50.3%" [ref=e931] [cursor=pointer]:
+                  - generic [ref=e933]:
+                    - generic "3472" [ref=e934]: $3472.0
+                    - generic [ref=e935]: 50.3%
+                - gridcell "$3511.0 51.3%" [ref=e936] [cursor=pointer]:
+                  - generic [ref=e938]:
+                    - generic "3511" [ref=e939]: $3511.0
+                    - generic [ref=e940]: 51.3%
+                - gridcell "5.702" [ref=e941] [cursor=pointer]:
+                  - generic [ref=e943]: "5.702"
+                - gridcell "0.68" [ref=e944] [cursor=pointer]:
+                  - generic [ref=e946]: "0.68"
+                - gridcell "0.00" [ref=e947] [cursor=pointer]:
+                  - generic "0.0000" [ref=e949]: "0.00"
+                - gridcell "$9.62K" [ref=e950] [cursor=pointer]:
+                  - generic "9624.1232" [ref=e953]: $9.62K
+                - gridcell "61000" [ref=e955] [cursor=pointer]:
+                  - generic "BTC" [ref=e957]: "61000"
+                - gridcell "$176.52K" [ref=e958] [cursor=pointer]:
+                  - generic "176520.8496" [ref=e961]: $176.52K
+                - gridcell "94.27K" [ref=e963] [cursor=pointer]:
+                  - generic "94269.9200" [ref=e965]: 94.27K
+                - gridcell "-0.31" [ref=e966] [cursor=pointer]:
+                  - generic [ref=e968]: "-0.31"
+                - gridcell "8.552" [ref=e969] [cursor=pointer]:
+                  - generic [ref=e971]: "8.552"
+                - gridcell "$1088.0 48.3%" [ref=e972] [cursor=pointer]:
+                  - generic [ref=e974]:
+                    - generic "1088" [ref=e975]: $1088.0
+                    - generic [ref=e976]: 48.3%
+                - gridcell "$1104.0 48.7%" [ref=e977] [cursor=pointer]:
+                  - generic [ref=e979]:
+                    - generic "1104" [ref=e980]: $1104.0
+                    - generic [ref=e981]: 48.7%
+                - gridcell "5.895" [ref=e982] [cursor=pointer]:
+                  - generic [ref=e984]: "5.895"
+            - rowgroup [ref=e985]:
+              - row "8.552 $3126.0 49.5% $3161.0 50.4% 5.712 0.65 -1.14K $10.43K 61500 $39.48K 3.16K -0.35 8.552 $1234.0 47.5% $1250.0 47.9% 5.706" [ref=e986]:
+                - gridcell "8.552" [ref=e987] [cursor=pointer]:
+                  - generic [ref=e989]: "8.552"
+                - gridcell "$3126.0 49.5%" [ref=e990] [cursor=pointer]:
+                  - generic [ref=e992]:
+                    - generic "3126" [ref=e993]: $3126.0
+                    - generic [ref=e994]: 49.5%
+                - gridcell "$3161.0 50.4%" [ref=e995] [cursor=pointer]:
+                  - generic [ref=e997]:
+                    - generic "3161" [ref=e998]: $3161.0
+                    - generic [ref=e999]: 50.4%
+                - gridcell "5.712" [ref=e1000] [cursor=pointer]:
+                  - generic [ref=e1002]: "5.712"
+                - gridcell "0.65" [ref=e1003] [cursor=pointer]:
+                  - generic [ref=e1005]: "0.65"
+                - gridcell "-1.14K" [ref=e1006] [cursor=pointer]:
+                  - generic "-1138.8300" [ref=e1008]: "-1.14K"
+                - gridcell "$10.43K" [ref=e1009] [cursor=pointer]:
+                  - generic "10431.8940" [ref=e1012]: $10.43K
+                - gridcell "61500" [ref=e1014] [cursor=pointer]:
+                  - generic "BTC" [ref=e1016]: "61500"
+                - gridcell "$39.48K" [ref=e1017] [cursor=pointer]:
+                  - generic "39483.7872" [ref=e1020]: $39.48K
+                - gridcell "3.16K" [ref=e1022] [cursor=pointer]:
+                  - generic "3163.4200" [ref=e1024]: 3.16K
+                - gridcell "-0.35" [ref=e1025] [cursor=pointer]:
+                  - generic [ref=e1027]: "-0.35"
+                - gridcell "8.552" [ref=e1028] [cursor=pointer]:
+                  - generic [ref=e1030]: "8.552"
+                - gridcell "$1234.0 47.5%" [ref=e1031] [cursor=pointer]:
+                  - generic [ref=e1033]:
+                    - generic "1234" [ref=e1034]: $1234.0
+                    - generic [ref=e1035]: 47.5%
+                - gridcell "$1250.0 47.9%" [ref=e1036] [cursor=pointer]:
+                  - generic [ref=e1038]:
+                    - generic "1250" [ref=e1039]: $1250.0
+                    - generic [ref=e1040]: 47.9%
+                - gridcell "5.706" [ref=e1041] [cursor=pointer]:
+                  - generic [ref=e1043]: "5.706"
+            - rowgroup [ref=e1044]:
+              - row "8.552 $2792.0 48.7% $2822.0 49.5% 5.718 0.61 0.00 $31.46K 62000 $90.94K 42.39K -0.38 8.551 $1398.0 46.7% $1415.0 47.1% 5.798" [ref=e1045]:
+                - gridcell "8.552" [ref=e1046] [cursor=pointer]:
+                  - generic [ref=e1048]: "8.552"
+                - gridcell "$2792.0 48.7%" [ref=e1049] [cursor=pointer]:
+                  - generic [ref=e1051]:
+                    - generic "2792" [ref=e1052]: $2792.0
+                    - generic [ref=e1053]: 48.7%
+                - gridcell "$2822.0 49.5%" [ref=e1054] [cursor=pointer]:
+                  - generic [ref=e1056]:
+                    - generic "2822" [ref=e1057]: $2822.0
+                    - generic [ref=e1058]: 49.5%
+                - gridcell "5.718" [ref=e1059] [cursor=pointer]:
+                  - generic [ref=e1061]: "5.718"
+                - gridcell "0.61" [ref=e1062] [cursor=pointer]:
+                  - generic [ref=e1064]: "0.61"
+                - gridcell "0.00" [ref=e1065] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1067]: "0.00"
+                - gridcell "$31.46K" [ref=e1068] [cursor=pointer]:
+                  - generic "31459.8515" [ref=e1071]: $31.46K
+                - gridcell "62000" [ref=e1073] [cursor=pointer]:
+                  - generic "BTC" [ref=e1075]: "62000"
+                - gridcell "$90.94K" [ref=e1076] [cursor=pointer]:
+                  - generic "90943.7468" [ref=e1079]: $90.94K
+                - gridcell "42.39K" [ref=e1081] [cursor=pointer]:
+                  - generic "42389.8300" [ref=e1083]: 42.39K
+                - gridcell "-0.38" [ref=e1084] [cursor=pointer]:
+                  - generic [ref=e1086]: "-0.38"
+                - gridcell "8.551" [ref=e1087] [cursor=pointer]:
+                  - generic [ref=e1089]: "8.551"
+                - gridcell "$1398.0 46.7%" [ref=e1090] [cursor=pointer]:
+                  - generic [ref=e1092]:
+                    - generic "1398" [ref=e1093]: $1398.0
+                    - generic [ref=e1094]: 46.7%
+                - gridcell "$1415.0 47.1%" [ref=e1095] [cursor=pointer]:
+                  - generic [ref=e1097]:
+                    - generic "1415" [ref=e1098]: $1415.0
+                    - generic [ref=e1099]: 47.1%
+                - gridcell "5.798" [ref=e1100] [cursor=pointer]:
+                  - generic [ref=e1102]: "5.798"
+            - rowgroup [ref=e1103]:
+              - row "8.552 $2484.0 48.1% $2502.0 48.5% 5.734 0.58 16.13K $23.05K 62500 $26.46K 9.49K -0.42 8.552 $1585.0 46.0% $1602.0 46.4% 5.729" [ref=e1104]:
+                - gridcell "8.552" [ref=e1105] [cursor=pointer]:
+                  - generic [ref=e1107]: "8.552"
+                - gridcell "$2484.0 48.1%" [ref=e1108] [cursor=pointer]:
+                  - generic [ref=e1110]:
+                    - generic "2484" [ref=e1111]: $2484.0
+                    - generic [ref=e1112]: 48.1%
+                - gridcell "$2502.0 48.5%" [ref=e1113] [cursor=pointer]:
+                  - generic [ref=e1115]:
+                    - generic "2502" [ref=e1116]: $2502.0
+                    - generic [ref=e1117]: 48.5%
+                - gridcell "5.734" [ref=e1118] [cursor=pointer]:
+                  - generic [ref=e1120]: "5.734"
+                - gridcell "0.58" [ref=e1121] [cursor=pointer]:
+                  - generic [ref=e1123]: "0.58"
+                - gridcell "16.13K" [ref=e1124] [cursor=pointer]:
+                  - generic "16133.4400" [ref=e1126]: 16.13K
+                - gridcell "$23.05K" [ref=e1127] [cursor=pointer]:
+                  - generic "23045.7864" [ref=e1130]: $23.05K
+                - gridcell "62500" [ref=e1132] [cursor=pointer]:
+                  - generic "BTC" [ref=e1134]: "62500"
+                - gridcell "$26.46K" [ref=e1135] [cursor=pointer]:
+                  - generic "26457.1428" [ref=e1138]: $26.46K
+                - gridcell "9.49K" [ref=e1140] [cursor=pointer]:
+                  - generic "9490.2600" [ref=e1142]: 9.49K
+                - gridcell "-0.42" [ref=e1143] [cursor=pointer]:
+                  - generic [ref=e1145]: "-0.42"
+                - gridcell "8.552" [ref=e1146] [cursor=pointer]:
+                  - generic [ref=e1148]: "8.552"
+                - gridcell "$1585.0 46.0%" [ref=e1149] [cursor=pointer]:
+                  - generic [ref=e1151]:
+                    - generic "1585" [ref=e1152]: $1585.0
+                    - generic [ref=e1153]: 46.0%
+                - gridcell "$1602.0 46.4%" [ref=e1154] [cursor=pointer]:
+                  - generic [ref=e1156]:
+                    - generic "1602" [ref=e1157]: $1602.0
+                    - generic [ref=e1158]: 46.4%
+                - gridcell "5.729" [ref=e1159] [cursor=pointer]:
+                  - generic [ref=e1161]: "5.729"
+            - rowgroup [ref=e1162]:
+              - row "8.679 $2190.0 47.4% $2208.0 47.8% 5.701 0.54 7.47K $139.48K 63000 $146.98K -5.44K -0.46 8.684 $1787.0 45.2% $1804.0 45.6% 5.701" [ref=e1163]:
+                - gridcell "8.679" [ref=e1164] [cursor=pointer]:
+                  - generic [ref=e1166]: "8.679"
+                - gridcell "$2190.0 47.4%" [ref=e1167] [cursor=pointer]:
+                  - generic [ref=e1169]:
+                    - generic "2190" [ref=e1170]: $2190.0
+                    - generic [ref=e1171]: 47.4%
+                - gridcell "$2208.0 47.8%" [ref=e1172] [cursor=pointer]:
+                  - generic [ref=e1174]:
+                    - generic "2208" [ref=e1175]: $2208.0
+                    - generic [ref=e1176]: 47.8%
+                - gridcell "5.701" [ref=e1177] [cursor=pointer]:
+                  - generic [ref=e1179]: "5.701"
+                - gridcell "0.54" [ref=e1180] [cursor=pointer]:
+                  - generic [ref=e1182]: "0.54"
+                - gridcell "7.47K" [ref=e1183] [cursor=pointer]:
+                  - generic "7465.6700" [ref=e1185]: 7.47K
+                - gridcell "$139.48K" [ref=e1186] [cursor=pointer]:
+                  - generic "139480.1850" [ref=e1189]: $139.48K
+                - gridcell "63000" [ref=e1191] [cursor=pointer]:
+                  - generic "BTC" [ref=e1193]: "63000"
+                - gridcell "$146.98K" [ref=e1194] [cursor=pointer]:
+                  - generic "146975.9324" [ref=e1197]: $146.98K
+                - gridcell "-5.44K" [ref=e1199] [cursor=pointer]:
+                  - generic "-5441.0800" [ref=e1201]: "-5.44K"
+                - gridcell "-0.46" [ref=e1202] [cursor=pointer]:
+                  - generic [ref=e1204]: "-0.46"
+                - gridcell "8.684" [ref=e1205] [cursor=pointer]:
+                  - generic [ref=e1207]: "8.684"
+                - gridcell "$1787.0 45.2%" [ref=e1208] [cursor=pointer]:
+                  - generic [ref=e1210]:
+                    - generic "1787" [ref=e1211]: $1787.0
+                    - generic [ref=e1212]: 45.2%
+                - gridcell "$1804.0 45.6%" [ref=e1213] [cursor=pointer]:
+                  - generic [ref=e1215]:
+                    - generic "1804" [ref=e1216]: $1804.0
+                    - generic [ref=e1217]: 45.6%
+                - gridcell "5.701" [ref=e1218] [cursor=pointer]:
+                  - generic [ref=e1220]: "5.701"
+            - rowgroup [ref=e1221]:
+              - row "8.552 $1910.0 46.6% $1928.0 47.0% 5.954 0.50 74.66K $178.83K 63500 $95.08K 68.96K -0.50 8.552 $2010.0 44.5% $2028.0 44.9% 5.841" [ref=e1222]:
+                - gridcell "8.552" [ref=e1223] [cursor=pointer]:
+                  - generic [ref=e1225]: "8.552"
+                - gridcell "$1910.0 46.6%" [ref=e1226] [cursor=pointer]:
+                  - generic [ref=e1228]:
+                    - generic "1910" [ref=e1229]: $1910.0
+                    - generic [ref=e1230]: 46.6%
+                - gridcell "$1928.0 47.0%" [ref=e1231] [cursor=pointer]:
+                  - generic [ref=e1233]:
+                    - generic "1928" [ref=e1234]: $1928.0
+                    - generic [ref=e1235]: 47.0%
+                - gridcell "5.954" [ref=e1236] [cursor=pointer]:
+                  - generic [ref=e1238]: "5.954"
+                - gridcell "0.50" [ref=e1239] [cursor=pointer]:
+                  - generic [ref=e1241]: "0.50"
+                - gridcell "74.66K" [ref=e1242] [cursor=pointer]:
+                  - generic "74656.7100" [ref=e1244]: 74.66K
+                - gridcell "$178.83K" [ref=e1245] [cursor=pointer]:
+                  - generic "178829.5176" [ref=e1248]: $178.83K
+                - gridcell "63500" [ref=e1250] [cursor=pointer]:
+                  - generic "BTC" [ref=e1252]: "63500"
+                - gridcell "$95.08K" [ref=e1253] [cursor=pointer]:
+                  - generic "95084.4393" [ref=e1256]: $95.08K
+                - gridcell "68.96K" [ref=e1258] [cursor=pointer]:
+                  - generic "68962.5600" [ref=e1260]: 68.96K
+                - gridcell "-0.50" [ref=e1261] [cursor=pointer]:
+                  - generic [ref=e1263]: "-0.50"
+                - gridcell "8.552" [ref=e1264] [cursor=pointer]:
+                  - generic [ref=e1266]: "8.552"
+                - gridcell "$2010.0 44.5%" [ref=e1267] [cursor=pointer]:
+                  - generic [ref=e1269]:
+                    - generic "2010" [ref=e1270]: $2010.0
+                    - generic [ref=e1271]: 44.5%
+                - gridcell "$2028.0 44.9%" [ref=e1272] [cursor=pointer]:
+                  - generic [ref=e1274]:
+                    - generic "2028" [ref=e1275]: $2028.0
+                    - generic [ref=e1276]: 44.9%
+                - gridcell "5.841" [ref=e1277] [cursor=pointer]:
+                  - generic [ref=e1279]: "5.841"
+            - rowgroup [ref=e1280]:
+              - row "8.552 $1658.0 45.9% $1676.0 46.3% 5.831 0.46 57.07K $126.34K 64000 $32.33K 26.26K -0.54 8.593 $2254.0 43.7% $2272.0 44.2% 5.701" [ref=e1281]:
+                - gridcell "8.552" [ref=e1282] [cursor=pointer]:
+                  - generic [ref=e1284]: "8.552"
+                - gridcell "$1658.0 45.9%" [ref=e1285] [cursor=pointer]:
+                  - generic [ref=e1287]:
+                    - generic "1658" [ref=e1288]: $1658.0
+                    - generic [ref=e1289]: 45.9%
+                - gridcell "$1676.0 46.3%" [ref=e1290] [cursor=pointer]:
+                  - generic [ref=e1292]:
+                    - generic "1676" [ref=e1293]: $1676.0
+                    - generic [ref=e1294]: 46.3%
+                - gridcell "5.831" [ref=e1295] [cursor=pointer]:
+                  - generic [ref=e1297]: "5.831"
+                - gridcell "0.46" [ref=e1298] [cursor=pointer]:
+                  - generic [ref=e1300]: "0.46"
+                - gridcell "57.07K" [ref=e1301] [cursor=pointer]:
+                  - generic "57068.1000" [ref=e1303]: 57.07K
+                - gridcell "$126.34K" [ref=e1304] [cursor=pointer]:
+                  - generic "126336.0216" [ref=e1307]: $126.34K
+                - gridcell "64000" [ref=e1309] [cursor=pointer]:
+                  - generic "BTC" [ref=e1311]: "64000"
+                - gridcell "$32.33K" [ref=e1312] [cursor=pointer]:
+                  - generic "32334.8025" [ref=e1315]: $32.33K
+                - gridcell "26.26K" [ref=e1317] [cursor=pointer]:
+                  - generic "26256.3900" [ref=e1319]: 26.26K
+                - gridcell "-0.54" [ref=e1320] [cursor=pointer]:
+                  - generic [ref=e1322]: "-0.54"
+                - gridcell "8.593" [ref=e1323] [cursor=pointer]:
+                  - generic [ref=e1325]: "8.593"
+                - gridcell "$2254.0 43.7%" [ref=e1326] [cursor=pointer]:
+                  - generic [ref=e1328]:
+                    - generic "2254" [ref=e1329]: $2254.0
+                    - generic [ref=e1330]: 43.7%
+                - gridcell "$2272.0 44.2%" [ref=e1331] [cursor=pointer]:
+                  - generic [ref=e1333]:
+                    - generic "2272" [ref=e1334]: $2272.0
+                    - generic [ref=e1335]: 44.2%
+                - gridcell "5.701" [ref=e1336] [cursor=pointer]:
+                  - generic [ref=e1338]: "5.701"
+            - rowgroup [ref=e1339]:
+              - row "8.650 $1426.0 45.3% $1444.0 45.7% 5.702 0.42 632.68 $73.38K 64500 $189.64 -1.20K -0.59 8.552 $2523.0 43.1% $2541.0 43.5% 5.701" [ref=e1340]:
+                - gridcell "8.650" [ref=e1341] [cursor=pointer]:
+                  - generic [ref=e1343]: "8.650"
+                - gridcell "$1426.0 45.3%" [ref=e1344] [cursor=pointer]:
+                  - generic [ref=e1346]:
+                    - generic "1426" [ref=e1347]: $1426.0
+                    - generic [ref=e1348]: 45.3%
+                - gridcell "$1444.0 45.7%" [ref=e1349] [cursor=pointer]:
+                  - generic [ref=e1351]:
+                    - generic "1444" [ref=e1352]: $1444.0
+                    - generic [ref=e1353]: 45.7%
+                - gridcell "5.702" [ref=e1354] [cursor=pointer]:
+                  - generic [ref=e1356]: "5.702"
+                - gridcell "0.42" [ref=e1357] [cursor=pointer]:
+                  - generic [ref=e1359]: "0.42"
+                - gridcell "632.68" [ref=e1360] [cursor=pointer]:
+                  - generic "632.6800" [ref=e1362]: "632.68"
+                - gridcell "$73.38K" [ref=e1363] [cursor=pointer]:
+                  - generic "73375.1040" [ref=e1366]: $73.38K
+                - gridcell "64500" [ref=e1368] [cursor=pointer]:
+                  - generic "BTC" [ref=e1370]: "64500"
+                - gridcell "$189.64" [ref=e1371] [cursor=pointer]:
+                  - generic "189.6417" [ref=e1374]: $189.64
+                - gridcell "-1.20K" [ref=e1376] [cursor=pointer]:
+                  - generic "-1202.1000" [ref=e1378]: "-1.20K"
+                - gridcell "-0.59" [ref=e1379] [cursor=pointer]:
+                  - generic [ref=e1381]: "-0.59"
+                - gridcell "8.552" [ref=e1382] [cursor=pointer]:
+                  - generic [ref=e1384]: "8.552"
+                - gridcell "$2523.0 43.1%" [ref=e1385] [cursor=pointer]:
+                  - generic [ref=e1387]:
+                    - generic "2523" [ref=e1388]: $2523.0
+                    - generic [ref=e1389]: 43.1%
+                - gridcell "$2541.0 43.5%" [ref=e1390] [cursor=pointer]:
+                  - generic [ref=e1392]:
+                    - generic "2541" [ref=e1393]: $2541.0
+                    - generic [ref=e1394]: 43.5%
+                - gridcell "5.701" [ref=e1395] [cursor=pointer]:
+                  - generic [ref=e1397]: "5.701"
+            - rowgroup [ref=e1398]:
+              - row "8.869 $1218.0 44.8% $1235.0 45.2% 5.702 0.38 885.76 $298.16K 65000 $34.58K 0.00 -0.63 8.552 $2806.0 42.3% $2840.0 43.1% 5.748" [ref=e1399]:
+                - gridcell "8.869" [ref=e1400] [cursor=pointer]:
+                  - generic [ref=e1402]: "8.869"
+                - gridcell "$1218.0 44.8%" [ref=e1403] [cursor=pointer]:
+                  - generic [ref=e1405]:
+                    - generic "1218" [ref=e1406]: $1218.0
+                    - generic [ref=e1407]: 44.8%
+                - gridcell "$1235.0 45.2%" [ref=e1408] [cursor=pointer]:
+                  - generic [ref=e1410]:
+                    - generic "1235" [ref=e1411]: $1235.0
+                    - generic [ref=e1412]: 45.2%
+                - gridcell "5.702" [ref=e1413] [cursor=pointer]:
+                  - generic [ref=e1415]: "5.702"
+                - gridcell "0.38" [ref=e1416] [cursor=pointer]:
+                  - generic [ref=e1418]: "0.38"
+                - gridcell "885.76" [ref=e1419] [cursor=pointer]:
+                  - generic "885.7600" [ref=e1421]: "885.76"
+                - gridcell "$298.16K" [ref=e1422] [cursor=pointer]:
+                  - generic "298159.4850" [ref=e1425]: $298.16K
+                - gridcell "65000" [ref=e1427] [cursor=pointer]:
+                  - generic "BTC" [ref=e1429]: "65000"
+                - gridcell "$34.58K" [ref=e1430] [cursor=pointer]:
+                  - generic "34582.8169" [ref=e1433]: $34.58K
+                - gridcell "0.00" [ref=e1435] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1437]: "0.00"
+                - gridcell "-0.63" [ref=e1438] [cursor=pointer]:
+                  - generic [ref=e1440]: "-0.63"
+                - gridcell "8.552" [ref=e1441] [cursor=pointer]:
+                  - generic [ref=e1443]: "8.552"
+                - gridcell "$2806.0 42.3%" [ref=e1444] [cursor=pointer]:
+                  - generic [ref=e1446]:
+                    - generic "2806" [ref=e1447]: $2806.0
+                    - generic [ref=e1448]: 42.3%
+                - gridcell "$2840.0 43.1%" [ref=e1449] [cursor=pointer]:
+                  - generic [ref=e1451]:
+                    - generic "2840" [ref=e1452]: $2840.0
+                    - generic [ref=e1453]: 43.1%
+                - gridcell "5.748" [ref=e1454] [cursor=pointer]:
+                  - generic [ref=e1456]: "5.748"
+            - rowgroup [ref=e1457]:
+              - row "8.561 $1035.0 44.3% $1052.0 44.7% 5.701 0.34 0.00 $33.14K 65500 $10.51K 0.00 -0.67 8.552 $3117.0 41.6% $3156.0 42.6% 5.718" [ref=e1458]:
+                - gridcell "8.561" [ref=e1459] [cursor=pointer]:
+                  - generic [ref=e1461]: "8.561"
+                - gridcell "$1035.0 44.3%" [ref=e1462] [cursor=pointer]:
+                  - generic [ref=e1464]:
+                    - generic "1035" [ref=e1465]: $1035.0
+                    - generic [ref=e1466]: 44.3%
+                - gridcell "$1052.0 44.7%" [ref=e1467] [cursor=pointer]:
+                  - generic [ref=e1469]:
+                    - generic "1052" [ref=e1470]: $1052.0
+                    - generic [ref=e1471]: 44.7%
+                - gridcell "5.701" [ref=e1472] [cursor=pointer]:
+                  - generic [ref=e1474]: "5.701"
+                - gridcell "0.34" [ref=e1475] [cursor=pointer]:
+                  - generic [ref=e1477]: "0.34"
+                - gridcell "0.00" [ref=e1478] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1480]: "0.00"
+                - gridcell "$33.14K" [ref=e1481] [cursor=pointer]:
+                  - generic "33139.9084" [ref=e1484]: $33.14K
+                - gridcell "65500" [ref=e1486] [cursor=pointer]:
+                  - generic "BTC" [ref=e1488]: "65500"
+                - gridcell "$10.51K" [ref=e1489] [cursor=pointer]:
+                  - generic "10511.8504" [ref=e1492]: $10.51K
+                - gridcell "0.00" [ref=e1494] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1496]: "0.00"
+                - gridcell "-0.67" [ref=e1497] [cursor=pointer]:
+                  - generic [ref=e1499]: "-0.67"
+                - gridcell "8.552" [ref=e1500] [cursor=pointer]:
+                  - generic [ref=e1502]: "8.552"
+                - gridcell "$3117.0 41.6%" [ref=e1503] [cursor=pointer]:
+                  - generic [ref=e1505]:
+                    - generic "3117" [ref=e1506]: $3117.0
+                    - generic [ref=e1507]: 41.6%
+                - gridcell "$3156.0 42.6%" [ref=e1508] [cursor=pointer]:
+                  - generic [ref=e1510]:
+                    - generic "3156" [ref=e1511]: $3156.0
+                    - generic [ref=e1512]: 42.6%
+                - gridcell "5.718" [ref=e1513] [cursor=pointer]:
+                  - generic [ref=e1515]: "5.718"
+            - rowgroup [ref=e1516]:
+              - row "8.552 $870.0 43.8% $885.0 44.2% 6.006 0.30 6.96K $271.96K 66000 $632.54 -4.56K -0.71 8.552 $3450.0 40.9% $3492.0 42.0% 5.702" [ref=e1517]:
+                - gridcell "8.552" [ref=e1518] [cursor=pointer]:
+                  - generic [ref=e1520]: "8.552"
+                - gridcell "$870.0 43.8%" [ref=e1521] [cursor=pointer]:
+                  - generic [ref=e1523]:
+                    - generic "870" [ref=e1524]: $870.0
+                    - generic [ref=e1525]: 43.8%
+                - gridcell "$885.0 44.2%" [ref=e1526] [cursor=pointer]:
+                  - generic [ref=e1528]:
+                    - generic "885" [ref=e1529]: $885.0
+                    - generic [ref=e1530]: 44.2%
+                - gridcell "6.006" [ref=e1531] [cursor=pointer]:
+                  - generic [ref=e1533]: "6.006"
+                - gridcell "0.30" [ref=e1534] [cursor=pointer]:
+                  - generic [ref=e1536]: "0.30"
+                - gridcell "6.96K" [ref=e1537] [cursor=pointer]:
+                  - generic "6959.5200" [ref=e1539]: 6.96K
+                - gridcell "$271.96K" [ref=e1540] [cursor=pointer]:
+                  - generic "271960.6885" [ref=e1543]: $271.96K
+                - gridcell "66000" [ref=e1545] [cursor=pointer]:
+                  - generic "BTC" [ref=e1547]: "66000"
+                - gridcell "$632.54" [ref=e1548] [cursor=pointer]:
+                  - generic "632.5350" [ref=e1551]: $632.54
+                - gridcell "-4.56K" [ref=e1553] [cursor=pointer]:
+                  - generic "-4555.3200" [ref=e1555]: "-4.56K"
+                - gridcell "-0.71" [ref=e1556] [cursor=pointer]:
+                  - generic [ref=e1558]: "-0.71"
+                - gridcell "8.552" [ref=e1559] [cursor=pointer]:
+                  - generic [ref=e1561]: "8.552"
+                - gridcell "$3450.0 40.9%" [ref=e1562] [cursor=pointer]:
+                  - generic [ref=e1564]:
+                    - generic "3450" [ref=e1565]: $3450.0
+                    - generic [ref=e1566]: 40.9%
+                - gridcell "$3492.0 42.0%" [ref=e1567] [cursor=pointer]:
+                  - generic [ref=e1569]:
+                    - generic "3492" [ref=e1570]: $3492.0
+                    - generic [ref=e1571]: 42.0%
+                - gridcell "5.702" [ref=e1572] [cursor=pointer]:
+                  - generic [ref=e1574]: "5.702"
+            - rowgroup [ref=e1575]:
+              - row "8.737 $727.0 43.4% $741.0 43.8% 5.701 0.27 0.00 $158.85K 66500 $3.16K 0.00 -0.75 8.557 $3807.0 40.2% $3854.0 41.6% 5.702" [ref=e1576]:
+                - gridcell "8.737" [ref=e1577] [cursor=pointer]:
+                  - generic [ref=e1579]: "8.737"
+                - gridcell "$727.0 43.4%" [ref=e1580] [cursor=pointer]:
+                  - generic [ref=e1582]:
+                    - generic "727" [ref=e1583]: $727.0
+                    - generic [ref=e1584]: 43.4%
+                - gridcell "$741.0 43.8%" [ref=e1585] [cursor=pointer]:
+                  - generic [ref=e1587]:
+                    - generic "741" [ref=e1588]: $741.0
+                    - generic [ref=e1589]: 43.8%
+                - gridcell "5.701" [ref=e1590] [cursor=pointer]:
+                  - generic [ref=e1592]: "5.701"
+                - gridcell "0.27" [ref=e1593] [cursor=pointer]:
+                  - generic [ref=e1595]: "0.27"
+                - gridcell "0.00" [ref=e1596] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1598]: "0.00"
+                - gridcell "$158.85K" [ref=e1599] [cursor=pointer]:
+                  - generic "158853.6441" [ref=e1602]: $158.85K
+                - gridcell "66500" [ref=e1604] [cursor=pointer]:
+                  - generic "BTC" [ref=e1606]: "66500"
+                - gridcell "$3.16K" [ref=e1607] [cursor=pointer]:
+                  - generic "3161.3700" [ref=e1610]: $3.16K
+                - gridcell "0.00" [ref=e1612] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1614]: "0.00"
+                - gridcell "-0.75" [ref=e1615] [cursor=pointer]:
+                  - generic [ref=e1617]: "-0.75"
+                - gridcell "8.557" [ref=e1618] [cursor=pointer]:
+                  - generic [ref=e1620]: "8.557"
+                - gridcell "$3807.0 40.2%" [ref=e1621] [cursor=pointer]:
+                  - generic [ref=e1623]:
+                    - generic "3807" [ref=e1624]: $3807.0
+                    - generic [ref=e1625]: 40.2%
+                - gridcell "$3854.0 41.6%" [ref=e1626] [cursor=pointer]:
+                  - generic [ref=e1628]:
+                    - generic "3854" [ref=e1629]: $3854.0
+                    - generic [ref=e1630]: 41.6%
+                - gridcell "5.702" [ref=e1631] [cursor=pointer]:
+                  - generic [ref=e1633]: "5.702"
+            - rowgroup [ref=e1634]:
+              - row "8.552 $606.0 43.2% $619.0 43.6% 6.107 0.23 7.40K $406.43K 67000 $43.31K 5.38K -0.79 8.551 $4178.0 39.5% $4228.0 41.0% 5.749" [ref=e1635]:
+                - gridcell "8.552" [ref=e1636] [cursor=pointer]:
+                  - generic [ref=e1638]: "8.552"
+                - gridcell "$606.0 43.2%" [ref=e1639] [cursor=pointer]:
+                  - generic [ref=e1641]:
+                    - generic "606" [ref=e1642]: $606.0
+                    - generic [ref=e1643]: 43.2%
+                - gridcell "$619.0 43.6%" [ref=e1644] [cursor=pointer]:
+                  - generic [ref=e1646]:
+                    - generic "619" [ref=e1647]: $619.0
+                    - generic [ref=e1648]: 43.6%
+                - gridcell "6.107" [ref=e1649] [cursor=pointer]:
+                  - generic [ref=e1651]: "6.107"
+                - gridcell "0.23" [ref=e1652] [cursor=pointer]:
+                  - generic [ref=e1654]: "0.23"
+                - gridcell "7.40K" [ref=e1655] [cursor=pointer]:
+                  - generic "7402.4000" [ref=e1657]: 7.40K
+                - gridcell "$406.43K" [ref=e1658] [cursor=pointer]:
+                  - generic "406426.5072" [ref=e1661]: $406.43K
+                - gridcell "67000" [ref=e1663] [cursor=pointer]:
+                  - generic "BTC" [ref=e1665]: "67000"
+                - gridcell "$43.31K" [ref=e1666] [cursor=pointer]:
+                  - generic "43307.1385" [ref=e1669]: $43.31K
+                - gridcell "5.38K" [ref=e1671] [cursor=pointer]:
+                  - generic "5377.8100" [ref=e1673]: 5.38K
+                - gridcell "-0.79" [ref=e1674] [cursor=pointer]:
+                  - generic [ref=e1676]: "-0.79"
+                - gridcell "8.551" [ref=e1677] [cursor=pointer]:
+                  - generic [ref=e1679]: "8.551"
+                - gridcell "$4178.0 39.5%" [ref=e1680] [cursor=pointer]:
+                  - generic [ref=e1682]:
+                    - generic "4178" [ref=e1683]: $4178.0
+                    - generic [ref=e1684]: 39.5%
+                - gridcell "$4228.0 41.0%" [ref=e1685] [cursor=pointer]:
+                  - generic [ref=e1687]:
+                    - generic "4228" [ref=e1688]: $4228.0
+                    - generic [ref=e1689]: 41.0%
+                - gridcell "5.749" [ref=e1690] [cursor=pointer]:
+                  - generic [ref=e1692]: "5.749"
+            - rowgroup [ref=e1693]:
+              - row "8.552 $506.0 43.1% $518.0 43.5% 5.717 0.20 0.00 $37.34K 67500 $0.00 0.00 -0.82 8.552 $4580.0 39.1% $4634.0 41.0% 5.701" [ref=e1694]:
+                - gridcell "8.552" [ref=e1695] [cursor=pointer]:
+                  - generic [ref=e1697]: "8.552"
+                - gridcell "$506.0 43.1%" [ref=e1698] [cursor=pointer]:
+                  - generic [ref=e1700]:
+                    - generic "506" [ref=e1701]: $506.0
+                    - generic [ref=e1702]: 43.1%
+                - gridcell "$518.0 43.5%" [ref=e1703] [cursor=pointer]:
+                  - generic [ref=e1705]:
+                    - generic "518" [ref=e1706]: $518.0
+                    - generic [ref=e1707]: 43.5%
+                - gridcell "5.717" [ref=e1708] [cursor=pointer]:
+                  - generic [ref=e1710]: "5.717"
+                - gridcell "0.20" [ref=e1711] [cursor=pointer]:
+                  - generic [ref=e1713]: "0.20"
+                - gridcell "0.00" [ref=e1714] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1716]: "0.00"
+                - gridcell "$37.34K" [ref=e1717] [cursor=pointer]:
+                  - generic "37336.7930" [ref=e1720]: $37.34K
+                - gridcell "67500" [ref=e1722] [cursor=pointer]:
+                  - generic "BTC" [ref=e1724]: "67500"
+                - gridcell "$0.00" [ref=e1725] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1728]: $0.00
+                - gridcell "0.00" [ref=e1729] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1731]: "0.00"
+                - gridcell "-0.82" [ref=e1732] [cursor=pointer]:
+                  - generic [ref=e1734]: "-0.82"
+                - gridcell "8.552" [ref=e1735] [cursor=pointer]:
+                  - generic [ref=e1737]: "8.552"
+                - gridcell "$4580.0 39.1%" [ref=e1738] [cursor=pointer]:
+                  - generic [ref=e1740]:
+                    - generic "4580" [ref=e1741]: $4580.0
+                    - generic [ref=e1742]: 39.1%
+                - gridcell "$4634.0 41.0%" [ref=e1743] [cursor=pointer]:
+                  - generic [ref=e1745]:
+                    - generic "4634" [ref=e1746]: $4634.0
+                    - generic [ref=e1747]: 41.0%
+                - gridcell "5.701" [ref=e1748] [cursor=pointer]:
+                  - generic [ref=e1750]: "5.701"
+            - rowgroup [ref=e1751]:
+              - row "8.552 $422.0 43.2% $433.0 43.6% 6.240 0.18 6.90K $421.54K 68000 $33.63K 0.00 -0.85 8.552 $4990.0 38.5% $5048.0 40.8% 5.724" [ref=e1752]:
+                - gridcell "8.552" [ref=e1753] [cursor=pointer]:
+                  - generic [ref=e1755]: "8.552"
+                - gridcell "$422.0 43.2%" [ref=e1756] [cursor=pointer]:
+                  - generic [ref=e1758]:
+                    - generic "422" [ref=e1759]: $422.0
+                    - generic [ref=e1760]: 43.2%
+                - gridcell "$433.0 43.6%" [ref=e1761] [cursor=pointer]:
+                  - generic [ref=e1763]:
+                    - generic "433" [ref=e1764]: $433.0
+                    - generic [ref=e1765]: 43.6%
+                - gridcell "6.240" [ref=e1766] [cursor=pointer]:
+                  - generic [ref=e1768]: "6.240"
+                - gridcell "0.18" [ref=e1769] [cursor=pointer]:
+                  - generic [ref=e1771]: "0.18"
+                - gridcell "6.90K" [ref=e1772] [cursor=pointer]:
+                  - generic "6896.2600" [ref=e1774]: 6.90K
+                - gridcell "$421.54K" [ref=e1775] [cursor=pointer]:
+                  - generic "421542.5880" [ref=e1778]: $421.54K
+                - gridcell "68000" [ref=e1780] [cursor=pointer]:
+                  - generic "BTC" [ref=e1782]: "68000"
+                - gridcell "$33.63K" [ref=e1783] [cursor=pointer]:
+                  - generic "33630.5664" [ref=e1786]: $33.63K
+                - gridcell "0.00" [ref=e1788] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1790]: "0.00"
+                - gridcell "-0.85" [ref=e1791] [cursor=pointer]:
+                  - generic [ref=e1793]: "-0.85"
+                - gridcell "8.552" [ref=e1794] [cursor=pointer]:
+                  - generic [ref=e1796]: "8.552"
+                - gridcell "$4990.0 38.5%" [ref=e1797] [cursor=pointer]:
+                  - generic [ref=e1799]:
+                    - generic "4990" [ref=e1800]: $4990.0
+                    - generic [ref=e1801]: 38.5%
+                - gridcell "$5048.0 40.8%" [ref=e1802] [cursor=pointer]:
+                  - generic [ref=e1804]:
+                    - generic "5048" [ref=e1805]: $5048.0
+                    - generic [ref=e1806]: 40.8%
+                - gridcell "5.724" [ref=e1807] [cursor=pointer]:
+                  - generic [ref=e1809]: "5.724"
+            - rowgroup [ref=e1810]:
+              - row "8.552 $350.0 43.1% $360.0 43.5% 5.722 0.15 3.23K $80.36K 68500 $18.99K 0.00 -0.87 8.552 $5412.0 37.7% $5475.0 40.6% 5.731" [ref=e1811]:
+                - gridcell "8.552" [ref=e1812] [cursor=pointer]:
+                  - generic [ref=e1814]: "8.552"
+                - gridcell "$350.0 43.1%" [ref=e1815] [cursor=pointer]:
+                  - generic [ref=e1817]:
+                    - generic "350" [ref=e1818]: $350.0
+                    - generic [ref=e1819]: 43.1%
+                - gridcell "$360.0 43.5%" [ref=e1820] [cursor=pointer]:
+                  - generic [ref=e1822]:
+                    - generic "360" [ref=e1823]: $360.0
+                    - generic [ref=e1824]: 43.5%
+                - gridcell "5.722" [ref=e1825] [cursor=pointer]:
+                  - generic [ref=e1827]: "5.722"
+                - gridcell "0.15" [ref=e1828] [cursor=pointer]:
+                  - generic [ref=e1830]: "0.15"
+                - gridcell "3.23K" [ref=e1831] [cursor=pointer]:
+                  - generic "3226.6900" [ref=e1833]: 3.23K
+                - gridcell "$80.36K" [ref=e1834] [cursor=pointer]:
+                  - generic "80357.1956" [ref=e1837]: $80.36K
+                - gridcell "68500" [ref=e1839] [cursor=pointer]:
+                  - generic "BTC" [ref=e1841]: "68500"
+                - gridcell "$18.99K" [ref=e1842] [cursor=pointer]:
+                  - generic "18993.8400" [ref=e1845]: $18.99K
+                - gridcell "0.00" [ref=e1847] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1849]: "0.00"
+                - gridcell "-0.87" [ref=e1850] [cursor=pointer]:
+                  - generic [ref=e1852]: "-0.87"
+                - gridcell "8.552" [ref=e1853] [cursor=pointer]:
+                  - generic [ref=e1855]: "8.552"
+                - gridcell "$5412.0 37.7%" [ref=e1856] [cursor=pointer]:
+                  - generic [ref=e1858]:
+                    - generic "5412" [ref=e1859]: $5412.0
+                    - generic [ref=e1860]: 37.7%
+                - gridcell "$5475.0 40.6%" [ref=e1861] [cursor=pointer]:
+                  - generic [ref=e1863]:
+                    - generic "5475" [ref=e1864]: $5475.0
+                    - generic [ref=e1865]: 40.6%
+                - gridcell "5.731" [ref=e1866] [cursor=pointer]:
+                  - generic [ref=e1868]: "5.731"
+            - rowgroup [ref=e1869]:
+              - row "8.642 $288.0 43.2% $298.0 43.6% 5.702 0.13 -64.98K $94.22K 69000 $1.01K 0.00 -0.90 8.553 $5849.0 36.8% $5916.0 40.3% 5.701" [ref=e1870]:
+                - gridcell "8.642" [ref=e1871] [cursor=pointer]:
+                  - generic [ref=e1873]: "8.642"
+                - gridcell "$288.0 43.2%" [ref=e1874] [cursor=pointer]:
+                  - generic [ref=e1876]:
+                    - generic "288" [ref=e1877]: $288.0
+                    - generic [ref=e1878]: 43.2%
+                - gridcell "$298.0 43.6%" [ref=e1879] [cursor=pointer]:
+                  - generic [ref=e1881]:
+                    - generic "298" [ref=e1882]: $298.0
+                    - generic [ref=e1883]: 43.6%
+                - gridcell "5.702" [ref=e1884] [cursor=pointer]:
+                  - generic [ref=e1886]: "5.702"
+                - gridcell "0.13" [ref=e1887] [cursor=pointer]:
+                  - generic [ref=e1889]: "0.13"
+                - gridcell "-64.98K" [ref=e1890] [cursor=pointer]:
+                  - generic "-64976.6500" [ref=e1892]: "-64.98K"
+                - gridcell "$94.22K" [ref=e1893] [cursor=pointer]:
+                  - generic "94216.2760" [ref=e1896]: $94.22K
+                - gridcell "69000" [ref=e1898] [cursor=pointer]:
+                  - generic "BTC" [ref=e1900]: "69000"
+                - gridcell "$1.01K" [ref=e1901] [cursor=pointer]:
+                  - generic "1012.5728" [ref=e1904]: $1.01K
+                - gridcell "0.00" [ref=e1906] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1908]: "0.00"
+                - gridcell "-0.90" [ref=e1909] [cursor=pointer]:
+                  - generic [ref=e1911]: "-0.90"
+                - gridcell "8.553" [ref=e1912] [cursor=pointer]:
+                  - generic [ref=e1914]: "8.553"
+                - gridcell "$5849.0 36.8%" [ref=e1915] [cursor=pointer]:
+                  - generic [ref=e1917]:
+                    - generic "5849" [ref=e1918]: $5849.0
+                    - generic [ref=e1919]: 36.8%
+                - gridcell "$5916.0 40.3%" [ref=e1920] [cursor=pointer]:
+                  - generic [ref=e1922]:
+                    - generic "5916" [ref=e1923]: $5916.0
+                    - generic [ref=e1924]: 40.3%
+                - gridcell "5.701" [ref=e1925] [cursor=pointer]:
+                  - generic [ref=e1927]: "5.701"
+            - rowgroup [ref=e1928]:
+              - row "8.552 $240.0 43.4% $248.0 43.8% 5.775 0.11 0.00 $51.13K 69500 $0.00 0.00 -0.92 8.552 $6297.0 35.8% $6368.0 40.2% 5.701" [ref=e1929]:
+                - gridcell "8.552" [ref=e1930] [cursor=pointer]:
+                  - generic [ref=e1932]: "8.552"
+                - gridcell "$240.0 43.4%" [ref=e1933] [cursor=pointer]:
+                  - generic [ref=e1935]:
+                    - generic "240" [ref=e1936]: $240.0
+                    - generic [ref=e1937]: 43.4%
+                - gridcell "$248.0 43.8%" [ref=e1938] [cursor=pointer]:
+                  - generic [ref=e1940]:
+                    - generic "248" [ref=e1941]: $248.0
+                    - generic [ref=e1942]: 43.8%
+                - gridcell "5.775" [ref=e1943] [cursor=pointer]:
+                  - generic [ref=e1945]: "5.775"
+                - gridcell "0.11" [ref=e1946] [cursor=pointer]:
+                  - generic [ref=e1948]: "0.11"
+                - gridcell "0.00" [ref=e1949] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1951]: "0.00"
+                - gridcell "$51.13K" [ref=e1952] [cursor=pointer]:
+                  - generic "51131.8560" [ref=e1955]: $51.13K
+                - gridcell "69500" [ref=e1957] [cursor=pointer]:
+                  - generic "BTC" [ref=e1959]: "69500"
+                - gridcell "$0.00" [ref=e1960] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1963]: $0.00
+                - gridcell "0.00" [ref=e1964] [cursor=pointer]:
+                  - generic "0.0000" [ref=e1966]: "0.00"
+                - gridcell "-0.92" [ref=e1967] [cursor=pointer]:
+                  - generic [ref=e1969]: "-0.92"
+                - gridcell "8.552" [ref=e1970] [cursor=pointer]:
+                  - generic [ref=e1972]: "8.552"
+                - gridcell "$6297.0 35.8%" [ref=e1973] [cursor=pointer]:
+                  - generic [ref=e1975]:
+                    - generic "6297" [ref=e1976]: $6297.0
+                    - generic [ref=e1977]: 35.8%
+                - gridcell "$6368.0 40.2%" [ref=e1978] [cursor=pointer]:
+                  - generic [ref=e1980]:
+                    - generic "6368" [ref=e1981]: $6368.0
+                    - generic [ref=e1982]: 40.2%
+                - gridcell "5.701" [ref=e1983] [cursor=pointer]:
+                  - generic [ref=e1985]: "5.701"
+            - rowgroup [ref=e1986]:
+              - row "8.597 $199.0 43.5% $207.0 44.0% 5.701 0.09 -6.33K $208.21K 70000 $41.15K 3.16K -0.94 8.601 $6753.0 34.1% $6828.0 40.0% 5.701" [ref=e1987]:
+                - gridcell "8.597" [ref=e1988] [cursor=pointer]:
+                  - generic [ref=e1990]: "8.597"
+                - gridcell "$199.0 43.5%" [ref=e1991] [cursor=pointer]:
+                  - generic [ref=e1993]:
+                    - generic "199" [ref=e1994]: $199.0
+                    - generic [ref=e1995]: 43.5%
+                - gridcell "$207.0 44.0%" [ref=e1996] [cursor=pointer]:
+                  - generic [ref=e1998]:
+                    - generic "207" [ref=e1999]: $207.0
+                    - generic [ref=e2000]: 44.0%
+                - gridcell "5.701" [ref=e2001] [cursor=pointer]:
+                  - generic [ref=e2003]: "5.701"
+                - gridcell "0.09" [ref=e2004] [cursor=pointer]:
+                  - generic [ref=e2006]: "0.09"
+                - gridcell "-6.33K" [ref=e2007] [cursor=pointer]:
+                  - generic "-6326.8400" [ref=e2009]: "-6.33K"
+                - gridcell "$208.21K" [ref=e2010] [cursor=pointer]:
+                  - generic "208211.4505" [ref=e2013]: $208.21K
+                - gridcell "70000" [ref=e2015] [cursor=pointer]:
+                  - generic "BTC" [ref=e2017]: "70000"
+                - gridcell "$41.15K" [ref=e2018] [cursor=pointer]:
+                  - generic "41146.5600" [ref=e2021]: $41.15K
+                - gridcell "3.16K" [ref=e2023] [cursor=pointer]:
+                  - generic "3163.4200" [ref=e2025]: 3.16K
+                - gridcell "-0.94" [ref=e2026] [cursor=pointer]:
+                  - generic [ref=e2028]: "-0.94"
+                - gridcell "8.601" [ref=e2029] [cursor=pointer]:
+                  - generic [ref=e2031]: "8.601"
+                - gridcell "$6753.0 34.1%" [ref=e2032] [cursor=pointer]:
+                  - generic [ref=e2034]:
+                    - generic "6753" [ref=e2035]: $6753.0
+                    - generic [ref=e2036]: 34.1%
+                - gridcell "$6828.0 40.0%" [ref=e2037] [cursor=pointer]:
+                  - generic [ref=e2039]:
+                    - generic "6828" [ref=e2040]: $6828.0
+                    - generic [ref=e2041]: 40.0%
+                - gridcell "5.701" [ref=e2042] [cursor=pointer]:
+                  - generic [ref=e2044]: "5.701"
+            - rowgroup [ref=e2045]:
+              - row "8.798 $165.0 43.7% $171.0 44.1% 5.701 0.08 949.03 $166.78K 70500 $0.00 0.00 -0.92 18.000 $0.1 0.0% - -" [ref=e2046]:
+                - gridcell "8.798" [ref=e2047] [cursor=pointer]:
+                  - generic [ref=e2049]: "8.798"
+                - gridcell "$165.0 43.7%" [ref=e2050] [cursor=pointer]:
+                  - generic [ref=e2052]:
+                    - generic "165" [ref=e2053]: $165.0
+                    - generic [ref=e2054]: 43.7%
+                - gridcell "$171.0 44.1%" [ref=e2055] [cursor=pointer]:
+                  - generic [ref=e2057]:
+                    - generic "171" [ref=e2058]: $171.0
+                    - generic [ref=e2059]: 44.1%
+                - gridcell "5.701" [ref=e2060] [cursor=pointer]:
+                  - generic [ref=e2062]: "5.701"
+                - gridcell "0.08" [ref=e2063] [cursor=pointer]:
+                  - generic [ref=e2065]: "0.08"
+                - gridcell "949.03" [ref=e2066] [cursor=pointer]:
+                  - generic "949.0300" [ref=e2068]: "949.03"
+                - gridcell "$166.78K" [ref=e2069] [cursor=pointer]:
+                  - generic "166779.7493" [ref=e2072]: $166.78K
+                - gridcell "70500" [ref=e2074] [cursor=pointer]:
+                  - generic "BTC" [ref=e2076]: "70500"
+                - gridcell "$0.00" [ref=e2077] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2080]: $0.00
+                - gridcell "0.00" [ref=e2081] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2083]: "0.00"
+                - gridcell "-0.92" [ref=e2084] [cursor=pointer]:
+                  - generic [ref=e2086]: "-0.92"
+                - gridcell "18.000" [ref=e2087] [cursor=pointer]:
+                  - generic [ref=e2089]: "18.000"
+                - gridcell "$0.1 0.0%" [ref=e2090] [cursor=pointer]:
+                  - generic [ref=e2092]:
+                    - generic "0.1" [ref=e2093]: $0.1
+                    - generic [ref=e2094]: 0.0%
+                - gridcell "-" [ref=e2095] [cursor=pointer]:
+                  - generic [ref=e2097]: "-"
+                - gridcell "-" [ref=e2098] [cursor=pointer]:
+                  - generic [ref=e2100]: "-"
+            - rowgroup [ref=e2101]:
+              - row "8.552 $137.0 44.0% $143.0 44.4% 5.842 0.07 -1.90K $170.44K 71000 $3.80K 2.53K -0.97 8.552 $7684.0 0.0% $7768.0 39.3% 5.707" [ref=e2102]:
+                - gridcell "8.552" [ref=e2103] [cursor=pointer]:
+                  - generic [ref=e2105]: "8.552"
+                - gridcell "$137.0 44.0%" [ref=e2106] [cursor=pointer]:
+                  - generic [ref=e2108]:
+                    - generic "137" [ref=e2109]: $137.0
+                    - generic [ref=e2110]: 44.0%
+                - gridcell "$143.0 44.4%" [ref=e2111] [cursor=pointer]:
+                  - generic [ref=e2113]:
+                    - generic "143" [ref=e2114]: $143.0
+                    - generic [ref=e2115]: 44.4%
+                - gridcell "5.842" [ref=e2116] [cursor=pointer]:
+                  - generic [ref=e2118]: "5.842"
+                - gridcell "0.07" [ref=e2119] [cursor=pointer]:
+                  - generic [ref=e2121]: "0.07"
+                - gridcell "-1.90K" [ref=e2122] [cursor=pointer]:
+                  - generic "-1898.0500" [ref=e2124]: "-1.90K"
+                - gridcell "$170.44K" [ref=e2125] [cursor=pointer]:
+                  - generic "170436.1732" [ref=e2128]: $170.44K
+                - gridcell "71000" [ref=e2130] [cursor=pointer]:
+                  - generic "BTC" [ref=e2132]: "71000"
+                - gridcell "$3.80K" [ref=e2133] [cursor=pointer]:
+                  - generic "3797.6520" [ref=e2136]: $3.80K
+                - gridcell "2.53K" [ref=e2138] [cursor=pointer]:
+                  - generic "2530.7400" [ref=e2140]: 2.53K
+                - gridcell "-0.97" [ref=e2141] [cursor=pointer]:
+                  - generic [ref=e2143]: "-0.97"
+                - gridcell "8.552" [ref=e2144] [cursor=pointer]:
+                  - generic [ref=e2146]: "8.552"
+                - gridcell "$7684.0 0.0%" [ref=e2147] [cursor=pointer]:
+                  - generic [ref=e2149]:
+                    - generic "7684" [ref=e2150]: $7684.0
+                    - generic [ref=e2151]: 0.0%
+                - gridcell "$7768.0 39.3%" [ref=e2152] [cursor=pointer]:
+                  - generic [ref=e2154]:
+                    - generic "7768" [ref=e2155]: $7768.0
+                    - generic [ref=e2156]: 39.3%
+                - gridcell "5.707" [ref=e2157] [cursor=pointer]:
+                  - generic [ref=e2159]: "5.707"
+            - rowgroup [ref=e2160]:
+              - row "8.674 $116.0 44.5% $122.0 44.9% 5.702 0.06 0.00 $77.13K 71500 $2.53K 0.00 -0.99 8.552 $8160.0 0.0% $8249.0 39.2% 5.705" [ref=e2161]:
+                - gridcell "8.674" [ref=e2162] [cursor=pointer]:
+                  - generic [ref=e2164]: "8.674"
+                - gridcell "$116.0 44.5%" [ref=e2165] [cursor=pointer]:
+                  - generic [ref=e2167]:
+                    - generic "116" [ref=e2168]: $116.0
+                    - generic [ref=e2169]: 44.5%
+                - gridcell "$122.0 44.9%" [ref=e2170] [cursor=pointer]:
+                  - generic [ref=e2172]:
+                    - generic "122" [ref=e2173]: $122.0
+                    - generic [ref=e2174]: 44.9%
+                - gridcell "5.702" [ref=e2175] [cursor=pointer]:
+                  - generic [ref=e2177]: "5.702"
+                - gridcell "0.06" [ref=e2178] [cursor=pointer]:
+                  - generic [ref=e2180]: "0.06"
+                - gridcell "0.00" [ref=e2181] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2183]: "0.00"
+                - gridcell "$77.13K" [ref=e2184] [cursor=pointer]:
+                  - generic "77130.8244" [ref=e2187]: $77.13K
+                - gridcell "71500" [ref=e2189] [cursor=pointer]:
+                  - generic "BTC" [ref=e2191]: "71500"
+                - gridcell "$2.53K" [ref=e2192] [cursor=pointer]:
+                  - generic "2532.4760" [ref=e2195]: $2.53K
+                - gridcell "0.00" [ref=e2197] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2199]: "0.00"
+                - gridcell "-0.99" [ref=e2200] [cursor=pointer]:
+                  - generic [ref=e2202]: "-0.99"
+                - gridcell "8.552" [ref=e2203] [cursor=pointer]:
+                  - generic [ref=e2205]: "8.552"
+                - gridcell "$8160.0 0.0%" [ref=e2206] [cursor=pointer]:
+                  - generic [ref=e2208]:
+                    - generic "8160" [ref=e2209]: $8160.0
+                    - generic [ref=e2210]: 0.0%
+                - gridcell "$8249.0 39.2%" [ref=e2211] [cursor=pointer]:
+                  - generic [ref=e2213]:
+                    - generic "8249" [ref=e2214]: $8249.0
+                    - generic [ref=e2215]: 39.2%
+                - gridcell "5.705" [ref=e2216] [cursor=pointer]:
+                  - generic [ref=e2218]: "5.705"
+            - rowgroup [ref=e2219]:
+              - row "8.552 $100.0 45.1% $105.0 45.5% 5.737 0.05 -10.76K $195.38K 72000 $632.18 0.00 -1.00 8.552 $8641.0 0.0% $8734.0 39.1% 5.702" [ref=e2220]:
+                - gridcell "8.552" [ref=e2221] [cursor=pointer]:
+                  - generic [ref=e2223]: "8.552"
+                - gridcell "$100.0 45.1%" [ref=e2224] [cursor=pointer]:
+                  - generic [ref=e2226]:
+                    - generic "100" [ref=e2227]: $100.0
+                    - generic [ref=e2228]: 45.1%
+                - gridcell "$105.0 45.5%" [ref=e2229] [cursor=pointer]:
+                  - generic [ref=e2231]:
+                    - generic "105" [ref=e2232]: $105.0
+                    - generic [ref=e2233]: 45.5%
+                - gridcell "5.737" [ref=e2234] [cursor=pointer]:
+                  - generic [ref=e2236]: "5.737"
+                - gridcell "0.05" [ref=e2237] [cursor=pointer]:
+                  - generic [ref=e2239]: "0.05"
+                - gridcell "-10.76K" [ref=e2240] [cursor=pointer]:
+                  - generic "-10755.6300" [ref=e2242]: "-10.76K"
+                - gridcell "$195.38K" [ref=e2243] [cursor=pointer]:
+                  - generic "195382.3050" [ref=e2246]: $195.38K
+                - gridcell "72000" [ref=e2248] [cursor=pointer]:
+                  - generic "BTC" [ref=e2250]: "72000"
+                - gridcell "$632.18" [ref=e2251] [cursor=pointer]:
+                  - generic "632.1760" [ref=e2254]: $632.18
+                - gridcell "0.00" [ref=e2256] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2258]: "0.00"
+                - gridcell "-1.00" [ref=e2259] [cursor=pointer]:
+                  - generic [ref=e2261]: "-1.00"
+                - gridcell "8.552" [ref=e2262] [cursor=pointer]:
+                  - generic [ref=e2264]: "8.552"
+                - gridcell "$8641.0 0.0%" [ref=e2265] [cursor=pointer]:
+                  - generic [ref=e2267]:
+                    - generic "8641" [ref=e2268]: $8641.0
+                    - generic [ref=e2269]: 0.0%
+                - gridcell "$8734.0 39.1%" [ref=e2270] [cursor=pointer]:
+                  - generic [ref=e2272]:
+                    - generic "8734" [ref=e2273]: $8734.0
+                    - generic [ref=e2274]: 39.1%
+                - gridcell "5.702" [ref=e2275] [cursor=pointer]:
+                  - generic [ref=e2277]: "5.702"
+            - rowgroup [ref=e2278]:
+              - row "8.552 $84.0 45.5% $89.0 45.9% 5.707 0.04 3.16K $3.17K 72500 $15.84K 0.00 -1.00 8.552 $9122.0 0.0% $9219.0 38.4% 5.726" [ref=e2279]:
+                - gridcell "8.552" [ref=e2280] [cursor=pointer]:
+                  - generic [ref=e2282]: "8.552"
+                - gridcell "$84.0 45.5%" [ref=e2283] [cursor=pointer]:
+                  - generic [ref=e2285]:
+                    - generic "84" [ref=e2286]: $84.0
+                    - generic [ref=e2287]: 45.5%
+                - gridcell "$89.0 45.9%" [ref=e2288] [cursor=pointer]:
+                  - generic [ref=e2290]:
+                    - generic "89" [ref=e2291]: $89.0
+                    - generic [ref=e2292]: 45.9%
+                - gridcell "5.707" [ref=e2293] [cursor=pointer]:
+                  - generic [ref=e2295]: "5.707"
+                - gridcell "0.04" [ref=e2296] [cursor=pointer]:
+                  - generic [ref=e2298]: "0.04"
+                - gridcell "3.16K" [ref=e2299] [cursor=pointer]:
+                  - generic "3163.4200" [ref=e2301]: 3.16K
+                - gridcell "$3.17K" [ref=e2302] [cursor=pointer]:
+                  - generic "3165.2850" [ref=e2305]: $3.17K
+                - gridcell "72500" [ref=e2307] [cursor=pointer]:
+                  - generic "BTC" [ref=e2309]: "72500"
+                - gridcell "$15.84K" [ref=e2310] [cursor=pointer]:
+                  - generic "15835.0500" [ref=e2313]: $15.84K
+                - gridcell "0.00" [ref=e2315] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2317]: "0.00"
+                - gridcell "-1.00" [ref=e2318] [cursor=pointer]:
+                  - generic [ref=e2320]: "-1.00"
+                - gridcell "8.552" [ref=e2321] [cursor=pointer]:
+                  - generic [ref=e2323]: "8.552"
+                - gridcell "$9122.0 0.0%" [ref=e2324] [cursor=pointer]:
+                  - generic [ref=e2326]:
+                    - generic "9122" [ref=e2327]: $9122.0
+                    - generic [ref=e2328]: 0.0%
+                - gridcell "$9219.0 38.4%" [ref=e2329] [cursor=pointer]:
+                  - generic [ref=e2331]:
+                    - generic "9219" [ref=e2332]: $9219.0
+                    - generic [ref=e2333]: 38.4%
+                - gridcell "5.726" [ref=e2334] [cursor=pointer]:
+                  - generic [ref=e2336]: "5.726"
+            - rowgroup [ref=e2337]:
+              - row "8.552 $72.0 46.0% $76.0 46.4% 6.149 0.04 66.05K $323.39K 73000 $1.33K 0.00 -1.00 8.552 $9608.0 0.0% $9710.0 38.3% 5.703" [ref=e2338]:
+                - gridcell "8.552" [ref=e2339] [cursor=pointer]:
+                  - generic [ref=e2341]: "8.552"
+                - gridcell "$72.0 46.0%" [ref=e2342] [cursor=pointer]:
+                  - generic [ref=e2344]:
+                    - generic "72" [ref=e2345]: $72.0
+                    - generic [ref=e2346]: 46.0%
+                - gridcell "$76.0 46.4%" [ref=e2347] [cursor=pointer]:
+                  - generic [ref=e2349]:
+                    - generic "76" [ref=e2350]: $76.0
+                    - generic [ref=e2351]: 46.4%
+                - gridcell "6.149" [ref=e2352] [cursor=pointer]:
+                  - generic [ref=e2354]: "6.149"
+                - gridcell "0.04" [ref=e2355] [cursor=pointer]:
+                  - generic [ref=e2357]: "0.04"
+                - gridcell "66.05K" [ref=e2358] [cursor=pointer]:
+                  - generic "66052.2100" [ref=e2360]: 66.05K
+                - gridcell "$323.39K" [ref=e2361] [cursor=pointer]:
+                  - generic "323391.4600" [ref=e2364]: $323.39K
+                - gridcell "73000" [ref=e2366] [cursor=pointer]:
+                  - generic "BTC" [ref=e2368]: "73000"
+                - gridcell "$1.33K" [ref=e2369] [cursor=pointer]:
+                  - generic "1329.9531" [ref=e2372]: $1.33K
+                - gridcell "0.00" [ref=e2374] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2376]: "0.00"
+                - gridcell "-1.00" [ref=e2377] [cursor=pointer]:
+                  - generic [ref=e2379]: "-1.00"
+                - gridcell "8.552" [ref=e2380] [cursor=pointer]:
+                  - generic [ref=e2382]: "8.552"
+                - gridcell "$9608.0 0.0%" [ref=e2383] [cursor=pointer]:
+                  - generic [ref=e2385]:
+                    - generic "9608" [ref=e2386]: $9608.0
+                    - generic [ref=e2387]: 0.0%
+                - gridcell "$9710.0 38.3%" [ref=e2388] [cursor=pointer]:
+                  - generic [ref=e2390]:
+                    - generic "9710" [ref=e2391]: $9710.0
+                    - generic [ref=e2392]: 38.3%
+                - gridcell "5.703" [ref=e2393] [cursor=pointer]:
+                  - generic [ref=e2395]: "5.703"
+            - rowgroup [ref=e2396]:
+              - row "8.552 $63.0 46.6% $67.0 47.1% 6.066 0.03 13.29K $238.29K 73500 $19.05K 0.00 -1.00 8.552 $10097.0 0.0% $10204.0 37.6% 5.732" [ref=e2397]:
+                - gridcell "8.552" [ref=e2398] [cursor=pointer]:
+                  - generic [ref=e2400]: "8.552"
+                - gridcell "$63.0 46.6%" [ref=e2401] [cursor=pointer]:
+                  - generic [ref=e2403]:
+                    - generic "63" [ref=e2404]: $63.0
+                    - generic [ref=e2405]: 46.6%
+                - gridcell "$67.0 47.1%" [ref=e2406] [cursor=pointer]:
+                  - generic [ref=e2408]:
+                    - generic "67" [ref=e2409]: $67.0
+                    - generic [ref=e2410]: 47.1%
+                - gridcell "6.066" [ref=e2411] [cursor=pointer]:
+                  - generic [ref=e2413]: "6.066"
+                - gridcell "0.03" [ref=e2414] [cursor=pointer]:
+                  - generic [ref=e2416]: "0.03"
+                - gridcell "13.29K" [ref=e2417] [cursor=pointer]:
+                  - generic "13286.3600" [ref=e2419]: 13.29K
+                - gridcell "$238.29K" [ref=e2420] [cursor=pointer]:
+                  - generic "238289.8064" [ref=e2423]: $238.29K
+                - gridcell "73500" [ref=e2425] [cursor=pointer]:
+                  - generic "BTC" [ref=e2427]: "73500"
+                - gridcell "$19.05K" [ref=e2428] [cursor=pointer]:
+                  - generic "19048.5442" [ref=e2431]: $19.05K
+                - gridcell "0.00" [ref=e2433] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2435]: "0.00"
+                - gridcell "-1.00" [ref=e2436] [cursor=pointer]:
+                  - generic [ref=e2438]: "-1.00"
+                - gridcell "8.552" [ref=e2439] [cursor=pointer]:
+                  - generic [ref=e2441]: "8.552"
+                - gridcell "$10097.0 0.0%" [ref=e2442] [cursor=pointer]:
+                  - generic [ref=e2444]:
+                    - generic "10097" [ref=e2445]: $10097.0
+                    - generic [ref=e2446]: 0.0%
+                - gridcell "$10204.0 37.6%" [ref=e2447] [cursor=pointer]:
+                  - generic [ref=e2449]:
+                    - generic "10204" [ref=e2450]: $10204.0
+                    - generic [ref=e2451]: 37.6%
+                - gridcell "5.732" [ref=e2452] [cursor=pointer]:
+                  - generic [ref=e2454]: "5.732"
+            - rowgroup [ref=e2455]:
+              - row "8.552 $56.0 47.4% $60.0 48.0% 6.011 0.03 10.06K $311.75K 74000 $34.96K 0.00 -1.00 8.552 $10584.0 0.0% $10695.0 35.1% 5.756" [ref=e2456]:
+                - gridcell "8.552" [ref=e2457] [cursor=pointer]:
+                  - generic [ref=e2459]: "8.552"
+                - gridcell "$56.0 47.4%" [ref=e2460] [cursor=pointer]:
+                  - generic [ref=e2462]:
+                    - generic "56" [ref=e2463]: $56.0
+                    - generic [ref=e2464]: 47.4%
+                - gridcell "$60.0 48.0%" [ref=e2465] [cursor=pointer]:
+                  - generic [ref=e2467]:
+                    - generic "60" [ref=e2468]: $60.0
+                    - generic [ref=e2469]: 48.0%
+                - gridcell "6.011" [ref=e2470] [cursor=pointer]:
+                  - generic [ref=e2472]: "6.011"
+                - gridcell "0.03" [ref=e2473] [cursor=pointer]:
+                  - generic [ref=e2475]: "0.03"
+                - gridcell "10.06K" [ref=e2476] [cursor=pointer]:
+                  - generic "10059.6800" [ref=e2478]: 10.06K
+                - gridcell "$311.75K" [ref=e2479] [cursor=pointer]:
+                  - generic "311749.7916" [ref=e2482]: $311.75K
+                - gridcell "74000" [ref=e2484] [cursor=pointer]:
+                  - generic "BTC" [ref=e2486]: "74000"
+                - gridcell "$34.96K" [ref=e2487] [cursor=pointer]:
+                  - generic "34961.9688" [ref=e2490]: $34.96K
+                - gridcell "0.00" [ref=e2492] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2494]: "0.00"
+                - gridcell "-1.00" [ref=e2495] [cursor=pointer]:
+                  - generic [ref=e2497]: "-1.00"
+                - gridcell "8.552" [ref=e2498] [cursor=pointer]:
+                  - generic [ref=e2500]: "8.552"
+                - gridcell "$10584.0 0.0%" [ref=e2501] [cursor=pointer]:
+                  - generic [ref=e2503]:
+                    - generic "10584" [ref=e2504]: $10584.0
+                    - generic [ref=e2505]: 0.0%
+                - gridcell "$10695.0 35.1%" [ref=e2506] [cursor=pointer]:
+                  - generic [ref=e2508]:
+                    - generic "10695" [ref=e2509]: $10695.0
+                    - generic [ref=e2510]: 35.1%
+                - gridcell "5.756" [ref=e2511] [cursor=pointer]:
+                  - generic [ref=e2513]: "5.756"
+            - rowgroup [ref=e2514]:
+              - row "8.706 $50.0 48.2% $54.0 48.8% 5.701 0.03 0.00 $136.78K 74500 $0.00 0.00 -0.97 0.050 $1.0 0.0% - -" [ref=e2515]:
+                - gridcell "8.706" [ref=e2516] [cursor=pointer]:
+                  - generic [ref=e2518]: "8.706"
+                - gridcell "$50.0 48.2%" [ref=e2519] [cursor=pointer]:
+                  - generic [ref=e2521]:
+                    - generic "50" [ref=e2522]: $50.0
+                    - generic [ref=e2523]: 48.2%
+                - gridcell "$54.0 48.8%" [ref=e2524] [cursor=pointer]:
+                  - generic [ref=e2526]:
+                    - generic "54" [ref=e2527]: $54.0
+                    - generic [ref=e2528]: 48.8%
+                - gridcell "5.701" [ref=e2529] [cursor=pointer]:
+                  - generic [ref=e2531]: "5.701"
+                - gridcell "0.03" [ref=e2532] [cursor=pointer]:
+                  - generic [ref=e2534]: "0.03"
+                - gridcell "0.00" [ref=e2535] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2537]: "0.00"
+                - gridcell "$136.78K" [ref=e2538] [cursor=pointer]:
+                  - generic "136783.9526" [ref=e2541]: $136.78K
+                - gridcell "74500" [ref=e2543] [cursor=pointer]:
+                  - generic "BTC" [ref=e2545]: "74500"
+                - gridcell "$0.00" [ref=e2546] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2549]: $0.00
+                - gridcell "0.00" [ref=e2550] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2552]: "0.00"
+                - gridcell "-0.97" [ref=e2553] [cursor=pointer]:
+                  - generic [ref=e2555]: "-0.97"
+                - gridcell "0.050" [ref=e2556] [cursor=pointer]:
+                  - generic [ref=e2558]: "0.050"
+                - gridcell "$1.0 0.0%" [ref=e2559] [cursor=pointer]:
+                  - generic [ref=e2561]:
+                    - generic "1" [ref=e2562]: $1.0
+                    - generic [ref=e2563]: 0.0%
+                - gridcell "-" [ref=e2564] [cursor=pointer]:
+                  - generic [ref=e2566]: "-"
+                - gridcell "-" [ref=e2567] [cursor=pointer]:
+                  - generic [ref=e2569]: "-"
+            - rowgroup [ref=e2570]:
+              - row "8.552 $46.0 49.2% $49.0 49.7% 5.841 0.02 0.00 $389.35K 75000 $6.39K 0.00 -1.00 8.552 $11566.0 0.0% $11688.0 31.5% 5.701" [ref=e2571]:
+                - gridcell "8.552" [ref=e2572] [cursor=pointer]:
+                  - generic [ref=e2574]: "8.552"
+                - gridcell "$46.0 49.2%" [ref=e2575] [cursor=pointer]:
+                  - generic [ref=e2577]:
+                    - generic "46" [ref=e2578]: $46.0
+                    - generic [ref=e2579]: 49.2%
+                - gridcell "$49.0 49.7%" [ref=e2580] [cursor=pointer]:
+                  - generic [ref=e2582]:
+                    - generic "49" [ref=e2583]: $49.0
+                    - generic [ref=e2584]: 49.7%
+                - gridcell "5.841" [ref=e2585] [cursor=pointer]:
+                  - generic [ref=e2587]: "5.841"
+                - gridcell "0.02" [ref=e2588] [cursor=pointer]:
+                  - generic [ref=e2590]: "0.02"
+                - gridcell "0.00" [ref=e2591] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2593]: "0.00"
+                - gridcell "$389.35K" [ref=e2594] [cursor=pointer]:
+                  - generic "389354.9644" [ref=e2597]: $389.35K
+                - gridcell "75000" [ref=e2599] [cursor=pointer]:
+                  - generic "BTC" [ref=e2601]: "75000"
+                - gridcell "$6.39K" [ref=e2602] [cursor=pointer]:
+                  - generic "6385.4725" [ref=e2605]: $6.39K
+                - gridcell "0.00" [ref=e2607] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2609]: "0.00"
+                - gridcell "-1.00" [ref=e2610] [cursor=pointer]:
+                  - generic [ref=e2612]: "-1.00"
+                - gridcell "8.552" [ref=e2613] [cursor=pointer]:
+                  - generic [ref=e2615]: "8.552"
+                - gridcell "$11566.0 0.0%" [ref=e2616] [cursor=pointer]:
+                  - generic [ref=e2618]:
+                    - generic "11566" [ref=e2619]: $11566.0
+                    - generic [ref=e2620]: 0.0%
+                - gridcell "$11688.0 31.5%" [ref=e2621] [cursor=pointer]:
+                  - generic [ref=e2623]:
+                    - generic "11688" [ref=e2624]: $11688.0
+                    - generic [ref=e2625]: 31.5%
+                - gridcell "5.701" [ref=e2626] [cursor=pointer]:
+                  - generic [ref=e2628]: "5.701"
+            - rowgroup [ref=e2629]:
+              - row "8.596 $43.0 50.3% $46.0 50.8% 5.701 0.02 6.33K $44.27K 75500 $0.00 0.00 -0.98 1.000 $0.2 0.0% - -" [ref=e2630]:
+                - gridcell "8.596" [ref=e2631] [cursor=pointer]:
+                  - generic [ref=e2633]: "8.596"
+                - gridcell "$43.0 50.3%" [ref=e2634] [cursor=pointer]:
+                  - generic [ref=e2636]:
+                    - generic "43" [ref=e2637]: $43.0
+                    - generic [ref=e2638]: 50.3%
+                - gridcell "$46.0 50.8%" [ref=e2639] [cursor=pointer]:
+                  - generic [ref=e2641]:
+                    - generic "46" [ref=e2642]: $46.0
+                    - generic [ref=e2643]: 50.8%
+                - gridcell "5.701" [ref=e2644] [cursor=pointer]:
+                  - generic [ref=e2646]: "5.701"
+                - gridcell "0.02" [ref=e2647] [cursor=pointer]:
+                  - generic [ref=e2649]: "0.02"
+                - gridcell "6.33K" [ref=e2650] [cursor=pointer]:
+                  - generic "6326.8400" [ref=e2652]: 6.33K
+                - gridcell "$44.27K" [ref=e2653] [cursor=pointer]:
+                  - generic "44270.9400" [ref=e2656]: $44.27K
+                - gridcell "75500" [ref=e2658] [cursor=pointer]:
+                  - generic "BTC" [ref=e2660]: "75500"
+                - gridcell "$0.00" [ref=e2661] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2664]: $0.00
+                - gridcell "0.00" [ref=e2665] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2667]: "0.00"
+                - gridcell "-0.98" [ref=e2668] [cursor=pointer]:
+                  - generic [ref=e2670]: "-0.98"
+                - gridcell "1.000" [ref=e2671] [cursor=pointer]:
+                  - generic [ref=e2673]: "1.000"
+                - gridcell "$0.2 0.0%" [ref=e2674] [cursor=pointer]:
+                  - generic [ref=e2676]:
+                    - generic "0.2" [ref=e2677]: $0.2
+                    - generic [ref=e2678]: 0.0%
+                - gridcell "-" [ref=e2679] [cursor=pointer]:
+                  - generic [ref=e2681]: "-"
+                - gridcell "-" [ref=e2682] [cursor=pointer]:
+                  - generic [ref=e2684]: "-"
+            - rowgroup [ref=e2685]:
+              - row "8.551 $40.0 51.3% $43.0 51.9% 5.856 0.02 61.05K $136.50K 76000 $0.00 0.00 -0.98 1.000 $0.2 0.0% - -" [ref=e2686]:
+                - gridcell "8.551" [ref=e2687] [cursor=pointer]:
+                  - generic [ref=e2689]: "8.551"
+                - gridcell "$40.0 51.3%" [ref=e2690] [cursor=pointer]:
+                  - generic [ref=e2692]:
+                    - generic "40" [ref=e2693]: $40.0
+                    - generic [ref=e2694]: 51.3%
+                - gridcell "$43.0 51.9%" [ref=e2695] [cursor=pointer]:
+                  - generic [ref=e2697]:
+                    - generic "43" [ref=e2698]: $43.0
+                    - generic [ref=e2699]: 51.9%
+                - gridcell "5.856" [ref=e2700] [cursor=pointer]:
+                  - generic [ref=e2702]: "5.856"
+                - gridcell "0.02" [ref=e2703] [cursor=pointer]:
+                  - generic [ref=e2705]: "0.02"
+                - gridcell "61.05K" [ref=e2706] [cursor=pointer]:
+                  - generic "61054.0100" [ref=e2708]: 61.05K
+                - gridcell "$136.50K" [ref=e2709] [cursor=pointer]:
+                  - generic "136496.7912" [ref=e2712]: $136.50K
+                - gridcell "76000" [ref=e2714] [cursor=pointer]:
+                  - generic "BTC" [ref=e2716]: "76000"
+                - gridcell "$0.00" [ref=e2717] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2720]: $0.00
+                - gridcell "0.00" [ref=e2721] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2723]: "0.00"
+                - gridcell "-0.98" [ref=e2724] [cursor=pointer]:
+                  - generic [ref=e2726]: "-0.98"
+                - gridcell "1.000" [ref=e2727] [cursor=pointer]:
+                  - generic [ref=e2729]: "1.000"
+                - gridcell "$0.2 0.0%" [ref=e2730] [cursor=pointer]:
+                  - generic [ref=e2732]:
+                    - generic "0.2" [ref=e2733]: $0.2
+                    - generic [ref=e2734]: 0.0%
+                - gridcell "-" [ref=e2735] [cursor=pointer]:
+                  - generic [ref=e2737]: "-"
+                - gridcell "-" [ref=e2738] [cursor=pointer]:
+                  - generic [ref=e2740]: "-"
+            - rowgroup [ref=e2741]:
+              - row "8.552 $33.0 52.9% $35.0 53.3% 6.123 0.02 0.00 $287.83K 77000 $0.00 0.00 -0.98 1.000 $0.2 0.0% - -" [ref=e2742]:
+                - gridcell "8.552" [ref=e2743] [cursor=pointer]:
+                  - generic [ref=e2745]: "8.552"
+                - gridcell "$33.0 52.9%" [ref=e2746] [cursor=pointer]:
+                  - generic [ref=e2748]:
+                    - generic "33" [ref=e2749]: $33.0
+                    - generic [ref=e2750]: 52.9%
+                - gridcell "$35.0 53.3%" [ref=e2751] [cursor=pointer]:
+                  - generic [ref=e2753]:
+                    - generic "35" [ref=e2754]: $35.0
+                    - generic [ref=e2755]: 53.3%
+                - gridcell "6.123" [ref=e2756] [cursor=pointer]:
+                  - generic [ref=e2758]: "6.123"
+                - gridcell "0.02" [ref=e2759] [cursor=pointer]:
+                  - generic [ref=e2761]: "0.02"
+                - gridcell "0.00" [ref=e2762] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2764]: "0.00"
+                - gridcell "$287.83K" [ref=e2765] [cursor=pointer]:
+                  - generic "287832.2630" [ref=e2768]: $287.83K
+                - gridcell "77000" [ref=e2770] [cursor=pointer]:
+                  - generic "BTC" [ref=e2772]: "77000"
+                - gridcell "$0.00" [ref=e2773] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2776]: $0.00
+                - gridcell "0.00" [ref=e2777] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2779]: "0.00"
+                - gridcell "-0.98" [ref=e2780] [cursor=pointer]:
+                  - generic [ref=e2782]: "-0.98"
+                - gridcell "1.000" [ref=e2783] [cursor=pointer]:
+                  - generic [ref=e2785]: "1.000"
+                - gridcell "$0.2 0.0%" [ref=e2786] [cursor=pointer]:
+                  - generic [ref=e2788]:
+                    - generic "0.2" [ref=e2789]: $0.2
+                    - generic [ref=e2790]: 0.0%
+                - gridcell "-" [ref=e2791] [cursor=pointer]:
+                  - generic [ref=e2793]: "-"
+                - gridcell "-" [ref=e2794] [cursor=pointer]:
+                  - generic [ref=e2796]: "-"
+            - rowgroup [ref=e2797]:
+              - row "8.552 $26.0 54.1% $29.0 54.9% 6.349 0.01 0.00 $424.41K 78000 $0.00 0.00 -0.99 1.000 $0.2 0.0% - -" [ref=e2798]:
+                - gridcell "8.552" [ref=e2799] [cursor=pointer]:
+                  - generic [ref=e2801]: "8.552"
+                - gridcell "$26.0 54.1%" [ref=e2802] [cursor=pointer]:
+                  - generic [ref=e2804]:
+                    - generic "26" [ref=e2805]: $26.0
+                    - generic [ref=e2806]: 54.1%
+                - gridcell "$29.0 54.9%" [ref=e2807] [cursor=pointer]:
+                  - generic [ref=e2809]:
+                    - generic "29" [ref=e2810]: $29.0
+                    - generic [ref=e2811]: 54.9%
+                - gridcell "6.349" [ref=e2812] [cursor=pointer]:
+                  - generic [ref=e2814]: "6.349"
+                - gridcell "0.01" [ref=e2815] [cursor=pointer]:
+                  - generic [ref=e2817]: "0.01"
+                - gridcell "0.00" [ref=e2818] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2820]: "0.00"
+                - gridcell "$424.41K" [ref=e2821] [cursor=pointer]:
+                  - generic "424412.5257" [ref=e2824]: $424.41K
+                - gridcell "78000" [ref=e2826] [cursor=pointer]:
+                  - generic "BTC" [ref=e2828]: "78000"
+                - gridcell "$0.00" [ref=e2829] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2832]: $0.00
+                - gridcell "0.00" [ref=e2833] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2835]: "0.00"
+                - gridcell "-0.99" [ref=e2836] [cursor=pointer]:
+                  - generic [ref=e2838]: "-0.99"
+                - gridcell "1.000" [ref=e2839] [cursor=pointer]:
+                  - generic [ref=e2841]: "1.000"
+                - gridcell "$0.2 0.0%" [ref=e2842] [cursor=pointer]:
+                  - generic [ref=e2844]:
+                    - generic "0.2" [ref=e2845]: $0.2
+                    - generic [ref=e2846]: 0.0%
+                - gridcell "-" [ref=e2847] [cursor=pointer]:
+                  - generic [ref=e2849]: "-"
+                - gridcell "-" [ref=e2850] [cursor=pointer]:
+                  - generic [ref=e2852]: "-"
+            - rowgroup [ref=e2853]:
+              - row "8.552 $26.0 56.9% $28.0 57.4% 6.007 0.01 0.00 $286.99K 79000 $0.00 0.00 -0.99 1.000 $0.2 0.0% - -" [ref=e2854]:
+                - gridcell "8.552" [ref=e2855] [cursor=pointer]:
+                  - generic [ref=e2857]: "8.552"
+                - gridcell "$26.0 56.9%" [ref=e2858] [cursor=pointer]:
+                  - generic [ref=e2860]:
+                    - generic "26" [ref=e2861]: $26.0
+                    - generic [ref=e2862]: 56.9%
+                - gridcell "$28.0 57.4%" [ref=e2863] [cursor=pointer]:
+                  - generic [ref=e2865]:
+                    - generic "28" [ref=e2866]: $28.0
+                    - generic [ref=e2867]: 57.4%
+                - gridcell "6.007" [ref=e2868] [cursor=pointer]:
+                  - generic [ref=e2870]: "6.007"
+                - gridcell "0.01" [ref=e2871] [cursor=pointer]:
+                  - generic [ref=e2873]: "0.01"
+                - gridcell "0.00" [ref=e2874] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2876]: "0.00"
+                - gridcell "$286.99K" [ref=e2877] [cursor=pointer]:
+                  - generic "286992.0330" [ref=e2880]: $286.99K
+                - gridcell "79000" [ref=e2882] [cursor=pointer]:
+                  - generic "BTC" [ref=e2884]: "79000"
+                - gridcell "$0.00" [ref=e2885] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2888]: $0.00
+                - gridcell "0.00" [ref=e2889] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2891]: "0.00"
+                - gridcell "-0.99" [ref=e2892] [cursor=pointer]:
+                  - generic [ref=e2894]: "-0.99"
+                - gridcell "1.000" [ref=e2895] [cursor=pointer]:
+                  - generic [ref=e2897]: "1.000"
+                - gridcell "$0.2 0.0%" [ref=e2898] [cursor=pointer]:
+                  - generic [ref=e2900]:
+                    - generic "0.2" [ref=e2901]: $0.2
+                    - generic [ref=e2902]: 0.0%
+                - gridcell "-" [ref=e2903] [cursor=pointer]:
+                  - generic [ref=e2905]: "-"
+                - gridcell "-" [ref=e2906] [cursor=pointer]:
+                  - generic [ref=e2908]: "-"
+            - rowgroup [ref=e2909]:
+              - row "8.552 $26.0 59.6% $29.0 60.5% 6.925 0.01 335.89K $2.30M 80000 $0.00 0.00 -0.99 1.000 $0.2 0.0% - -" [ref=e2910]:
+                - gridcell "8.552" [ref=e2911] [cursor=pointer]:
+                  - generic [ref=e2913]: "8.552"
+                - gridcell "$26.0 59.6%" [ref=e2914] [cursor=pointer]:
+                  - generic [ref=e2916]:
+                    - generic "26" [ref=e2917]: $26.0
+                    - generic [ref=e2918]: 59.6%
+                - gridcell "$29.0 60.5%" [ref=e2919] [cursor=pointer]:
+                  - generic [ref=e2921]:
+                    - generic "29" [ref=e2922]: $29.0
+                    - generic [ref=e2923]: 60.5%
+                - gridcell "6.925" [ref=e2924] [cursor=pointer]:
+                  - generic [ref=e2926]: "6.925"
+                - gridcell "0.01" [ref=e2927] [cursor=pointer]:
+                  - generic [ref=e2929]: "0.01"
+                - gridcell "335.89K" [ref=e2930] [cursor=pointer]:
+                  - generic "335891.9400" [ref=e2932]: 335.89K
+                - gridcell "$2.30M" [ref=e2933] [cursor=pointer]:
+                  - generic "2304494.1430" [ref=e2936]: $2.30M
+                - gridcell "80000" [ref=e2938] [cursor=pointer]:
+                  - generic "BTC" [ref=e2940]: "80000"
+                - gridcell "$0.00" [ref=e2941] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2944]: $0.00
+                - gridcell "0.00" [ref=e2945] [cursor=pointer]:
+                  - generic "0.0000" [ref=e2947]: "0.00"
+                - gridcell "-0.99" [ref=e2948] [cursor=pointer]:
+                  - generic [ref=e2950]: "-0.99"
+                - gridcell "1.000" [ref=e2951] [cursor=pointer]:
+                  - generic [ref=e2953]: "1.000"
+                - gridcell "$0.2 0.0%" [ref=e2954] [cursor=pointer]:
+                  - generic [ref=e2956]:
+                    - generic "0.2" [ref=e2957]: $0.2
+                    - generic [ref=e2958]: 0.0%
+                - gridcell "-" [ref=e2959] [cursor=pointer]:
+                  - generic [ref=e2961]: "-"
+                - gridcell "-" [ref=e2962] [cursor=pointer]:
+                  - generic [ref=e2964]: "-"
+        - generic:
+          - generic: Loading...
+  - generic [ref=e2966]:
+    - generic [ref=e2967]:
+      - generic [ref=e2968]:
+        - img [ref=e2970]
+        - paragraph [ref=e2994]:
+          - text: Delta Exchange India is operated by Excelium Technologies Private Limited, a
+          - link "FIU" [ref=e2995] [cursor=pointer]:
+            - /url: https://fiuindia.gov.in/
+          - text: "(Govt. of India) registered entity with REID: VA00041101"
+      - paragraph [ref=e2996]: Delta Exchange India © 2026. All Rights Reserved.
+    - generic [ref=e2997]:
+      - generic [ref=e2998]:
+        - heading "Company" [level=4] [ref=e2999]
+        - list [ref=e3000]:
+          - listitem [ref=e3001]:
+            - link "About Us" [ref=e3002] [cursor=pointer]:
+              - /url: https://www.delta.exchange/about-us/
+          - listitem [ref=e3003]:
+            - link "Affiliate Program" [ref=e3004] [cursor=pointer]:
+              - /url: https://www.delta.exchange/referral-program/
+          - listitem [ref=e3005]:
+            - link "Terms of Service" [ref=e3006] [cursor=pointer]:
+              - /url: https://www.delta.exchange/terms-of-use/
+          - listitem [ref=e3007]:
+            - link "Privacy & Cookies Policy" [ref=e3008] [cursor=pointer]:
+              - /url: https://www.delta.exchange/privacy-policy/
+          - listitem [ref=e3009]:
+            - link "Careers" [ref=e3010] [cursor=pointer]:
+              - /url: https://careers.delta.exchange
+          - listitem [ref=e3011]:
+            - link "CSR" [ref=e3012] [cursor=pointer]:
+              - /url: https://www.delta.exchange/corporate-social-responsibility
+          - listitem [ref=e3013]:
+            - link "AML Policy" [ref=e3014] [cursor=pointer]:
+              - /url: https://www.delta.exchange/aml-policy
+      - generic [ref=e3015]:
+        - heading "Data" [level=4] [ref=e3016]
+        - list [ref=e3017]:
+          - listitem [ref=e3018]:
+            - link "Fees" [ref=e3019] [cursor=pointer]:
+              - /url: https://www.delta.exchange/fees/
+          - listitem [ref=e3020]:
+            - link "Contract Specifications" [ref=e3021] [cursor=pointer]:
+              - /url: https://www.delta.exchange/contracts
+          - listitem [ref=e3022]:
+            - link "Underlying Indices" [ref=e3023] [cursor=pointer]:
+              - /url: https://www.delta.exchange/indices/
+          - listitem [ref=e3024]:
+            - link "Settlement Prices" [ref=e3025] [cursor=pointer]:
+              - /url: /app/expired_futures_and_options
+      - generic [ref=e3026]:
+        - heading "References" [level=4] [ref=e3027]
+        - list [ref=e3028]:
+          - listitem [ref=e3029]:
+            - link "Support Center" [ref=e3030] [cursor=pointer]:
+              - /url: https://www.delta.exchange/support
+          - listitem [ref=e3031]:
+            - link "Blog" [ref=e3032] [cursor=pointer]:
+              - /url: https://www.delta.exchange/blog/
+          - listitem [ref=e3033]:
+            - link "User Guide" [ref=e3034] [cursor=pointer]:
+              - /url: https://india.delta.exchange/user-guide
+          - listitem [ref=e3035]:
+            - link "API Documentation" [ref=e3036] [cursor=pointer]:
+              - /url: https://docs.delta.exchange/#introduction
+      - generic [ref=e3037]:
+        - heading "Social Links" [level=4] [ref=e3038]
+        - list [ref=e3039]:
+          - listitem [ref=e3040]:
+            - link "x" [ref=e3041] [cursor=pointer]:
+              - /url: https://x.com/Delta_Exchange
+              - img [ref=e3043]
+              - paragraph [ref=e3046]: x
+          - listitem [ref=e3047]:
+            - link "instagram" [ref=e3048] [cursor=pointer]:
+              - /url: https://www.instagram.com/deltaexchangein
+              - img [ref=e3050]
+              - paragraph [ref=e3054]: instagram
+          - listitem [ref=e3055]:
+            - link "youtube" [ref=e3056] [cursor=pointer]:
+              - /url: https://www.youtube.com/@deltaexchange
+              - img [ref=e3058]
+              - paragraph [ref=e3062]: youtube
+          - listitem [ref=e3063]:
+            - link "linkedin" [ref=e3064] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/delta-exchange/
+              - img [ref=e3066]
+              - paragraph [ref=e3069]: linkedin
+  - generic [ref=e3071]:
+    - img [ref=e3072]
+    - link "Connected" [ref=e3077] [cursor=pointer]:
+      - /url: https://status.delta.exchange
+      - text: Connected
+      - img [ref=e3078]

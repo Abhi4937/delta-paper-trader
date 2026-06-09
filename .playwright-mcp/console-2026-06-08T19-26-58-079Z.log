@@ -1,0 +1,28 @@
+[    2676ms] [WARNING] [GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[    2716ms] [ERROR] Not signed in with the identity provider. @ https://www.delta.exchange/app/options_chain/markets/BTC/2026-06-09T12:00:00Z:0
+[   19990ms] [ERROR] [GSI_LOGGER]: FedCM get() rejects with NetworkError: Error retrieving a token. @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[  723960ms] [ERROR] Public Socket Connection Error CloseEvent close @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[  723968ms] [ERROR] DEBUG public socket heartbeat epic CloseEvent @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[ 2391789ms] [ERROR] Public Socket Connection Error CloseEvent close @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[ 2391793ms] [ERROR] DEBUG public socket heartbeat epic CloseEvent @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[ 5167002ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5211834ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5271870ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5331842ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5339844ms] [ERROR] Public Socket Connection Error CloseEvent close @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[ 5339855ms] [ERROR] DEBUG public socket heartbeat epic CloseEvent @ https://www.delta.exchange/app/static/js/2537.c1a3f810.chunk.js:3
+[ 5451850ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5511867ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5691894ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5931867ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 5991814ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 6051868ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 6111811ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 6171811ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 6472536ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 6532169ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 7251984ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 7491824ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 7552007ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 7731852ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0
+[ 7911862ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://static.delta.exchange/common/icons/crypto-coins/aria.png:0

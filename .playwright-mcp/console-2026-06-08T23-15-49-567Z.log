@@ -1,0 +1,1627 @@
+[     140ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[     141ms] [LOG] [Fast Refresh] done in 106ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[     202ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[     223ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  283897ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  284058ms] [LOG] [Fast Refresh] done in 269ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  295960ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  296619ms] [LOG] [Fast Refresh] done in 768ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  296749ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  298178ms] [LOG] [Fast Refresh] done in 1512ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  298987ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  301889ms] [LOG] [Fast Refresh] done in 3018ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  309382ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  309822ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  309823ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  309966ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  309969ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  309969ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  310089ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  313270ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  313270ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  313272ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/chain?_rsc=9bD_ABZyGeei3WvF:0
+[  313358ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  313358ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:3318
+[  313362ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/chain:0
+[  313612ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0kla17-._.js:15305
+[  313697ms] Error: ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/StrategyBuilder.tsx:8:1)
+    at Object.getCompilationErrors (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\base-server.js:1753:26)
+[  313698ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  313703ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  313703ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  313784ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  313785ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  313823ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  313988ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  313989ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  314032ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  314793ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  314794ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  314814ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  314972ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  314972ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  315048ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  324522ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  324522ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  324564ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  324603ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/chain:0
+[  324637ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0kla17-._.js:15305
+[  324650ms] Error: ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/StrategyBuilder.tsx:8:1)
+    at Object.getCompilationErrors (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\base-server.js:1753:26)
+[  324647ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  324649ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  324649ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  324697ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  324697ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  324759ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  325364ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  325364ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  325410ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  325661ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  325662ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  325711ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  327081ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  327082ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  327163ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  327163ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  327222ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  335442ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335442ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335475ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  335485ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335485ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335537ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/chain:0
+[  335616ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0kla17-._.js:15305
+[  335621ms] Error: ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/StrategyBuilder.tsx:8:1)
+    at Object.getCompilationErrors (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\base-server.js:1753:26)
+[  335625ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  335634ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335634ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335701ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335701ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335731ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  335864ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335864ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  335909ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  342801ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  342802ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  342802ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  342852ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  342901ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/chain:0
+[  342958ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_react-dom_0kla17-._.js:15305
+[  342966ms] Error: ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./src/components/StrategyBuilder.tsx:8:1)
+    at Object.getCompilationErrors (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\hot-reloader-turbopack.js:1186:59)
+    at DevBundlerService.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\lib\dev-bundler-service.js:44:55)
+    at DevServer.getCompilationError (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:720:42)
+    at DevServer.findPageComponents (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\dev\next-dev-server.js:690:43)
+    at async DevServer.renderErrorToResponseImpl (file://C:\dev\paper_trader\frontend\node_modules\next\dist\server\base-server.js:1753:26)
+[  342972ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  342996ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  342996ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343066ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343066ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343106ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343107ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343169ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  343279ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343279ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  343323ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  355348ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-client] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  355349ms] [ERROR] ./src/components/StrategyBuilder.tsx:8:1
+Export USDINR doesn't exist in target module
+   6 | import { fetchMargin } from "@/lib/api";
+   7 | import { payoffCurve } from "@/lib/engine";
+>  8 | import { USDINR, fmt, useStore } from "@/lib/store";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   9 | import type { Leg } from "@/lib/types";
+  10 |
+  11 | function legLabel(l: Leg): string {
+
+The export USDINR was not found in module [project]/src/lib/store.ts [app-ssr] (ecmascript).
+Did you mean to import useStore?
+All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+
+Import traces:
+  Client Component Browser:
+    ./src/components/StrategyBuilder.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Client Component Browser]
+    ./src/app/(terminal)/chain/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/StrategyBuilder.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Client Component SSR]
+    ./src/app/(terminal)/chain/page.tsx [Server Component] @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1945
+[  355373ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  355599ms] [LOG] [Fast Refresh] done in 41ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1gdrd03._.js:1226
+[  355850ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  355923ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  356557ms] ReferenceError: USDINR is not defined
+    at StrategyBuilder (http://localhost:3000/_next/static/chunks/_14vf779._.js:114:116)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:15037:24)
+    at renderWithHooks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6081:21)
+    at beginWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at performUnitOfWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9555:97)
+    at workLoopSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9449:40)
+    at renderRootSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10179:316)
+    at processRootScheduleInMicrotask (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10200:106)
+    at http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10274:158
+[  361079ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  361094ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  361268ms] [LOG] [Fast Refresh] done in 60ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  361392ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  361404ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  362108ms] ReferenceError: USDINR is not defined
+    at StrategyBuilder (http://localhost:3000/_next/static/chunks/_14vf779._.js:114:116)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:15037:24)
+    at renderWithHooks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6081:21)
+    at beginWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at performUnitOfWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9555:97)
+    at workLoopSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9449:40)
+    at renderRootSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10179:316)
+    at processRootScheduleInMicrotask (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10200:106)
+    at http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10274:158
+[  373418ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  373453ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  373459ms] [LOG] [Fast Refresh] done in 92ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  373560ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  373674ms] [LOG] [Fast Refresh] done in 215ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  373814ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  373828ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  374377ms] ReferenceError: USDINR is not defined
+    at StrategyBuilder (http://localhost:3000/_next/static/chunks/_14vf779._.js:114:116)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:15037:24)
+    at renderWithHooks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6081:21)
+    at beginWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at performUnitOfWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9555:97)
+    at workLoopSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9449:40)
+    at renderRootSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10179:316)
+    at processRootScheduleInMicrotask (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10200:106)
+    at http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10274:158
+[  391838ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  391850ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  392030ms] [LOG] [Fast Refresh] done in 71ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  392081ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  392092ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  430275ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  430359ms] [LOG] [Fast Refresh] done in 191ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  430476ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  431121ms] [LOG] [Fast Refresh] done in 725ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  431384ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  433364ms] [LOG] [Fast Refresh] done in 2088ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  457357ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  457449ms] [LOG] [Fast Refresh] done in 61ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  470340ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  470371ms] [LOG] [Fast Refresh] done in 50ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  470397ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  470429ms] [LOG] [Fast Refresh] done in 31ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  480517ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  480635ms] [LOG] [Fast Refresh] done in 68ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  502599ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  502743ms] [LOG] [Fast Refresh] done in 51ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  520832ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  520945ms] [LOG] [Fast Refresh] done in 38ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  520968ms] ReferenceError: fmt is not defined
+    at Shell (http://localhost:3000/_next/static/chunks/_09n6htp._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252FShell.tsx+%255Bapp-client%255D+%2528ecmascript%2529:185:45)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:15037:24)
+    at renderWithHooks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6081:21)
+    at beginWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6691:24)
+    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at performUnitOfWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9555:97)
+    at workLoopSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9449:40)
+    at renderRootSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9061:186)
+    at performSyncWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10179:316)
+    at processRootScheduleInMicrotask (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10200:106)
+    at http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10274:158
+[  540844ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  540850ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  540878ms] ReferenceError: fmt is not defined
+    at Shell (http://localhost:3000/_next/static/chunks/_09n6htp._.js?id=%255Bproject%255D%252Fsrc%252Fcomponents%252FShell.tsx+%255Bapp-client%255D+%2528ecmascript%2529:188:45)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:15037:24)
+    at renderWithHooks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6081:21)
+    at beginWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6665:639)
+    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at performUnitOfWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9555:97)
+    at workLoopSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9449:40)
+    at renderRootSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9098:47)
+    at performSyncWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10263:9)
+    at flushSyncWorkAcrossRoots_impl (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10179:316)
+    at flushSyncWork$1 (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9230:86)
+    at Object.scheduleRefresh (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:299:13)
+    at http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js:391:33
+    at Set.forEach (<anonymous>)
+    at Object.performReactRefresh (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js:384:38)
+    at applyUpdate (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js:878:31)
+    at http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js:886:13
+[  541067ms] [LOG] [Fast Refresh] done in 44ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  541115ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://localhost:3000/chain:0
+[  541249ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  541262ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  541297ms] ReferenceError: fmt is not defined
+    at Shell (http://localhost:3000/_next/static/chunks/_09n6htp._.js:754:51)
+    at Object.react_stack_bottom_frame (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:15037:24)
+    at renderWithHooks (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:4620:24)
+    at updateFunctionComponent (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6081:21)
+    at beginWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:6665:639)
+    at runWithFiberInDEV (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:965:74)
+    at performUnitOfWork (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9555:97)
+    at workLoopSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9449:40)
+    at renderRootSync (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9433:13)
+    at performWorkOnRoot (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:9098:47)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_react-dom_096_9a-._.js:10255:9)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3000/_next/static/chunks/node_modules_next_dist_compiled_1amofcm._.js:2647:64)
+[  541744ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  541745ms] [LOG] [Fast Refresh] done in 113ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555270ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555278ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555292ms] [LOG] [Fast Refresh] done in 85ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555399ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555450ms] [LOG] [Fast Refresh] done in 157ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555610ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  555625ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  582471ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  582621ms] [LOG] [Fast Refresh] done in 41ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  593377ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  593477ms] [LOG] [Fast Refresh] done in 64ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  633280ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  633386ms] [LOG] [Fast Refresh] done in 36ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  641425ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  641536ms] [LOG] [Fast Refresh] done in 39ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  656266ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  656371ms] [LOG] [Fast Refresh] done in 60ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  665338ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  665439ms] [LOG] [Fast Refresh] done in 36ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477

@@ -1,0 +1,21 @@
+[     142ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[     146ms] [LOG] [Fast Refresh] done in 112ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[     226ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[     243ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  150194ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[  150795ms] [LOG] [Fast Refresh] done in 705ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2477
+[ 1307656ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1307919ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1310091ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1310653ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1312443ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1313650ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1315149ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1316634ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1318152ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1319639ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1321143ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1322630ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1324137ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1325642ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
+[ 1327130ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8010/api/marks?symbols=C-BTC-63000-190626%2CP-BTC-63000-190626:0
