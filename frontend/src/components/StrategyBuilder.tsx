@@ -271,8 +271,15 @@ function PayoffView() {
   const [ivShift, setIvShift] = useState(0); // vol points
   const [data, setData] = useState<PayoffData | null>(null);
 
-  const lo = spot > 0 ? spot * 0.75 : 0;
-  const hi = spot > 0 ? spot * 1.25 : 0;
+  // FETCH range: contains the strikes + spot (strike-based, so it stays stable as
+  // the scenario changes — no refetch loop; the breakevens fall inside it).
+  const strikes = selected.map((l) => l.strike).filter((s) => s > 0);
+  const aF = [spot, ...strikes].filter((x) => x > 0);
+  const aMinF = aF.length ? Math.min(...aF) : spot;
+  const aMaxF = aF.length ? Math.max(...aF) : spot;
+  const padF = Math.max(0.18 * spot, 0.8 * (aMaxF - aMinF));
+  const lo = spot > 0 ? Math.max(aMinF - padF, 1) : 0;
+  const hi = spot > 0 ? aMaxF + padF : 0;
   const ts = targetSpot ?? spot;
   const dte = dteOverride ?? baseDte;
   const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}`).join(",");
@@ -286,7 +293,7 @@ function PayoffView() {
           option_type: l.type, side: l.side, qty: l.qty, strike: l.strike,
           entry: l.entry, iv: legIv(l) || 0.5, contract_value: l.contractValue,
         })),
-        spot: ts, lo, hi, points: 81, t_years: Math.max(dte, 0) / 365, iv_shift: ivShift / 100,
+        spot: ts, lo, hi, points: 161, t_years: Math.max(dte, 0) / 365, iv_shift: ivShift / 100,
       });
       setData(d);
     }, 180);
@@ -298,17 +305,32 @@ function PayoffView() {
     return <div className="p-4 text-[12px] text-text-mute">Add legs to analyse the payoff.</div>;
 
   const w = 348, hgt = 168;
-  const all = data ? [...data.expiry, ...data.projected, 0] : [0];
-  const minP = Math.min(...all), maxP = Math.max(...all);
+  // DISPLAY window: zoom to the breakevens (± a few spots), with spot + target in
+  // view. The y-axis fits only this window, so the trough/breakevens aren't dwarfed
+  // by the long wings.
+  const bes = data?.breakevens?.length ? data.breakevens : strikes;
+  const aV = [spot, ts, ...bes].filter((x) => x > 0);
+  const vMin = aV.length ? Math.min(...aV) : lo;
+  const vMax = aV.length ? Math.max(...aV) : hi;
+  const vPad = Math.max((vMax - vMin) * 0.2, spot * 0.015);
+  const viewLo = Math.max(vMin - vPad, lo);
+  const viewHi = Math.min(vMax + vPad, hi);
+
+  const idxs = data ? data.spots.map((_, i) => i).filter((i) => data.spots[i] >= viewLo && data.spots[i] <= viewHi) : [];
+  const winVals = data && idxs.length ? [...idxs.map((i) => data.expiry[i]), ...idxs.map((i) => data.projected[i]), 0] : [0];
+  const minP = Math.min(...winVals), maxP = Math.max(...winVals);
   const range = Math.max(maxP - minP, 1e-6);
-  const x = (s: number) => (hi > lo ? ((s - lo) / (hi - lo)) * w : 0);
+  const x = (s: number) => (viewHi > viewLo ? ((s - viewLo) / (viewHi - viewLo)) * w : 0);
   const y = (v: number) => hgt - ((v - minP) / range) * hgt;
   const y0 = y(0);
-  const tsX = x(ts);
+  const tsX = x(Math.min(Math.max(ts, viewLo), viewHi));
   const path = (arr?: number[]) =>
-    data && arr ? data.spots.map((s, i) => `${i === 0 ? "M" : "L"}${x(s)},${y(arr[i])}`).join(" ") : "";
+    data && arr ? idxs.map((i, k) => `${k === 0 ? "M" : "L"}${x(data.spots[i])},${y(arr[i])}`).join(" ") : "";
   const nearest = (s: number) =>
     data ? data.spots.reduce((b, sp, i) => (Math.abs(sp - s) < Math.abs(data.spots[b] - s) ? i : b), 0) : 0;
+  const tsIdx = nearest(ts);
+  const tsExpiry = data?.expiry[tsIdx] ?? 0;
+  const tsProj = data?.projected[tsIdx] ?? 0;
   const levels = [0.9, 0.95, 1.0, 1.05, 1.1].map((m) => spot * m);
 
   return (
@@ -320,19 +342,30 @@ function PayoffView() {
         <Metric label="R / R" value={data && data.max_loss !== 0 ? Math.abs(data.max_profit / data.max_loss).toFixed(2) : "—"} />
       </div>
 
-      <svg width={w} height={hgt} className="overflow-visible">
+      <svg width={w} height={hgt}>
         <line x1={0} x2={w} y1={y0} y2={y0} stroke="var(--color-line-strong)" strokeDasharray="3 3" />
-        {spot > 0 && <line x1={x(spot)} x2={x(spot)} y1={0} y2={hgt} stroke="var(--color-text-mute)" strokeWidth={1} strokeDasharray="2 2" />}
+        {spot >= viewLo && spot <= viewHi && <line x1={x(spot)} x2={x(spot)} y1={0} y2={hgt} stroke="var(--color-text-mute)" strokeWidth={1} strokeDasharray="2 2" />}
         <line x1={tsX} x2={tsX} y1={0} y2={hgt} stroke="var(--color-accent)" strokeWidth={1} />
         <path d={path(data?.expiry)} fill="none" stroke="var(--color-text)" strokeWidth={1.5} />
         <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="4 3" />
-        {data?.breakevens.map((b, i) => <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />)}
-        {data && <circle cx={tsX} cy={y(data.projected[nearest(ts)])} r={3.5} fill="var(--color-accent)" />}
+        {data?.breakevens.filter((b) => b >= viewLo && b <= viewHi).map((b, i) => (
+          <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />
+        ))}
+        {data && <circle cx={tsX} cy={y(tsProj)} r={3.5} fill="var(--color-accent)" />}
       </svg>
       <div className="flex justify-between text-[10px] tnum text-text-mute">
-        <span>{lo.toFixed(0)}</span>
+        <span>{viewLo.toFixed(0)}</span>
         <span className="text-accent">target {ts.toFixed(0)}</span>
-        <span>{hi.toFixed(0)}</span>
+        <span>{viewHi.toFixed(0)}</span>
+      </div>
+
+      {/* live P&L at the target-spot marker (updates as you drag the slider) */}
+      <div className="flex items-center justify-between rounded-[5px] bg-surface-2 px-2.5 py-1.5 text-[11px]">
+        <span className="text-text-mute">P&amp;L @ target <span className="tnum text-accent">{ts.toFixed(0)}</span></span>
+        <span className="flex gap-3">
+          <span className="text-text-mute">at&nbsp;expiry <span className={clsx("tnum font-medium", tsExpiry >= 0 ? "text-pos" : "text-neg")}>{data ? money(tsExpiry, currency) : "—"}</span></span>
+          <span className="text-text-mute">projected <span className={clsx("tnum font-medium", tsProj >= 0 ? "text-pos" : "text-neg")}>{data ? money(tsProj, currency) : "—"}</span></span>
+        </span>
       </div>
       <div className="flex items-center gap-3 text-[10px] text-text-mute">
         <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-text" /> at expiry</span>
