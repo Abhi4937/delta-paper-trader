@@ -34,7 +34,7 @@ class MarketDataIngestor:
         self.connected = False
         self.last_message_at: float | None = None  # time.monotonic() of last WS msg
 
-    def feed_status(self) -> dict:
+    def feed_status(self) -> dict[str, object]:
         """Freshness of the Delta market-data feed (drives the stale-data guard).
 
         `fresh` is False whenever the Delta WS is disconnected OR no message has

@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 from collections.abc import AsyncIterator
 from datetime import UTC, date, datetime
+from typing import Any, cast
 
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -21,11 +22,15 @@ from app import __version__
 from app.api import chain as chain_api
 from app.api import margin as margin_api
 from app.api import payoff as payoff_api
+from app.api import sim as sim_api
 from app.config import get_settings
+from app.db.session import SessionLocal
 from app.delta.rest import DeltaRestClient
 from app.services import chain as chain_svc
 from app.services.margin import MarginService
 from app.services.market_data import MarketDataIngestor
+from app.sim.ticker import SimTicker
+from app.sim.user import ensure_stub_user
 
 settings = get_settings()
 
@@ -38,9 +43,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.margin = MarginService(settings)
     app.state.market = MarketDataIngestor(settings)
     await app.state.market.start()
+    # seed the stub user/account, then start the server-authoritative sim tick loop
+    async with SessionLocal() as session:
+        await ensure_stub_user(session)
+        await session.commit()
+    app.state.sim_ticker = SimTicker(app)
+    await app.state.sim_ticker.start()
     try:
         yield
     finally:
+        await app.state.sim_ticker.stop()
         await app.state.market.stop()
         await app.state.delta.aclose()
         await app.state.http.aclose()
@@ -50,6 +62,7 @@ app = FastAPI(title="Paper Trader API", version=__version__, lifespan=lifespan)
 app.include_router(chain_api.router)
 app.include_router(margin_api.router)
 app.include_router(payoff_api.router)
+app.include_router(sim_api.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,19 +80,19 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/api/feed")
-async def feed() -> dict:
+async def feed() -> dict[str, Any]:
     """Delta market-data feed freshness — powers the stale-data guard (block order
     placement when prices may be frozen). `fresh` is False if the Delta WS is down
     or no message has arrived in >5s."""
-    return app.state.market.feed_status()
+    return cast("dict[str, Any]", app.state.market.feed_status())
 
 
 @app.get("/api/marks")
-async def marks(symbols: str) -> dict:
+async def marks(symbols: str) -> dict[str, Any]:
     """Latest mark/bid/ask for arbitrary symbols (any expiry) from the WS cache —
     powers live MTM for held positions regardless of the chain currently viewed."""
     cache = app.state.market.tickers
-    out: dict[str, dict] = {}
+    out: dict[str, dict[str, Any]] = {}
     for s in (sym for sym in symbols.split(",") if sym):
         t = cache.get(s)
         if not t:
@@ -120,7 +133,7 @@ async def atm_iv(underlying: str, expiries: str) -> dict[str, float | None]:
 
 
 @app.get("/api/orderbook")
-async def orderbook(symbol: str) -> dict:
+async def orderbook(symbol: str) -> dict[str, Any]:
     """Live L2 order book (depth) for a contract — Delta /v2/l2orderbook."""
     data = await app.state.delta.get(f"/v2/l2orderbook/{symbol}")
     res = data.get("result", data) if isinstance(data, dict) else {}

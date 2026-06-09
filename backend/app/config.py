@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     cors_origins: str = "http://localhost:3000"
     virtual_start_balance_inr: int = Field(default=500_000)
+    # Sim: single trusted user until real auth lands (schema is already user-isolated).
+    stub_user_email: str = "trader@paper.local"
+    virtual_start_balance_usd: float = 5000.0  # matches client START_BALANCE
 
     @property
     def cors_origin_list(self) -> list[str]:
