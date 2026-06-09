@@ -53,6 +53,24 @@ export interface Leg {
   spotAtEntry: number; // underlying spot at entry (for notional-based fee)
 }
 
+// One sampled MTM/IV/greeks row for a position (taken ~1/sec from open). Net
+// values are aggregated (signed_qty x contractValue x per-option greek); per-leg
+// values are keyed by leg.id so leg lines sum to the net line.
+export interface LegSample {
+  pnl: number; // signed leg PnL (USD)
+  iv: number; // leg mark IV (fraction, e.g. 0.45)
+  delta: number; // signed leg position delta (BTC)
+}
+export interface SeriesSample {
+  t: number;
+  pnl: number; // net PnL (USD)
+  delta: number; // net delta (BTC)
+  theta: number; // net theta (USD/day)
+  vega: number; // net vega (USD per 1 vol-point)
+  atmIv: Record<string, number>; // ATM mark IV per leg-expiry present (ISO date → fraction)
+  legs: Record<string, LegSample>;
+}
+
 export type MarginBadge = "matched" | "est" | "stale";
 
 export interface Position {
@@ -68,7 +86,7 @@ export interface Position {
   targetPnl: number | null;
   stopPnl: number | null;
   autoExit: boolean;
-  mtm: { t: number; pnl: number }[];
+  series: SeriesSample[]; // per-second net + per-leg MTM/IV/greeks, from open
   notes: { kind: "entry" | "exit"; body: string; at: number }[];
 }
 

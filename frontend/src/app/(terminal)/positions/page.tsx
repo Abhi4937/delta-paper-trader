@@ -1,13 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import clsx from "clsx";
-import { X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
+import PositionCharts from "@/components/PositionCharts";
 import { legPnl } from "@/lib/engine";
+import { legColorMap } from "@/lib/legColors";
 import { ACTIVE_FEE, type Currency, entryFee, entrySlippage, legIv, legMark, money, positionPnl, spotOf, useStore } from "@/lib/store";
-import type { Leg, Position } from "@/lib/types";
+import type { Position } from "@/lib/types";
 
-function legLabel(l: Leg): string {
-  return `${l.strike} ${l.type === "call" ? "CE" : "PE"}`;
+// entry date + time, e.g. "09 Jun 14:36" (legs are placed at position open)
+function fmtEntry(ms: number): string {
+  const d = new Date(ms);
+  return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 export default function PositionsPage() {
@@ -65,11 +70,22 @@ function PositionCard({
   const pnl = positionPnl(p);
   const closed = p.status === "closed";
   const exp = p.expiry.slice(5);
+  // each strategy collapses; closed strategies start collapsed
+  const [open, setOpen] = useState(!closed);
+  // per-leg chart colors → swatch in the Symbol column maps rows to chart lines
+  const legColors = legColorMap(p.legs);
 
   return (
     <div className={clsx("rounded-lg border bg-surface", closed ? "border-line/60 opacity-60" : "border-line")}>
       {/* header */}
-      <div className="flex items-center gap-3 border-b border-line/60 px-4 py-2.5">
+      <div className={clsx("flex items-center gap-3 px-4 py-2.5", open && "border-b border-line/60")}>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="text-text-mute hover:text-text-dim"
+          title={open ? "Collapse strategy" : "Expand strategy"}
+        >
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
         <span className="text-[13px] font-semibold text-text">{p.name}</span>
         <span className="rounded-[4px] bg-surface-3 px-1.5 py-0.5 text-[10px] text-text-dim">
           {p.underlying} · {exp}
@@ -100,13 +116,23 @@ function PositionCard({
               {pnl >= 0 ? "+" : ""}{money(pnl, currency)}
             </span>
           </span>
+          {!closed && (
+            <button
+              onClick={() => onClose(p.id)}
+              className="flex items-center gap-1 rounded-[5px] border border-neg/40 px-2.5 py-1 text-[11px] font-semibold text-neg hover:bg-neg/10"
+            >
+              <X size={12} /> Close
+            </button>
+          )}
         </div>
       </div>
 
-      {/* legs — Delta-style columns */}
-      <div className="overflow-x-auto px-4 py-1">
-        <div className="grid min-w-[760px] grid-cols-[28px_minmax(150px,1.4fr)_82px_92px_64px_84px_96px_88px_84px] gap-2 py-1 text-[9px] uppercase tracking-wider text-text-mute">
-          <span>B/S</span><span>Symbol</span><span className="text-right">Size BTC</span>
+      {open && (
+        <>
+      {/* legs — Delta-style columns (compact) */}
+      <div className="overflow-x-auto px-4 py-0.5">
+        <div className="grid min-w-[880px] grid-cols-[28px_minmax(140px,1.3fr)_104px_76px_84px_56px_76px_92px_84px_80px] gap-2 py-1 text-[9px] uppercase tracking-wider text-text-mute">
+          <span>B/S</span><span>Symbol</span><span>Entry Time</span><span className="text-right">Size BTC</span>
           <span className="text-right">Notional</span><span className="text-right">Entry</span>
           <span className="text-right">Index</span><span className="text-right">Mark · IV</span>
           <span className="text-right">UPNL</span><span className="text-right">Cashflow</span>
@@ -121,11 +147,19 @@ function PositionCard({
           const notional = l.qty * l.contractValue * index;
           const cashflow = (l.side === "sell" ? 1 : -1) * l.entry * l.qty * l.contractValue;
           return (
-            <div key={l.id} className="grid min-w-[760px] grid-cols-[28px_minmax(150px,1.4fr)_82px_92px_64px_84px_96px_88px_84px] items-center gap-2 border-t border-line/40 py-1.5 text-[12px]">
-              <span className={clsx("grid h-5 w-5 place-items-center rounded-[4px] text-[10px] font-bold", l.side === "buy" ? "bg-pos/15 text-pos" : "bg-neg/15 text-neg")}>
+            <div key={l.id} className="grid min-w-[880px] grid-cols-[28px_minmax(140px,1.3fr)_104px_76px_84px_56px_76px_92px_84px_80px] items-center gap-2 border-t border-line/40 py-1 text-[11px]">
+              <span className={clsx("grid h-4 w-4 place-items-center rounded-[4px] text-[9px] font-bold", l.side === "buy" ? "bg-pos/15 text-pos" : "bg-neg/15 text-neg")}>
                 {l.side === "buy" ? "B" : "S"}
               </span>
-              <span className="tnum truncate text-[11px] font-medium">{l.symbol}</span>
+              <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium">
+                <span
+                  className="inline-block h-[3px] w-3.5 flex-none rounded-full"
+                  style={{ background: legColors[l.id] }}
+                  title="chart line color"
+                />
+                <span className="tnum truncate">{l.symbol}</span>
+              </span>
+              <span className="tnum text-[10px] text-text-mute">{fmtEntry(p.openedAt)}</span>
               <span className={clsx("tnum text-right", sizeBtc < 0 ? "text-neg" : "text-pos")}>{sizeBtc.toFixed(3)}</span>
               <span className="tnum text-right text-text-dim">{money(notional, currency)}</span>
               <span className="tnum text-right text-text-dim">{l.entry.toFixed(1)}</span>
@@ -142,90 +176,25 @@ function PositionCard({
         })}
       </div>
 
-      {/* MTM chart: 0-line, green above / red below, auto-scaled */}
-      <div className="border-t border-line/60 px-3 pt-2">
-        <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-wider text-text-mute">
-          <span>MTM (entry slippage only · before fees)</span>
-          <span className="tnum normal-case">
-            {elapsed(p.mtm[p.mtm.length - 1].t - p.mtm[0].t)} · {p.mtm.length} pts
-          </span>
-        </div>
-        <MtmChart mtm={p.mtm} id={p.id} />
+      {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega, shared timeframe */}
+      <div className="border-t border-line/60 px-3 py-2">
+        <PositionCharts series={p.series} legs={p.legs} currency={currency} />
       </div>
 
-      {/* footer actions */}
-      <div className="flex items-center gap-4 px-4 py-2">
-        {p.targetPnl != null && (
-          <span className="text-[10px] text-text-mute">TP <span className="tnum text-pos">{money(p.targetPnl, currency)}</span></span>
-        )}
-        {p.stopPnl != null && (
-          <span className="text-[10px] text-text-mute">SL <span className="tnum text-neg">{money(p.stopPnl, currency)}</span></span>
-        )}
-        <div className="ml-auto">
-          {!closed && (
-            <button
-              onClick={() => onClose(p.id)}
-              className="flex items-center gap-1 rounded-[5px] border border-neg/40 px-2.5 py-1 text-[11px] font-semibold text-neg hover:bg-neg/10"
-            >
-              <X size={12} /> Close
-            </button>
+      {/* footer: target / stop levels */}
+      {(p.targetPnl != null || p.stopPnl != null) && (
+        <div className="flex items-center gap-4 border-t border-line/60 px-4 py-2">
+          {p.targetPnl != null && (
+            <span className="text-[10px] text-text-mute">TP <span className="tnum text-pos">{money(p.targetPnl, currency)}</span></span>
+          )}
+          {p.stopPnl != null && (
+            <span className="text-[10px] text-text-mute">SL <span className="tnum text-neg">{money(p.stopPnl, currency)}</span></span>
           )}
         </div>
-      </div>
+      )}
+        </>
+      )}
     </div>
   );
 }
 
-// MTM chart: a real per-second time series. Fixed start point (0 at open) on the
-// left, points appended every second; x = elapsed time, green above 0 / red below.
-function MtmChart({ mtm, id }: { mtm: { t: number; pnl: number }[]; id: string }) {
-  const W = 600;
-  const H = 80;
-  const t0 = mtm[0].t;
-  const tLast = mtm[mtm.length - 1].t;
-  const span = Math.max(tLast - t0, 1);
-  const ys = mtm.map((m) => m.pnl);
-  const min = Math.min(...ys, 0);
-  const max = Math.max(...ys, 0);
-  const pad = (max - min) * 0.15 || 1;
-  const lo = min - pad;
-  const hi = max + pad;
-  const range = hi - lo;
-  const x = (t: number) => ((t - t0) / span) * W;
-  const y = (v: number) => H - ((v - lo) / range) * H;
-  const zeroY = y(0);
-  const cur = mtm[mtm.length - 1];
-  const line = mtm.map((m) => `${x(m.t)},${y(m.pnl)}`).join(" ");
-  const area = `M${x(t0)},${zeroY} ${mtm.map((m) => `L${x(m.t)},${y(m.pnl)}`).join(" ")} L${x(tLast)},${zeroY} Z`;
-  const sid = id.replace(/[^a-zA-Z0-9]/g, "");
-  const gid = `g${sid}`;
-  const rid = `r${sid}`;
-  const up = cur.pnl >= 0;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" width="100%" height={H}>
-      <defs>
-        <clipPath id={gid}><rect x="0" y="0" width={W} height={Math.max(0, zeroY)} /></clipPath>
-        <clipPath id={rid}><rect x="0" y={zeroY} width={W} height={Math.max(0, H - zeroY)} /></clipPath>
-      </defs>
-      {mtm.length > 1 && (
-        <>
-          <path d={area} className="fill-pos/15" clipPath={`url(#${gid})`} />
-          <path d={area} className="fill-neg/15" clipPath={`url(#${rid})`} />
-        </>
-      )}
-      <line x1="0" y1={zeroY} x2={W} y2={zeroY} className="stroke-text-mute" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-      <polyline points={line} fill="none" className="stroke-pos" strokeWidth="1.5" clipPath={`url(#${gid})`} vectorEffect="non-scaling-stroke" />
-      <polyline points={line} fill="none" className="stroke-neg" strokeWidth="1.5" clipPath={`url(#${rid})`} vectorEffect="non-scaling-stroke" />
-      {/* start point (always at 0 on the left) */}
-      <circle cx={x(t0)} cy={zeroY} r="3.5" className="fill-text-mute" vectorEffect="non-scaling-stroke" />
-      {/* current point, walks right as seconds are added */}
-      <circle cx={x(cur.t)} cy={y(cur.pnl)} r="4" className={up ? "fill-pos" : "fill-neg"} vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
-function elapsed(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
-}

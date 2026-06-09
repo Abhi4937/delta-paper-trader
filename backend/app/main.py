@@ -75,12 +75,37 @@ async def marks(symbols: str) -> dict:
         if not t:
             continue
         q = t.get("quotes") or {}
+        g = t.get("greeks") or {}
         out[s] = {
             "mark": float(t.get("mark_price") or 0),
             "bid": float(q.get("best_bid") or 0),
             "ask": float(q.get("best_ask") or 0),
             "iv": float(q.get("mark_iv") or 0),
+            # signed per-option greeks (read-only, from the WS cache); the client
+            # aggregates these into position greeks (signed_qty x cv x greek).
+            "delta": float(g.get("delta") or 0),
+            "gamma": float(g.get("gamma") or 0),
+            "theta": float(g.get("theta") or 0),
+            "vega": float(g.get("vega") or 0),
         }
+    return out
+
+
+@app.get("/api/atm-iv")
+async def atm_iv(underlying: str, expiries: str) -> dict[str, float | None]:
+    """ATM mark-IV per expiry for an underlying, computed from the WS cache.
+
+    Powers the position-analytics IV panel for held strategies regardless of the
+    chain currently viewed. Read-only — no order path. `expiries` is comma-sep ISO.
+    """
+    market = app.state.market
+    out: dict[str, float | None] = {}
+    for e in (x for x in expiries.split(",") if x):
+        try:
+            d = date.fromisoformat(e)
+        except ValueError:
+            continue
+        out[e] = market.chain(underlying, d).atm_iv
     return out
 
 

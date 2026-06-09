@@ -45,3 +45,6 @@ Thumbs.db
 playwright-report/
 test-results/
 fixtures/captured/*.local.json
+
+# Playwright MCP session artifacts
+.playwright-mcp/

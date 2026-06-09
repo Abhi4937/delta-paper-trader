@@ -139,9 +139,18 @@ export async function fetchOrderbook(
   }
 }
 
-export async function fetchMarks(
-  symbols: string[],
-): Promise<Record<string, { mark: number; bid: number; ask: number; iv: number }>> {
+export interface MarkData {
+  mark: number;
+  bid: number;
+  ask: number;
+  iv: number;
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
+}
+
+export async function fetchMarks(symbols: string[]): Promise<Record<string, MarkData>> {
   if (symbols.length === 0) return {};
   try {
     const r = await fetch(`${API}/api/marks?symbols=${encodeURIComponent(symbols.join(","))}`);
@@ -149,6 +158,35 @@ export async function fetchMarks(
   } catch {
     return {};
   }
+}
+
+// ATM mark-IV per "<underlying>|<expiry>" for held positions (read-only). One
+// request per distinct underlying; results merged into a flat keyed map.
+export async function fetchAtmIv(
+  pairs: { underlying: Underlying; expiry: string }[],
+): Promise<Record<string, number>> {
+  const byU = new Map<Underlying, Set<string>>();
+  for (const p of pairs) {
+    if (!p.expiry) continue;
+    let set = byU.get(p.underlying);
+    if (!set) byU.set(p.underlying, (set = new Set()));
+    set.add(p.expiry);
+  }
+  const out: Record<string, number> = {};
+  await Promise.all(
+    [...byU.entries()].map(async ([u, exps]) => {
+      try {
+        const r = await fetch(
+          `${API}/api/atm-iv?underlying=${u}&expiries=${encodeURIComponent([...exps].join(","))}`,
+        );
+        const d = (await r.json()) as Record<string, number | null>;
+        for (const [e, iv] of Object.entries(d)) out[`${u}|${e}`] = num(iv);
+      } catch {
+        /* leave missing — chart shows 0 until next poll */
+      }
+    }),
+  );
+  return out;
 }
 
 export async function fetchMargin(

@@ -23,10 +23,10 @@ build_chain()          mark/bid/ask/iv             Delta /v2/l2orderbook
 Frontend api.ts: connectChain(WS) / fetchMarks(1.5s poll) / fetchOrderbook
    │
    ▼
-Zustand store (lib/store.ts)  ── singleton; marks/spots maps, legs, positions, ledger
-   │                              MTM sampled 1/sec (cap 900 pts)
+Zustand store (lib/store.ts)  ── singleton; marks(+greeks)/spots/atmIvs maps, legs, positions, ledger
+   │                              net+per-leg series sampled 1/sec from open (cap MTM_CAP=12h)
    ▼
-Screens:  /chain (chain + builder/orderbook toggle)   /positions (isolated cards + MtmChart)
+Screens:  /chain (chain + builder/orderbook toggle)   /positions (isolated cards + PositionCharts)
 ```
 
 **Key facts**
@@ -66,7 +66,10 @@ Screens:  /chain (chain + builder/orderbook toggle)   /positions (isolated cards
 → `OptionChain` (see §4). Live REST snapshot.
 
 ### `GET /api/marks?symbols=C-BTC-63000-110626,P-BTC-...`  (comma-sep)
-→ `{ "<symbol>": { mark, bid, ask, iv } }`  — from WS cache; powers held-position MTM. Missing symbols omitted.
+→ `{ "<symbol>": { mark, bid, ask, iv, delta, gamma, theta, vega } }`  — from WS cache; powers held-position MTM + position-analytics greeks. Greeks are Delta's per-option values (read-only); the client aggregates them. Missing symbols omitted.
+
+### `GET /api/atm-iv?underlying=BTC&expiries=2026-06-19,2026-06-26`  (comma-sep ISO)
+→ `{ "<expiry>": atm_iv | null }`  — ATM mark-IV per expiry, computed from the WS cache. **ATM IV = average of the ATM call & put `mark_iv`** (fall back to whichever side exists). Delta does not publish an ATM-IV formula (proprietary IV model) — the call/put average is our chosen convention; validate vs Delta's displayed value. Powers the IV analytics panel for held strategies regardless of the chain currently viewed. Read-only.
 
 ### `GET /api/orderbook?symbol=<sym>`
 → `{ symbol, buy: [{price,size}...], sell: [...] }`  — Delta `/v2/l2orderbook` passthrough. **0-DTE has no book (404 normal).**
@@ -105,8 +108,13 @@ Leg  { id, symbol, productId, underlying, type, strike, contractValue, expiry, d
 
 Position { id, name, underlying, expiry, legs[], margin, marginBadge:"matched"|"est"|"stale",
            openedAt, status:"open"|"closed", targetPnl, stopPnl, autoExit,
-           mtm: {t,pnl}[],            // 1/sec, cap 900
+           series: SeriesSample[],    // 1/sec from open, cap MTM_CAP (12h); powers analytics
            notes: {kind:"entry"|"exit", body, at}[] }
+SeriesSample { t, pnl, delta, theta, vega, atmIv: { [expiry]: iv }, legs: { [legId]: { pnl, iv, delta } } }
+  // net greek = Σ(signed_qty × cv × per-option greek): delta→BTC, theta→$/day, vega→$/vol-pt.
+  // per-leg pnl/delta are signed (legs sum to net); per-leg iv is the leg's mark IV.
+  // atmIv: one ATM IV per distinct leg-expiry (calendars get an ATM line each).
+  // STANDARD aggregation — validate the absolute greek numbers vs a real Delta account.
 
 LedgerEntry { t, type:"deposit"|"margin_reserve"|"margin_release"|"realized"|"fee",
               amount, balanceAfter, ref? }
@@ -117,6 +125,7 @@ LogEntry    { t, action, detail, tone? }
 - Constants: `START_BALANCE=5000` (USD), `USDINR=85` (fixed), `Currency="USD"|"INR"`.
 - Fees (offer-aware): `FEE_SCHEDULES.{standard, optionsCarnival}`, `ACTIVE_FEE=optionsCarnival`, GST 18%, `FEE_DISCOUNT=0`.
 - Functions: `legMark`, `legIv`, `spotOf`, `positionPnl`, `entrySlippage`, `entryFee`, `exitFee`, `money`, `moneyBoth`, `fmt`, `startStream()`, `selectLeg/addLeg/toggleLegSide`, `placeStrategy` (keeps basket), `closePosition` (gross−fees).
+- Position analytics: `marks` map carries greeks; `atmIvs` map (`<u>|<expiry>`→IV); internal `netGreeks`/`sampleLegs`/`buildSample` sample `Position.series` each second (ATM IV per leg-expiry). Rendered by `components/PositionCharts.tsx` (lightweight-charts v5): stacked **MTM/IV/Δ/Θ/Vega**, shared **1s/1m/5m** timeframe + **Line/Candle** on MTM. Net bold; IV shows a bold ATM line **per expiry** + per-leg IVs. Leg colors are grouped by **expiry hue** (CE lighter / PE deeper), consistent for a leg across all panels. Each panel **collapses** (Θ/Vega shorter; collapsing grows the rest); each strategy card collapses (closed ones default collapsed); Close is in the card header. Charts auto-fit start→latest (no manual pan), Y autoscales and always shows the 0-line.
 - **MTM = entry-slippage only, no fees.** Close = gross(exit slippage) − entryFee − exitFee. See `money-model-validated.md`.
 
 ### Pure engines (backend, TDD anchors)

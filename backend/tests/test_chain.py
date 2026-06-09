@@ -81,9 +81,27 @@ def test_build_chain_groups_calls_and_puts() -> None:
     assert strikes == [63000, 95000]
     call_row = next(r for r in chain.rows if r.strike == 63000)
     assert call_row.call is not None and call_row.put is None
-    # ATM is the strike nearest spot (63000)
+    # ATM is the strike nearest spot (63000); only the call is present at that
+    # strike here, so ATM IV falls back to the single side (0.41).
     assert chain.atm_strike == 63000
     assert chain.atm_iv is not None and abs(chain.atm_iv - 0.41) < 1e-6
+
+
+def test_atm_iv_is_call_put_average() -> None:
+    """When both ATM legs exist, ATM IV is the average of their mark IVs."""
+    put_at_atm = {
+        "symbol": "P-BTC-63000-310726",
+        "product_id": 133601,
+        "contract_type": "put_options",
+        "strike_price": "63000",
+        "spot_price": "63451.4",
+        "quotes": {"mark_iv": "0.45"},
+        "greeks": {"delta": "-0.48"},
+    }
+    chain = build_chain([CALL_SAMPLE, put_at_atm], "BTC", date(2026, 7, 31))
+    assert chain.atm_strike == 63000
+    # average of call (0.41) and put (0.45) = 0.43
+    assert chain.atm_iv is not None and abs(chain.atm_iv - 0.43) < 1e-9
 
 
 def test_list_expiries_unique_sorted() -> None:

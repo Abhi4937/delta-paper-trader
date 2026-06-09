@@ -161,11 +161,17 @@ def build_chain(
     if spot is not None and rows:
         atm_row = min(rows, key=lambda r: abs(r.strike - spot))
         atm_strike = atm_row.strike
-        # prefer the call's mark IV at ATM, fall back to the put
-        for side in (atm_row.call, atm_row.put):
-            if side and side.quote.mark_iv is not None:
-                atm_iv = side.quote.mark_iv
-                break
+        # ATM IV = average of the ATM call & put mark IVs. Delta does not publish an
+        # ATM-IV formula (proprietary IV model); the call/put average is our chosen
+        # convention — validate vs Delta's displayed ATM IV. Fall back to whichever
+        # side has a quote.
+        atm_ivs = [
+            s.quote.mark_iv
+            for s in (atm_row.call, atm_row.put)
+            if s is not None and s.quote.mark_iv is not None
+        ]
+        if atm_ivs:
+            atm_iv = sum(atm_ivs) / len(atm_ivs)
 
     return OptionChain(
         underlying=underlying,

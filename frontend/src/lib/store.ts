@@ -1,15 +1,17 @@
 "use client";
 
 import { create } from "zustand";
-import { connectChain, fetchExpiries, fetchMarks } from "./api";
-import { estimateMargin, netPnl } from "./engine";
+import { connectChain, fetchAtmIv, fetchExpiries, fetchMarks } from "./api";
+import { estimateMargin, legPnl, netPnl } from "./engine";
 import type {
   Contract,
   LedgerEntry,
   Leg,
+  LegSample,
   LogEntry,
   OptionChain,
   Position,
+  SeriesSample,
   Side,
   Underlying,
 } from "./types";
@@ -18,13 +20,28 @@ let counter = 0;
 const uid = () => `${Date.now()}-${counter++}`;
 // Paper account in USD (Delta crypto options settle in USD). 1 lot = 0.001 BTC.
 const START_BALANCE = 5000;
+// MTM is sampled ~1/sec; retain the full series from position open (12h safety
+// ceiling) so 1m/5m timeframe charts can aggregate the whole life of the trade.
+const MTM_CAP = 12 * 60 * 60;
 export const USDINR = 85; // Delta uses a fixed 1 USD = 85 INR
 
 export type Currency = "USD" | "INR";
 
-// live mark map (symbol -> latest mark/bid/ask/iv), fed by the chain WS + marks poll
-const marks = new Map<string, { mark: number; bid: number; ask: number; iv: number }>();
+// live mark map (symbol -> latest mark/bid/ask/iv + per-option greeks), fed by the
+// chain WS + marks poll. Greeks are read-only from Delta; the client aggregates.
+interface Mark {
+  mark: number;
+  bid: number;
+  ask: number;
+  iv: number;
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
+}
+const marks = new Map<string, Mark>();
 const spots = new Map<string, number>(); // underlying -> latest spot (for notional fee)
+const atmIvs = new Map<string, number>(); // `${underlying}|${expiry}` -> ATM mark IV
 function markRecord(legs: Leg[]): Record<string, number> {
   const m: Record<string, number> = {};
   for (const l of legs) m[l.symbol] = marks.get(l.symbol)?.mark ?? l.entry;
@@ -39,6 +56,59 @@ function exitFillRecord(legs: Leg[]): Record<string, number> {
     m[l.symbol] = l.side === "buy" ? q?.bid || q?.mark || l.entry : q?.ask || q?.mark || l.entry;
   }
   return m;
+}
+
+// --- position-analytics sampling -------------------------------------------
+// Net greek = Σ (signed_qty × contract_value × per-option greek). Delta → BTC,
+// theta → USD/day, vega → USD per 1 vol-point. Standard aggregation; validate
+// vs a real Delta account before relying on the absolute numbers.
+const legSign = (side: Side): number => (side === "buy" ? 1 : -1);
+
+function netGreeks(legs: Leg[]): { delta: number; theta: number; vega: number } {
+  let delta = 0;
+  let theta = 0;
+  let vega = 0;
+  for (const l of legs) {
+    const m = marks.get(l.symbol);
+    if (!m) continue;
+    const k = legSign(l.side) * l.qty * l.contractValue;
+    delta += k * m.delta;
+    theta += k * m.theta;
+    vega += k * m.vega;
+  }
+  return { delta, theta, vega };
+}
+
+function sampleLegs(legs: Leg[]): Record<string, LegSample> {
+  const out: Record<string, LegSample> = {};
+  for (const l of legs) {
+    const m = marks.get(l.symbol);
+    out[l.id] = {
+      pnl: legPnl(l, m?.mark ?? l.entry),
+      iv: m?.iv ?? 0,
+      delta: legSign(l.side) * l.qty * l.contractValue * (m?.delta ?? 0),
+    };
+  }
+  return out;
+}
+
+// One sampled row (net + per-leg) for a position at time `now`. ATM IV is sampled
+// for every distinct expiry the legs span (so calendars get one ATM line each).
+function buildSample(p: Position, now: number): SeriesSample {
+  const ng = netGreeks(p.legs);
+  const atmIv: Record<string, number> = {};
+  for (const e of new Set(p.legs.map((l) => l.expiry))) {
+    atmIv[e] = atmIvs.get(`${p.underlying}|${e}`) ?? 0;
+  }
+  return {
+    t: now,
+    pnl: netPnl(p.legs, markRecord(p.legs)),
+    delta: ng.delta,
+    theta: ng.theta,
+    vega: ng.vega,
+    atmIv,
+    legs: sampleLegs(p.legs),
+  };
 }
 
 let disconnect: (() => void) | null = null;
@@ -99,11 +169,16 @@ export const useStore = create<State>((set, get) => ({
       underlying,
       expiry,
       ({ chain, expiries }) => {
-        // merge live marks + spot
+        // merge live marks + greeks + spot + ATM IV
         for (const r of chain.rows) {
-          for (const c of [r.call, r.put]) marks.set(c.symbol, { mark: c.mark, bid: c.bid, ask: c.ask, iv: c.iv });
+          for (const c of [r.call, r.put])
+            marks.set(c.symbol, {
+              mark: c.mark, bid: c.bid, ask: c.ask, iv: c.iv,
+              delta: c.greeks.delta, gamma: c.greeks.gamma, theta: c.greeks.theta, vega: c.greeks.vega,
+            });
         }
         spots.set(chain.underlying, chain.spot);
+        atmIvs.set(`${chain.underlying}|${chain.expiry}`, chain.atmIv);
         const s = get();
         // recompute open positions MTM + auto-exit
         const now = Date.now();
@@ -115,10 +190,10 @@ export const useStore = create<State>((set, get) => ({
             if (p.targetPnl != null && pnl >= p.targetPnl) toExit.push({ id: p.id, reason: "target" });
             else if (p.stopPnl != null && pnl <= p.stopPnl) toExit.push({ id: p.id, reason: "stop" });
           }
-          // sample the MTM at most once per second (keeps ~15 min of per-second points)
-      const last = p.mtm[p.mtm.length - 1];
-      const mtm = now - last.t >= 1000 ? [...p.mtm, { t: now, pnl }].slice(-900) : p.mtm;
-      return { ...p, mtm };
+          // sample net + per-leg series at most once per second (full from open)
+      const last = p.series[p.series.length - 1];
+      const series = now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
+      return { ...p, series };
         });
         set({
           chain,
@@ -226,9 +301,10 @@ export const useStore = create<State>((set, get) => ({
         targetPnl: opts.target,
         stopPnl: opts.stop,
         autoExit: opts.autoExit,
-        mtm: [{ t: Date.now(), pnl: 0 }],
+        series: [],
         notes: [],
       };
+      pos.series = [buildSample(pos, Date.now())]; // seed the first sample from open
       const balanceAfter = s.balance - margin;
       // keep `selected` (the basket) — the user navigates to Positions instead
       return {
@@ -280,7 +356,18 @@ async function pollPositionMarks(): Promise<void> {
   const open = useStore.getState().positions.filter((p) => p.status === "open");
   const syms = [...new Set(open.flatMap((p) => p.legs.map((l) => l.symbol)))];
   if (syms.length === 0) return;
-  const data = await fetchMarks(syms);
+  // pull fresh marks (+greeks) for held legs and ATM IV for every leg-expiry
+  const expiryPairs = [
+    ...new Map(
+      open.flatMap((p) => p.legs.map((l) => [`${p.underlying}|${l.expiry}`, { underlying: p.underlying, expiry: l.expiry }])),
+    ).values(),
+  ];
+  const [data] = await Promise.all([
+    fetchMarks(syms),
+    fetchAtmIv(expiryPairs).then((iv) => {
+      for (const [k, v] of Object.entries(iv)) atmIvs.set(k, v);
+    }),
+  ]);
   for (const [sym, m] of Object.entries(data)) marks.set(sym, m);
   const now = Date.now();
   const toExit: { id: string; reason: string }[] = [];
@@ -293,10 +380,10 @@ async function pollPositionMarks(): Promise<void> {
         if (p.targetPnl != null && pnl >= p.targetPnl) toExit.push({ id: p.id, reason: "target" });
         else if (p.stopPnl != null && pnl <= p.stopPnl) toExit.push({ id: p.id, reason: "stop" });
       }
-      // sample the MTM at most once per second (keeps ~15 min of per-second points)
-      const last = p.mtm[p.mtm.length - 1];
-      const mtm = now - last.t >= 1000 ? [...p.mtm, { t: now, pnl }].slice(-900) : p.mtm;
-      return { ...p, mtm };
+      // sample net + per-leg series at most once per second (full from open)
+      const last = p.series[p.series.length - 1];
+      const series = now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
+      return { ...p, series };
     }),
   }));
   for (const e of toExit) useStore.getState().closePosition(e.id, e.reason);
