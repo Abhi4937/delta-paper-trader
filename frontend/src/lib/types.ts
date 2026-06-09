@@ -51,6 +51,12 @@ export interface Leg {
   entry: number; // entry fill premium (crosses the spread → includes entry slippage)
   markAtEntry: number; // mark at the moment of entry (for entry-slippage display)
   spotAtEntry: number; // underlying spot at entry (for notional-based fee)
+  // per-leg risk/exit (TP/SL act on the leg's PnL in $)
+  targetPnl: number | null;
+  stopPnl: number | null;
+  autoExit: boolean; // auto-exit this leg when its TP/SL is hit
+  closeScope: "leg" | "strategy"; // on trigger: close this leg only, or the whole strategy
+  status: "open" | "closed"; // legs can be closed independently
 }
 
 // One sampled MTM/IV/greeks row for a position (taken ~1/sec from open). Net
@@ -83,9 +89,12 @@ export interface Position {
   marginBadge: MarginBadge;
   openedAt: number;
   status: "open" | "closed";
+  // combined net-capital stop: an absolute loss ($) OR a % of reserved margin
   targetPnl: number | null;
-  stopPnl: number | null;
-  autoExit: boolean;
+  stopLossAmount: number | null;
+  stopLossPctOfMargin: number | null;
+  autoExit: boolean; // combined auto-exit on
+  autoExitSuspended: boolean; // runtime: stale marks → auto-exit paused
   series: SeriesSample[]; // per-second net + per-leg MTM/IV/greeks, from open
   notes: { kind: "entry" | "exit"; body: string; at: number }[];
 }

@@ -1,14 +1,16 @@
 "use client";
 
 import { create } from "zustand";
-import { connectChain, fetchAtmIv, fetchExpiries, fetchMarks } from "./api";
+import { connectChain, fetchAtmIv, fetchExpiries, fetchMargin, fetchMarks } from "./api";
 import { estimateMargin, legPnl, netPnl } from "./engine";
+import { type ExitDecision, type ExitInput, evaluateExit } from "./exit";
 import type {
   Contract,
   LedgerEntry,
   Leg,
   LegSample,
   LogEntry,
+  MarginBadge,
   OptionChain,
   Position,
   SeriesSample,
@@ -38,8 +40,10 @@ interface Mark {
   gamma: number;
   theta: number;
   vega: number;
+  ts: number; // when this mark was last written (for stale-mark detection)
 }
 const marks = new Map<string, Mark>();
+const STALE_MS = 10_000; // suspend auto-exit if a held leg's mark is older than this
 const spots = new Map<string, number>(); // underlying -> latest spot (for notional fee)
 const atmIvs = new Map<string, number>(); // `${underlying}|${expiry}` -> ATM mark IV
 function markRecord(legs: Leg[]): Record<string, number> {
@@ -111,6 +115,61 @@ function buildSample(p: Position, now: number): SeriesSample {
   };
 }
 
+// --- auto-exit -------------------------------------------------------------
+const legMarkAge = (sym: string, now: number): number => {
+  const m = marks.get(sym);
+  return m ? now - m.ts : Infinity; // no mark yet → treat as stale
+};
+
+function buildExitInput(p: Position, now: number): ExitInput {
+  return {
+    legs: p.legs.map((l) => ({
+      id: l.id,
+      pnl: legPnl(l, legMark(l)),
+      markAgeMs: legMarkAge(l.symbol, now),
+      targetPnl: l.targetPnl,
+      stopPnl: l.stopPnl,
+      autoExit: l.autoExit,
+      closeScope: l.closeScope,
+      status: l.status,
+    })),
+    netPnl: netPnl(p.legs, markRecord(p.legs)),
+    margin: p.margin,
+    combinedStop: { lossAmount: p.stopLossAmount, lossPctOfMargin: p.stopLossPctOfMargin },
+    combinedAutoExit: p.autoExit,
+    staleMs: STALE_MS,
+  };
+}
+
+// Sample each open position's series + evaluate auto-exit. Returns the next
+// positions (with `autoExitSuspended` set) and the exit actions to apply AFTER
+// the state update (closing strategies/legs is done via store actions).
+function tickPositions(positions: Position[], now: number): {
+  positions: Position[];
+  actions: { posId: string; decision: ExitDecision }[];
+} {
+  const actions: { posId: string; decision: ExitDecision }[] = [];
+  const next = positions.map((p) => {
+    if (p.status === "closed") return p;
+    const decision = evaluateExit(buildExitInput(p, now));
+    if (decision.kind === "close-strategy" || decision.kind === "close-legs") {
+      actions.push({ posId: p.id, decision });
+    }
+    const last = p.series[p.series.length - 1];
+    const series = now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
+    return { ...p, series, autoExitSuspended: decision.kind === "suspended" };
+  });
+  return { positions: next, actions };
+}
+
+function applyExitActions(actions: { posId: string; decision: ExitDecision }[]): void {
+  const s = useStore.getState();
+  for (const { posId, decision } of actions) {
+    if (decision.kind === "close-strategy") s.closePosition(posId, decision.reason);
+    else if (decision.kind === "close-legs") for (const id of decision.legIds) s.closeLeg(posId, id, decision.reason);
+  }
+}
+
 let disconnect: (() => void) | null = null;
 
 interface State {
@@ -136,9 +195,13 @@ interface State {
   removeLeg: (id: string) => void;
   setLegQty: (id: string, qty: number) => void;
   toggleLegSide: (id: string) => void;
+  setLegRisk: (id: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   clearLegs: () => void;
-  placeStrategy: (name: string, opts: { target: number | null; stop: number | null; autoExit: boolean; margin?: number; badge?: "matched" | "est" | "stale" }) => void;
+  placeStrategy: (name: string, opts: { target: number | null; stopLossAmount: number | null; stopLossPctOfMargin: number | null; autoExit: boolean; margin?: number; badge?: MarginBadge }) => void;
   closePosition: (id: string, reason?: string) => void;
+  closeLeg: (id: string, legId: string, reason?: string) => Promise<void>;
+  setPositionStop: (id: string, patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit">>) => void;
+  setPositionLegRisk: (id: string, legId: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   addNote: (id: string, kind: "entry" | "exit", body: string) => void;
 }
 
@@ -170,31 +233,18 @@ export const useStore = create<State>((set, get) => ({
       expiry,
       ({ chain, expiries }) => {
         // merge live marks + greeks + spot + ATM IV
+        const now = Date.now();
         for (const r of chain.rows) {
           for (const c of [r.call, r.put])
             marks.set(c.symbol, {
               mark: c.mark, bid: c.bid, ask: c.ask, iv: c.iv,
-              delta: c.greeks.delta, gamma: c.greeks.gamma, theta: c.greeks.theta, vega: c.greeks.vega,
+              delta: c.greeks.delta, gamma: c.greeks.gamma, theta: c.greeks.theta, vega: c.greeks.vega, ts: now,
             });
         }
         spots.set(chain.underlying, chain.spot);
         atmIvs.set(`${chain.underlying}|${chain.expiry}`, chain.atmIv);
         const s = get();
-        // recompute open positions MTM + auto-exit
-        const now = Date.now();
-        const toExit: { id: string; reason: string }[] = [];
-        const positions = s.positions.map((p) => {
-          if (p.status === "closed") return p;
-          const pnl = netPnl(p.legs, markRecord(p.legs));
-          if (p.autoExit) {
-            if (p.targetPnl != null && pnl >= p.targetPnl) toExit.push({ id: p.id, reason: "target" });
-            else if (p.stopPnl != null && pnl <= p.stopPnl) toExit.push({ id: p.id, reason: "stop" });
-          }
-          // sample net + per-leg series at most once per second (full from open)
-      const last = p.series[p.series.length - 1];
-      const series = now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
-      return { ...p, series };
-        });
+        const { positions, actions } = tickPositions(s.positions, now);
         set({
           chain,
           expiries,
@@ -203,7 +253,7 @@ export const useStore = create<State>((set, get) => ({
           tickN: s.tickN + 1,
           positions,
         });
-        for (const e of toExit) get().closePosition(e.id, e.reason);
+        applyExitActions(actions);
       },
       (st) => set({ conn: st === "live" ? "live" : "down" }),
     );
@@ -237,6 +287,11 @@ export const useStore = create<State>((set, get) => ({
         entry: side === "buy" ? c.ask || c.mark : c.bid || c.mark,
         markAtEntry: c.mark,
         spotAtEntry: s.chain.spot,
+        targetPnl: null,
+        stopPnl: null,
+        autoExit: false,
+        closeScope: "leg",
+        status: "open",
       };
       return { selected: [...s.selected, leg] };
     }),
@@ -265,6 +320,11 @@ export const useStore = create<State>((set, get) => ({
         entry,
         markAtEntry: c.mark,
         spotAtEntry: s.chain.spot,
+        targetPnl: null,
+        stopPnl: null,
+        autoExit: false,
+        closeScope: "leg",
+        status: "open",
       };
       return { selected: [...s.selected, leg] };
     }),
@@ -281,6 +341,8 @@ export const useStore = create<State>((set, get) => ({
         return { ...l, side, entry };
       }),
     })),
+  setLegRisk: (id, patch) =>
+    set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
   clearLegs: () => set({ selected: [] }),
 
   placeStrategy: (name, opts) =>
@@ -299,8 +361,10 @@ export const useStore = create<State>((set, get) => ({
         openedAt: Date.now(),
         status: "open",
         targetPnl: opts.target,
-        stopPnl: opts.stop,
+        stopLossAmount: opts.stopLossAmount,
+        stopLossPctOfMargin: opts.stopLossPctOfMargin,
         autoExit: opts.autoExit,
+        autoExitSuspended: false,
         series: [],
         notes: [],
       };
@@ -341,6 +405,79 @@ export const useStore = create<State>((set, get) => ({
       };
     }),
 
+  // close ONE leg: realize it, recompute exact margin for the rest, free the
+  // difference. Closing the last open leg closes the whole strategy.
+  closeLeg: async (id, legId, reason) => {
+    const pos = get().positions.find((p) => p.id === id);
+    if (!pos || pos.status === "closed") return;
+    const leg = pos.legs.find((l) => l.id === legId);
+    if (!leg) return;
+    const remaining = pos.legs.filter((l) => l.id !== legId);
+
+    const exitFill = exitFillRecord([leg])[leg.symbol];
+    const grossLeg = legPnl(leg, exitFill);
+    const spotNow = spots.get(leg.underlying) ?? leg.spotAtEntry;
+    const feesLeg =
+      legFee(leg.entry, leg.spotAtEntry, leg.contractValue, leg.qty) +
+      legFee(exitFill, spotNow, leg.contractValue, leg.qty);
+
+    let newMargin = 0;
+    let badge: MarginBadge = pos.marginBadge;
+    if (remaining.length > 0) {
+      const r = await fetchMargin(
+        pos.underlying,
+        remaining.map((l) => ({ product_id: l.productId, side: l.side, size: l.qty })),
+      );
+      if (r) {
+        newMargin = r.margin;
+        badge = r.badge as MarginBadge;
+      } else {
+        newMargin = pos.margin; // margin fetch failed → keep the reserve unchanged
+      }
+    }
+    const label = `${leg.strike}${leg.type === "call" ? "CE" : "PE"}`;
+
+    set((s) => {
+      const p = s.positions.find((x) => x.id === id);
+      if (!p || p.status === "closed") return s;
+      const closing = remaining.length === 0;
+      const released = p.margin - newMargin; // freed margin back to balance
+      const balanceAfter = s.balance + grossLeg - feesLeg + released;
+      const net = grossLeg - feesLeg;
+      return {
+        positions: s.positions.map((x) =>
+          x.id !== id
+            ? x
+            : closing
+              ? { ...x, status: "closed" }
+              : { ...x, legs: remaining, margin: newMargin, marginBadge: badge },
+        ),
+        balance: balanceAfter,
+        ledger: [
+          { t: Date.now(), type: "realized", amount: grossLeg, balanceAfter, ref: `${p.name} · ${label}` },
+          { t: Date.now(), type: "fee", amount: -feesLeg, balanceAfter, ref: p.name },
+          { t: Date.now(), type: "margin_release", amount: released, balanceAfter, ref: p.name },
+          ...s.ledger,
+        ],
+        logs: log(
+          s.logs,
+          reason ? `LEG EXIT (${reason})` : "CLOSE LEG",
+          `${p.name} · ${label} · net ${net >= 0 ? "+" : ""}$${fmt(net)}${closing ? " · strategy closed" : ""}`,
+          net >= 0 ? "pos" : "neg",
+        ),
+      };
+    });
+  },
+
+  setPositionStop: (id, patch) =>
+    set((s) => ({ positions: s.positions.map((p) => (p.id === id ? { ...p, ...patch } : p)) })),
+  setPositionLegRisk: (id, legId, patch) =>
+    set((s) => ({
+      positions: s.positions.map((p) =>
+        p.id === id ? { ...p, legs: p.legs.map((l) => (l.id === legId ? { ...l, ...patch } : l)) } : p,
+      ),
+    })),
+
   addNote: (id, kind, body) =>
     set((s) => ({
       positions: s.positions.map((p) =>
@@ -368,25 +505,15 @@ async function pollPositionMarks(): Promise<void> {
       for (const [k, v] of Object.entries(iv)) atmIvs.set(k, v);
     }),
   ]);
-  for (const [sym, m] of Object.entries(data)) marks.set(sym, m);
   const now = Date.now();
-  const toExit: { id: string; reason: string }[] = [];
-  useStore.setState((s) => ({
-    tickN: s.tickN + 1,
-    positions: s.positions.map((p) => {
-      if (p.status === "closed") return p;
-      const pnl = netPnl(p.legs, markRecord(p.legs));
-      if (p.autoExit) {
-        if (p.targetPnl != null && pnl >= p.targetPnl) toExit.push({ id: p.id, reason: "target" });
-        else if (p.stopPnl != null && pnl <= p.stopPnl) toExit.push({ id: p.id, reason: "stop" });
-      }
-      // sample net + per-leg series at most once per second (full from open)
-      const last = p.series[p.series.length - 1];
-      const series = now - last.t >= 1000 ? [...p.series, buildSample(p, now)].slice(-MTM_CAP) : p.series;
-      return { ...p, series };
-    }),
-  }));
-  for (const e of toExit) useStore.getState().closePosition(e.id, e.reason);
+  for (const [sym, m] of Object.entries(data)) marks.set(sym, { ...m, ts: now });
+  let actions: { posId: string; decision: ExitDecision }[] = [];
+  useStore.setState((s) => {
+    const t = tickPositions(s.positions, now);
+    actions = t.actions;
+    return { tickN: s.tickN + 1, positions: t.positions };
+  });
+  applyExitActions(actions);
 }
 
 export function startStream(): () => void {

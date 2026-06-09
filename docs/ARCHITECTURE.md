@@ -104,10 +104,17 @@ Leg  { id, symbol, productId, underlying, type, strike, contractValue, expiry, d
        side: "buy"|"sell", qty,
        entry,        // fill premium (crosses spread → includes entry slippage)
        markAtEntry,  // mark @ entry → entry-slippage display
-       spotAtEntry } // spot @ entry → notional fee
+       spotAtEntry,  // spot @ entry → notional fee
+       targetPnl, stopPnl,         // per-leg TP/SL on the leg's PnL ($), nullable
+       autoExit,                   // auto-exit this leg on its TP/SL
+       closeScope: "leg"|"strategy", // on trigger: close this leg, or the whole strategy
+       status: "open"|"closed" }
 
 Position { id, name, underlying, expiry, legs[], margin, marginBadge:"matched"|"est"|"stale",
-           openedAt, status:"open"|"closed", targetPnl, stopPnl, autoExit,
+           openedAt, status:"open"|"closed",
+           targetPnl,                    // combined net target ($), nullable
+           stopLossAmount, stopLossPctOfMargin, // combined SL: ₹/$ amount OR % of margin
+           autoExit, autoExitSuspended,  // combined auto-exit on / paused (stale marks)
            series: SeriesSample[],    // 1/sec from open, cap MTM_CAP (12h); powers analytics
            notes: {kind:"entry"|"exit", body, at}[] }
 SeriesSample { t, pnl, delta, theta, vega, atmIv: { [expiry]: iv }, legs: { [legId]: { pnl, iv, delta } } }
@@ -125,6 +132,7 @@ LogEntry    { t, action, detail, tone? }
 - Constants: `START_BALANCE=5000` (USD), `USDINR=85` (fixed), `Currency="USD"|"INR"`.
 - Fees (offer-aware): `FEE_SCHEDULES.{standard, optionsCarnival}`, `ACTIVE_FEE=optionsCarnival`, GST 18%, `FEE_DISCOUNT=0`.
 - Functions: `legMark`, `legIv`, `spotOf`, `positionPnl`, `entrySlippage`, `entryFee`, `exitFee`, `money`, `moneyBoth`, `fmt`, `startStream()`, `selectLeg/addLeg/toggleLegSide`, `placeStrategy` (keeps basket), `closePosition` (gross−fees).
+- Risk/exit: pure `lib/exit.ts` `evaluateExit()` (vitest `exit.test.ts`) decides none/suspended/close-strategy/close-legs from leg PnLs + mark ages + stops. `marks` carry a `ts`; `STALE_MS=10s` suspends auto-exit on stale data. Store: `tickPositions` evaluates each tick; `applyExitActions` runs `closePosition`/`closeLeg`. `closeLeg` realizes one leg + re-fetches `/api/margin` for the rest. Setters: `setLegRisk` (basket), `setPositionStop` / `setPositionLegRisk` (placed).
 - Position analytics: `marks` map carries greeks; `atmIvs` map (`<u>|<expiry>`→IV); internal `netGreeks`/`sampleLegs`/`buildSample` sample `Position.series` each second (ATM IV per leg-expiry). Rendered by `components/PositionCharts.tsx` (lightweight-charts v5): stacked **MTM/IV/Δ/Θ/Vega**, shared **1s/1m/5m** timeframe + **Line/Candle** on MTM. Net bold; IV shows a bold ATM line **per expiry** + per-leg IVs. Leg colors are grouped by **expiry hue** (CE lighter / PE deeper), consistent for a leg across all panels. Each panel **collapses** (Θ/Vega shorter; collapsing grows the rest); each strategy card collapses (closed ones default collapsed); Close is in the card header. Charts auto-fit start→latest (no manual pan), Y autoscales and always shows the 0-line.
 - **MTM = entry-slippage only, no fees.** Close = gross(exit slippage) − entryFee − exitFee. See `money-model-validated.md`.
 

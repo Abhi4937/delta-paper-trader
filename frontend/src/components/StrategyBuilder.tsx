@@ -105,12 +105,13 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   function place() {
     placeStrategy(strategyName(selected) || "Strategy", {
       target: null,
-      stop: null,
+      stopLossAmount: null,
+      stopLossPctOfMargin: null,
       autoExit: false,
       margin: margin?.value,
       badge: (margin?.badge as "matched" | "est" | "stale") ?? "est",
     });
-    router.push("/positions"); // go to Positions; basket is kept, not cleared
+    router.push("/positions"); // go to Positions; set TP/SL on the position card
   }
 
   return (

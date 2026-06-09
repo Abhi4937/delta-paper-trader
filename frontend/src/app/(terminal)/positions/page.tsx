@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import PositionCharts from "@/components/PositionCharts";
 import { legPnl } from "@/lib/engine";
+import { combinedFloor } from "@/lib/exit";
 import { legColorMap } from "@/lib/legColors";
 import { ACTIVE_FEE, type Currency, entryFee, entrySlippage, legIv, legMark, money, positionPnl, spotOf, useStore } from "@/lib/store";
 import type { Position } from "@/lib/types";
@@ -98,6 +99,14 @@ function PositionCard({
         >
           {p.marginBadge === "matched" ? "exact" : p.marginBadge}
         </span>
+        {p.autoExitSuspended && (
+          <span
+            className="rounded-[3px] bg-warn/15 px-1.5 py-0.5 text-[9px] uppercase text-warn"
+            title="A leg's mark is stale (>10s old) — auto-exit is paused so we never exit on bad data."
+          >
+            auto-exit paused · stale
+          </span>
+        )}
         {closed && <span className="text-[10px] uppercase tracking-wider text-text-mute">closed</span>}
         <div className="ml-auto flex items-center gap-5 text-[11px]">
           <span className="text-text-mute">
@@ -181,19 +190,105 @@ function PositionCard({
         <PositionCharts series={p.series} legs={p.legs} currency={currency} />
       </div>
 
-      {/* footer: target / stop levels */}
-      {(p.targetPnl != null || p.stopPnl != null) && (
-        <div className="flex items-center gap-4 border-t border-line/60 px-4 py-2">
-          {p.targetPnl != null && (
-            <span className="text-[10px] text-text-mute">TP <span className="tnum text-pos">{money(p.targetPnl, currency)}</span></span>
-          )}
-          {p.stopPnl != null && (
-            <span className="text-[10px] text-text-mute">SL <span className="tnum text-neg">{money(p.stopPnl, currency)}</span></span>
-          )}
-        </div>
-      )}
+      {!closed && <RiskPanel p={p} currency={currency} />}
         </>
       )}
+    </div>
+  );
+}
+
+// Risk & exit controls for a placed strategy: combined net-capital SL (₹/$ or
+// % of margin) + per-leg TP/SL, close-scope, auto-exit, and a per-leg Close.
+function RiskPanel({ p, currency }: { p: Position; currency: Currency }) {
+  const closeLeg = useStore((s) => s.closeLeg);
+  const setStop = useStore((s) => s.setPositionStop);
+  const setLegRisk = useStore((s) => s.setPositionLegRisk);
+  const [slMode, setSlMode] = useState<"amount" | "pct">(p.stopLossPctOfMargin != null ? "pct" : "amount");
+  const floor = combinedFloor({ lossAmount: p.stopLossAmount, lossPctOfMargin: p.stopLossPctOfMargin }, p.margin);
+
+  return (
+    <div className="space-y-2 border-t border-line/60 px-4 py-2.5">
+      {/* combined net-capital stop */}
+      <div className="flex flex-wrap items-center gap-2.5 text-[11px]">
+        <span className="text-[9px] uppercase tracking-wider text-text-mute">Combined SL</span>
+        <Seg2
+          value={slMode}
+          onChange={setSlMode}
+          opts={[{ v: "amount", label: currency === "INR" ? "₹" : "$" }, { v: "pct", label: "% margin" }]}
+        />
+        {slMode === "amount" ? (
+          <NumInput value={p.stopLossAmount} placeholder="loss" onChange={(n) => setStop(p.id, { stopLossAmount: n, stopLossPctOfMargin: null })} />
+        ) : (
+          <NumInput value={p.stopLossPctOfMargin} placeholder="% margin" onChange={(n) => setStop(p.id, { stopLossPctOfMargin: n, stopLossAmount: null })} />
+        )}
+        {floor != null && <span className="tnum text-[10px] text-text-mute">floor {money(floor, currency)}</span>}
+        <label className="flex cursor-pointer items-center gap-1 text-text-mute">
+          <input type="checkbox" checked={p.autoExit} onChange={(e) => setStop(p.id, { autoExit: e.target.checked })} className="accent-accent" />
+          Auto-exit
+        </label>
+      </div>
+
+      {/* per-leg TP/SL + close */}
+      {p.legs.map((l) => (
+        <div key={l.id} className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className="w-16 font-medium">{l.strike} {l.type === "call" ? "CE" : "PE"}</span>
+          <span className="text-[9px] uppercase text-text-mute">TP</span>
+          <NumInput value={l.targetPnl} placeholder="$" onChange={(n) => setLegRisk(p.id, l.id, { targetPnl: n })} />
+          <span className="text-[9px] uppercase text-text-mute">SL</span>
+          <NumInput value={l.stopPnl} placeholder="$" onChange={(n) => setLegRisk(p.id, l.id, { stopPnl: n })} />
+          <Seg2
+            value={l.closeScope}
+            onChange={(v) => setLegRisk(p.id, l.id, { closeScope: v })}
+            opts={[{ v: "leg", label: "leg" }, { v: "strategy", label: "strat" }]}
+          />
+          <label className="flex cursor-pointer items-center gap-1 text-text-mute">
+            <input type="checkbox" checked={l.autoExit} onChange={(e) => setLegRisk(p.id, l.id, { autoExit: e.target.checked })} className="accent-accent" />
+            Auto
+          </label>
+          <button
+            onClick={() => closeLeg(p.id, l.id)}
+            className="ml-auto flex items-center gap-1 rounded-[4px] border border-neg/40 px-1.5 py-0.5 text-[10px] font-semibold text-neg hover:bg-neg/10"
+          >
+            <X size={10} /> Close leg
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// number input that maps empty → null (for optional TP/SL levels)
+function NumInput({ value, onChange, placeholder }: { value: number | null; onChange: (n: number | null) => void; placeholder?: string }) {
+  const [v, setV] = useState(value == null ? "" : String(value));
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={v}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^0-9.-]/g, "");
+        setV(raw);
+        const n = raw === "" || raw === "-" || raw === "." ? null : Number(raw);
+        onChange(n != null && Number.isFinite(n) ? n : null);
+      }}
+      className="tnum w-16 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text outline-none placeholder:text-text-mute focus:ring-1 focus:ring-accent"
+    />
+  );
+}
+
+function Seg2<T extends string>({ value, onChange, opts }: { value: T; onChange: (v: T) => void; opts: { v: T; label: string }[] }) {
+  return (
+    <div className="flex overflow-hidden rounded-[4px] border border-line">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          onClick={() => onChange(o.v)}
+          className={clsx("px-1.5 py-0.5 text-[10px]", value === o.v ? "bg-surface-3 text-text" : "text-text-mute hover:text-text-dim")}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
