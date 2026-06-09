@@ -3,10 +3,9 @@
 import clsx from "clsx";
 import { Minus, Plus, RefreshCw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { fetchMargin } from "@/lib/api";
-import { payoffCurve } from "@/lib/engine";
-import { money, moneyBoth, useStore } from "@/lib/store";
+import { useEffect, useState } from "react";
+import { type PayoffData, fetchMargin, fetchPayoff } from "@/lib/api";
+import { legIv, money, moneyBoth, useStore } from "@/lib/store";
 import type { Leg } from "@/lib/types";
 
 function legLabel(l: Leg): string {
@@ -264,64 +263,143 @@ function PayoffView() {
   const selected = useStore((s) => s.selected);
   const currency = useStore((s) => s.currency);
   const spot = useStore((s) => s.chain?.spot ?? 0);
-  const p = useMemo(() => payoffCurve(selected, spot || 60000), [selected, spot]);
+  const baseDte = selected[0]?.dte ?? 7;
 
-  const w = 348;
-  const h = 188;
-  const minP = Math.min(...p.pnl);
-  const maxP = Math.max(...p.pnl);
-  const range = Math.max(maxP - minP, 1);
-  const x = (i: number) => (i / (p.prices.length - 1)) * w;
-  const y = (v: number) => h - ((v - minP) / range) * h;
+  // null = follow the default (live spot / basket DTE); a number = user override
+  const [targetSpot, setTargetSpot] = useState<number | null>(null);
+  const [dteOverride, setDteOverride] = useState<number | null>(null);
+  const [ivShift, setIvShift] = useState(0); // vol points
+  const [data, setData] = useState<PayoffData | null>(null);
+
+  const lo = spot > 0 ? spot * 0.75 : 0;
+  const hi = spot > 0 ? spot * 1.25 : 0;
+  const ts = targetSpot ?? spot;
+  const dte = dteOverride ?? baseDte;
+  const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}`).join(",");
+
+  // one debounced backend call per slider settle (no per-pixel round-trips)
+  useEffect(() => {
+    if (selected.length === 0 || spot <= 0) return; // empty basket → placeholder (below)
+    const h = setTimeout(async () => {
+      const d = await fetchPayoff({
+        legs: selected.map((l) => ({
+          option_type: l.type, side: l.side, qty: l.qty, strike: l.strike,
+          entry: l.entry, iv: legIv(l) || 0.5, contract_value: l.contractValue,
+        })),
+        spot: ts, lo, hi, points: 81, t_years: Math.max(dte, 0) / 365, iv_shift: ivShift / 100,
+      });
+      setData(d);
+    }, 180);
+    return () => clearTimeout(h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, ts, dte, ivShift, lo, hi, spot]);
+
+  if (selected.length === 0)
+    return <div className="p-4 text-[12px] text-text-mute">Add legs to analyse the payoff.</div>;
+
+  const w = 348, hgt = 168;
+  const all = data ? [...data.expiry, ...data.projected, 0] : [0];
+  const minP = Math.min(...all), maxP = Math.max(...all);
+  const range = Math.max(maxP - minP, 1e-6);
+  const x = (s: number) => (hi > lo ? ((s - lo) / (hi - lo)) * w : 0);
+  const y = (v: number) => hgt - ((v - minP) / range) * hgt;
   const y0 = y(0);
-  const spotX = ((spot - p.prices[0]) / (p.prices[p.prices.length - 1] - p.prices[0])) * w;
+  const tsX = x(ts);
+  const path = (arr?: number[]) =>
+    data && arr ? data.spots.map((s, i) => `${i === 0 ? "M" : "L"}${x(s)},${y(arr[i])}`).join(" ") : "";
+  const nearest = (s: number) =>
+    data ? data.spots.reduce((b, sp, i) => (Math.abs(sp - s) < Math.abs(data.spots[b] - s) ? i : b), 0) : 0;
+  const levels = [0.9, 0.95, 1.0, 1.05, 1.1].map((m) => spot * m);
 
   return (
-    <div className="min-h-0 flex-1 overflow-auto px-3 py-3">
-      <div className="mb-3 grid grid-cols-2 gap-2 text-[11px]">
-        <Metric label="Max Profit" value={money(p.maxProfit, currency)} tone="pos" />
-        <Metric label="Max Loss" value={money(p.maxLoss, currency)} tone="neg" />
-        <Metric label="Breakevens" value={p.breakevens.map((b) => b.toFixed(0)).join(", ") || "—"} />
-        <Metric label="R / R" value={p.maxLoss !== 0 ? Math.abs(p.maxProfit / p.maxLoss).toFixed(2) : "—"} />
+    <div className="min-h-0 flex-1 space-y-3 overflow-auto px-3 py-3">
+      <div className="grid grid-cols-2 gap-2 text-[11px]">
+        <Metric label="Max Profit" value={data ? money(data.max_profit, currency) : "—"} tone="pos" />
+        <Metric label="Max Loss" value={data ? money(data.max_loss, currency) : "—"} tone="neg" />
+        <Metric label="Breakevens" value={data?.breakevens.length ? data.breakevens.map((b) => b.toFixed(0)).join(", ") : "—"} />
+        <Metric label="R / R" value={data && data.max_loss !== 0 ? Math.abs(data.max_profit / data.max_loss).toFixed(2) : "—"} />
       </div>
-      <svg width={w} height={h} className="overflow-visible">
-        {/* fill bars */}
-        {p.pnl.map((v, i) =>
-          i % 2 === 0 ? (
-            <line
-              key={i}
-              x1={x(i)}
-              x2={x(i)}
-              y1={y0}
-              y2={y(v)}
-              stroke={v >= 0 ? "var(--color-pos)" : "var(--color-neg)"}
-              strokeOpacity={0.18}
-              strokeWidth={2}
-            />
-          ) : null,
-        )}
-        {/* zero line */}
+
+      <svg width={w} height={hgt} className="overflow-visible">
         <line x1={0} x2={w} y1={y0} y2={y0} stroke="var(--color-line-strong)" strokeDasharray="3 3" />
-        {/* payoff curve */}
-        <polyline
-          points={p.pnl.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
-          fill="none"
-          stroke="var(--color-text)"
-          strokeWidth={1.5}
-        />
-        {/* spot marker */}
-        {spotX >= 0 && spotX <= w && (
-          <line x1={spotX} x2={spotX} y1={0} y2={h} stroke="var(--color-accent)" strokeWidth={1} strokeDasharray="2 2" />
-        )}
+        {spot > 0 && <line x1={x(spot)} x2={x(spot)} y1={0} y2={hgt} stroke="var(--color-text-mute)" strokeWidth={1} strokeDasharray="2 2" />}
+        <line x1={tsX} x2={tsX} y1={0} y2={hgt} stroke="var(--color-accent)" strokeWidth={1} />
+        <path d={path(data?.expiry)} fill="none" stroke="var(--color-text)" strokeWidth={1.5} />
+        <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="4 3" />
+        {data?.breakevens.map((b, i) => <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />)}
+        {data && <circle cx={tsX} cy={y(data.projected[nearest(ts)])} r={3.5} fill="var(--color-accent)" />}
       </svg>
-      <div className="mt-1 flex justify-between text-[10px] tnum text-text-mute">
-        <span>{p.prices[0].toFixed(0)}</span>
-        <span className="text-accent">spot {spot.toFixed(0)}</span>
-        <span>{p.prices[p.prices.length - 1].toFixed(0)}</span>
+      <div className="flex justify-between text-[10px] tnum text-text-mute">
+        <span>{lo.toFixed(0)}</span>
+        <span className="text-accent">target {ts.toFixed(0)}</span>
+        <span>{hi.toFixed(0)}</span>
       </div>
-      <p className="mt-3 text-[10px] text-text-mute">
-        At-expiry payoff. Scenario sliders (target spot · date-to-expiry · IV) coming next.
+      <div className="flex items-center gap-3 text-[10px] text-text-mute">
+        <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-text" /> at expiry</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-accent" /> projected (date · IV)</span>
+      </div>
+
+      <div className="space-y-2.5 rounded-[6px] border border-line bg-surface-2 p-2.5">
+        <Slider label="Target spot" value={ts} min={lo} max={hi || 1} step={(hi - lo) / 200 || 1} display={ts.toFixed(0)} onChange={setTargetSpot} />
+        <Slider label="Days to expiry" value={dte} min={0} max={Math.max(baseDte, 1)} step={Math.max(baseDte / 100, 0.01)} display={`${dte.toFixed(dte < 2 ? 2 : 0)}d`} onChange={setDteOverride} />
+        <Slider label="IV shift" value={ivShift} min={-20} max={20} step={0.5} display={`${ivShift >= 0 ? "+" : ""}${ivShift.toFixed(1)} pts`} onChange={setIvShift} />
+        {(targetSpot !== null || dteOverride !== null || ivShift !== 0) && (
+          <button onClick={() => { setTargetSpot(null); setDteOverride(null); setIvShift(0); }} className="text-[10px] text-accent hover:underline">
+            reset scenario
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 text-[11px]">
+        <Metric label="Net Δ" value={data ? data.greeks.delta.toFixed(3) : "—"} />
+        <Metric label="Net Γ" value={data ? data.greeks.gamma.toFixed(5) : "—"} />
+        <Metric label="Net Θ" value={data ? data.greeks.theta.toFixed(2) : "—"} />
+        <Metric label="Net V" value={data ? data.greeks.vega.toFixed(2) : "—"} />
+      </div>
+
+      <div className="rounded-[6px] border border-line bg-surface-2 text-[11px]">
+        <div className="grid grid-cols-3 gap-2 border-b border-line px-2.5 py-1 text-[9px] uppercase tracking-wider text-text-mute">
+          <span>Spot</span><span className="text-right">At expiry</span><span className="text-right">Projected</span>
+        </div>
+        {levels.map((s, i) => {
+          const idx = nearest(s);
+          const e = data?.expiry[idx] ?? 0;
+          const pj = data?.projected[idx] ?? 0;
+          return (
+            <div key={i} className="grid grid-cols-3 gap-2 border-t border-line/40 px-2.5 py-1">
+              <span className="tnum">{s.toFixed(0)}</span>
+              <span className={clsx("tnum text-right", e >= 0 ? "text-pos" : "text-neg")}>{data ? money(e, currency) : "—"}</span>
+              <span className={clsx("tnum text-right", pj >= 0 ? "text-pos" : "text-neg")}>{data ? money(pj, currency) : "—"}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[10px] text-text-mute">
+        Projected = Black-76 theoretical P&amp;L at the chosen days-to-expiry &amp; IV shift; greeks at the target spot.
       </p>
+    </div>
+  );
+}
+
+function Slider({
+  label, value, min, max, step, display, onChange,
+}: { label: string; value: number; min: number; max: number; step: number; display: string; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <div className="mb-0.5 flex items-center justify-between text-[10px]">
+        <span className="text-text-mute">{label}</span>
+        <span className="tnum text-text-dim">{display}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-1 w-full cursor-pointer appearance-none rounded bg-surface-3 accent-accent"
+      />
     </div>
   );
 }

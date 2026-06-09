@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __version__
 from app.api import chain as chain_api
 from app.api import margin as margin_api
+from app.api import payoff as payoff_api
 from app.config import get_settings
 from app.delta.rest import DeltaRestClient
 from app.services import chain as chain_svc
@@ -48,6 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Paper Trader API", version=__version__, lifespan=lifespan)
 app.include_router(chain_api.router)
 app.include_router(margin_api.router)
+app.include_router(payoff_api.router)
 
 app.add_middleware(
     CORSMiddleware,

@@ -5,7 +5,14 @@ Cases use contract_value=1 and hand-computed values.
 
 import numpy as np
 
-from app.engines.payoff import Leg, payoff_at_expiry, payoff_profile
+from app.engines.payoff import (
+    Leg,
+    ScenarioLeg,
+    net_greeks,
+    payoff_at_expiry,
+    payoff_profile,
+    projected_pnl,
+)
 
 
 def test_long_call_payoff() -> None:
@@ -52,3 +59,36 @@ def test_qty_and_contract_value_scale() -> None:
     pl = payoff_at_expiry([leg], prices, contract_value=10)
     # (max(110-100,0) - 5) * 3 * 10 = 5 * 30 = 150
     assert np.isclose(pl[0], 150.0)
+
+
+# --- Analyse Payoff: projected curve + net greeks --------------------------- #
+def test_projected_at_t0_equals_expiry() -> None:
+    legs = [ScenarioLeg("call", "long", 1, 100, 5, 0.5, 1.0)]
+    prices = np.array([90.0, 100.0, 110.0])
+    proj = projected_pnl(legs, prices, t_years=0.0, iv_shift=0.0)
+    assert np.allclose(proj, [-5.0, -5.0, 5.0])  # intrinsic − entry
+
+
+def test_projected_has_time_value_before_expiry() -> None:
+    # A long option is worth MORE than intrinsic before expiry → P/L above expiry.
+    legs = [ScenarioLeg("call", "long", 1, 100, 5, 0.5, 1.0)]
+    prices = np.array([100.0])
+    at_expiry = projected_pnl(legs, prices, 0.0, 0.0)[0]
+    before = projected_pnl(legs, prices, t_years=0.25, iv_shift=0.0)[0]
+    assert before > at_expiry
+
+
+def test_net_greeks_long_straddle_is_delta_neutral_at_atm() -> None:
+    legs = [
+        ScenarioLeg("call", "long", 1, 100, 4, 0.5, 1.0),
+        ScenarioLeg("put", "long", 1, 100, 4, 0.5, 1.0),
+    ]
+    g = net_greeks(legs, spot=100, t_years=0.1, iv_shift=0.0)
+    assert abs(g["delta"]) < 0.1  # ATM-spot straddle ≈ delta-neutral (small ½σ²T residual)
+    assert g["vega"] > 0 and g["gamma"] > 0  # long vol/gamma
+    assert g["theta"] < 0  # pays time decay
+
+
+def test_net_greeks_short_call_signs() -> None:
+    g = net_greeks([ScenarioLeg("call", "short", 1, 100, 4, 0.5, 1.0)], 100, 0.1, 0.0)
+    assert g["delta"] < 0 and g["vega"] < 0 and g["theta"] > 0  # short call collects theta

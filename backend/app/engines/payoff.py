@@ -13,6 +13,9 @@ from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
 
+from app.engines.blackscholes import bs_price as _bs_price
+from app.engines.blackscholes import greeks as _greeks
+
 LegKind = Literal["call", "put", "future"]
 LegSide = Literal["long", "short"]
 
@@ -117,3 +120,53 @@ def payoff_profile(
         max_loss=float(np.min(pnl)),
         spot=spot,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Analyse Payoff: projected (theoretical) P/L + net greeks at a what-if scenario
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True)
+class ScenarioLeg:
+    """An option leg with the data needed to reprice it (Black-Scholes, r=0)."""
+
+    option_type: LegKind  # "call" | "put"
+    side: LegSide
+    qty: float
+    strike: float
+    entry: float  # entry premium (per unit underlying)
+    iv: float  # current per-leg IV (fraction)
+    contract_value: float
+
+    @property
+    def signed_qty(self) -> float:
+        return self.qty if self.side == "long" else -self.qty
+
+
+def projected_pnl(
+    legs: list[ScenarioLeg], prices: NDArray[np.float64], t_years: float, iv_shift: float
+) -> NDArray[np.float64]:
+    """Theoretical net P/L across `prices` at `t_years` to expiry with IV shifted by
+    `iv_shift`. At t_years=0 this equals the at-expiry payoff (intrinsic)."""
+    prices = np.asarray(prices, dtype=np.float64)
+    total = np.zeros_like(prices)
+    for leg in legs:
+        sigma = max(leg.iv + iv_shift, 0.0)
+        vals = np.array(
+            [_bs_price(leg.option_type, float(s), leg.strike, t_years, sigma) for s in prices]
+        )
+        total += leg.signed_qty * (vals - leg.entry) * leg.contract_value
+    return total
+
+
+def net_greeks(
+    legs: list[ScenarioLeg], spot: float, t_years: float, iv_shift: float
+) -> dict[str, float]:
+    """Net strategy greeks at `spot` for the scenario: Σ signed_qty × cv × per-option greek."""
+    out = {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
+    for leg in legs:
+        sigma = max(leg.iv + iv_shift, 0.0)
+        g = _greeks(leg.option_type, spot, leg.strike, t_years, sigma)
+        k = leg.signed_qty * leg.contract_value
+        for key in out:
+            out[key] += k * g[key]
+    return out

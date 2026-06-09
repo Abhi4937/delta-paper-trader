@@ -59,7 +59,7 @@ Memory: `money-model-validated.md` — confirmed vs real Delta account @10 lots.
 
 ## Pending work (priority order)
 1. ✅ **Per-leg TP/SL + per-leg close + combined SL** — DONE. Pure decision engine `lib/exit.ts` (vitest); per-leg TP/SL on leg PnL with a close-leg-only/whole-strategy toggle; combined SL = ₹/$ amount or % of margin; **auto-exit suspended when a leg's mark is >10s stale**. `closeLeg` recomputes exact margin (`/api/margin`) for the remaining legs. UI: `RiskPanel` on the positions card + "auto-exit paused · stale" badge.
-2. **Analyse Payoff** (task #9) — Sensibull-style payoff curve + P&L table + Greeks + spot/date/IV sliders.
+2. ✅ **Analyse Payoff** (task #9) — DONE. Builder "Analyse Payoff" tab: at-expiry + projected ("what-if") P&L curves, **target-spot / days-to-expiry / IV-shift sliders**, net greeks, P&L table, breakevens/max-P/L. Backend `POST /api/payoff` (Black-Scholes r=0 via `engines/blackscholes.py` + `engines/payoff.py` `projected_pnl`/`net_greeks`); one debounced call per slider settle.
 3. **Analytics / Notes / Logs** screens (task #10).
 4. **DB schema + persistence + order/position loop** (task #11) — positions currently in-memory, lost on hard refresh. Postgres + TimescaleDB per plan.
 5. **Auth, hosting, Figma import** (task #12).

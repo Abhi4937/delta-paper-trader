@@ -74,6 +74,10 @@ Screens:  /chain (chain + builder/orderbook toggle)   /positions (isolated cards
 ### `GET /api/orderbook?symbol=<sym>`
 → `{ symbol, buy: [{price,size}...], sell: [...] }`  — Delta `/v2/l2orderbook` passthrough. **0-DTE has no book (404 normal).**
 
+### `POST /api/payoff`
+Request: `{ legs:[{option_type,side,qty,strike,entry,iv,contract_value}], spot, lo, hi, points, t_years, iv_shift }`
+→ `{ spots[], expiry[], projected[], greeks{delta,gamma,theta,vega}, breakevens[], max_profit, max_loss }`. At-expiry + projected (Black-Scholes r=0 at `t_years`/IV+shift) P&L curves + net greeks at `spot`. Powers the builder's Analyse Payoff (one debounced call per slider settle). Pure: `engines/payoff.py` `projected_pnl`/`net_greeks`, `engines/blackscholes.py`.
+
 ### `POST /api/margin`
 Request: `{ underlying: "BTC", legs: [{ product_id: int, side: "buy"|"sell", size: int }] }`
 → `MarginQuote`: `{ margin: float, badge: "matched"|"est"|"stale", source: str, ... }`

@@ -200,6 +200,48 @@ export async function fetchFeed(): Promise<{ connected: boolean; ageSeconds: num
   }
 }
 
+export interface PayoffLegIn {
+  option_type: "call" | "put";
+  side: "buy" | "sell";
+  qty: number;
+  strike: number;
+  entry: number;
+  iv: number;
+  contract_value: number;
+}
+export interface PayoffData {
+  spots: number[];
+  expiry: number[];
+  projected: number[];
+  greeks: { delta: number; gamma: number; theta: number; vega: number };
+  breakevens: number[];
+  max_profit: number;
+  max_loss: number;
+}
+
+// Analyse Payoff: expiry + projected (what-if date/IV) curves + net greeks (Black-76, r=0).
+export async function fetchPayoff(req: {
+  legs: PayoffLegIn[];
+  spot: number;
+  lo: number;
+  hi: number;
+  points: number;
+  t_years: number;
+  iv_shift: number;
+}): Promise<PayoffData | null> {
+  try {
+    const r = await fetch(`${API}/api/payoff`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchMargin(
   underlying: Underlying,
   legs: { product_id: number; side: "buy" | "sell"; size: number }[],
