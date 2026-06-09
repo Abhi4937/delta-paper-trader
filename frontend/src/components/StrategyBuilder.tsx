@@ -5,7 +5,8 @@ import { Minus, Plus, RefreshCw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type PayoffData, fetchMargin, fetchPayoff } from "@/lib/api";
-import { legIv, money, moneyBoth, useStore } from "@/lib/store";
+import { impliedVol } from "@/lib/bs";
+import { legIv, legMark, money, moneyBoth, useStore } from "@/lib/store";
 import type { Leg } from "@/lib/types";
 
 function legLabel(l: Leg): string {
@@ -290,8 +291,11 @@ function PayoffView() {
     const h = setTimeout(async () => {
       const d = await fetchPayoff({
         legs: selected.map((l) => ({
-          option_type: l.type, side: l.side, qty: l.qty, strike: l.strike,
-          entry: l.entry, iv: legIv(l) || 0.5, contract_value: l.contractValue,
+          option_type: l.type, side: l.side, qty: l.qty, strike: l.strike, entry: l.entry,
+          // calibrate each leg's vol to its live mark so the curve passes through the
+          // real mark at the current spot (projected-at-now == real entry slippage)
+          iv: impliedVol(l.type, spot, l.strike, l.dte / 365, legMark(l)) || legIv(l) || 0.5,
+          contract_value: l.contractValue,
         })),
         spot: ts, lo, hi, points: 161, t_years: Math.max(dte, 0) / 365, iv_shift: ivShift / 100,
       });

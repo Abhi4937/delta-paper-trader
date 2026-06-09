@@ -201,12 +201,13 @@ function PositionCard({
         })}
       </div>
 
+      {/* Risk & exit (SL/TP) — above the analytics charts */}
+      {!closed && <RiskPanel p={p} currency={currency} />}
+
       {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega, shared timeframe */}
       <div className="border-t border-line/60 px-3 py-2">
         <PositionCharts series={p.series} legs={p.legs} currency={currency} />
       </div>
-
-      {!closed && <RiskPanel p={p} currency={currency} />}
         </>
       )}
     </div>

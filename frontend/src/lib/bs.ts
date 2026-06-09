@@ -35,6 +35,24 @@ export function bsPrice(
     : K * ncdf(-d2) - S * ncdf(-d1);
 }
 
+// Invert Black-Scholes to the IV that reproduces `price` (bisection). Used to
+// CALIBRATE each leg's model vol to its live mark, so a repriced payoff curve
+// passes through the real mark at the current spot (removes the BS-vs-Delta basis).
+export function impliedVol(
+  type: OptType, S: number, K: number, T: number, price: number,
+  lo = 1e-3, hi = 5, iters = 64,
+): number {
+  if (T <= 0 || price <= 0 || S <= 0) return 0;
+  const intrinsic = type === "call" ? Math.max(S - K, 0) : Math.max(K - S, 0);
+  if (price <= intrinsic) return lo;
+  for (let i = 0; i < iters; i++) {
+    const mid = 0.5 * (lo + hi);
+    if (bsPrice(type, S, K, T, mid) > price) hi = mid;
+    else lo = mid;
+  }
+  return 0.5 * (lo + hi);
+}
+
 export interface Greeks {
   delta: number;
   gamma: number;
