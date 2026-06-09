@@ -2,7 +2,7 @@
 
 _Read this + `HANDOFF.md` first. They replace reading the codebase cold. Last updated: 2026-06-09._
 
-Paper-trading terminal for **Delta Exchange India options** (BTC + ETH). **PAPER-ONLY — read-only Delta key, no order ever placed.** Backend = FastAPI (port 8010, no `--reload`). Frontend = Next.js App Router (port 3000). State is **in-memory** (Zustand on the client; WS cache on the server) — no DB yet.
+Paper-trading terminal for **Delta Exchange India options** (BTC + ETH). **PAPER-ONLY — read-only Delta key, no order ever placed.** Backend = FastAPI (port 8010, no `--reload`). Frontend = Next.js App Router (port 3000). Sim state runs **client-side today** (Zustand + localStorage); a **server-authoritative engine + Postgres/Timescale persistence** ("real save") is **mid-migration** — Phase 1 (schema §5 + ported money engine) done; see `docs/HANDOFF.md` → "REAL SAVE".
 
 ---
 
@@ -149,8 +149,10 @@ LogEntry    { t, action, detail, tone? }
 
 ---
 
-## 5. Planned DB schema (NOT built — task #11)
-Postgres + TimescaleDB, multi-user (`user_id` on every owned row + per-query isolation). Relational: `users, instruments, strategies, strategy_legs, paper_orders, paper_order_legs, paper_fills(+JSONB orderbook_snapshot), positions, margin_quotes, virtual_balance_ledger, transaction_log, notes`. Hypertables: `chain_snapshots, atm_iv_series, position_mtm_series, leg_premium_series`. Full detail in the plan: `~/.claude/plans/i-want-to-create-prancy-sloth.md`.
+## 5. DB schema — BUILT (Phase 1 of "real save"; migration `df58c58a8bf9` applied)
+Postgres + TimescaleDB, multi-user (`user_id` on every owned row + per-query isolation). Live tables (`backend/app/db/models.py`): **users, accounts** (virtual balance + currency), **positions** (margin + entry_margin + combined risk), **legs** (entry/exit records + per-leg risk), **ledger_entries**, **logs**, **notes**, and **strategy_series** — a **TimescaleDB hypertable** (1-min net MTM/Δ/Θ/Vega + JSONB `atm_iv` and per-leg `{pnl,iv,delta,bid,ask}`). Async SQLAlchemy 2.0 (`db/session.py`), Alembic (`migrations/`, async env wired to `app.config`).
+
+The server engine that writes to this (services + tick loop + API/WS) is **mid-build** — see `docs/HANDOFF.md` → "REAL SAVE" for the Phase 2–4 plan. The frontend still uses Zustand/localStorage until the swap (Phase 4). Money model ported to `engines/money.py` (12 golden tests). Chain-history hypertables (`chain_snapshots`, etc.) from the original plan were deferred (portfolio-only, per the user). Full original plan: `~/.claude/plans/i-want-to-create-prancy-sloth.md`.
 
 ---
 
