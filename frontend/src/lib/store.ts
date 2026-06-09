@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { connectChain, fetchAtmIv, fetchExpiries, fetchMargin, fetchMarks } from "./api";
+import { connectChain, fetchAtmIv, fetchExpiries, fetchFeed, fetchMargin, fetchMarks } from "./api";
 import { estimateMargin, legPnl, netPnl } from "./engine";
 import { type ExitDecision, type ExitInput, evaluateExit } from "./exit";
 import type {
@@ -182,6 +182,8 @@ interface State {
   chain: OptionChain | null;
   expiries: string[];
   conn: "connecting" | "live" | "down";
+  feedFresh: boolean; // Delta market-data feed is live (not frozen/disconnected)
+  feedAge: number | null; // seconds since the last Delta message
   tickN: number;
   selected: Leg[];
   positions: Position[];
@@ -221,6 +223,8 @@ export const useStore = create<State>()(
   chain: null,
   expiries: [],
   conn: "connecting",
+  feedFresh: true, // optimistic until the first feed poll
+  feedAge: null,
   tickN: 0,
   selected: [],
   positions: [],
@@ -580,14 +584,30 @@ async function pollPositionMarks(): Promise<void> {
   applyExitActions(actions);
 }
 
+// Poll the Delta-feed freshness (drives the stale-data guard) independently of
+// the localhost socket — so we know if the backend's Delta prices are frozen.
+let feedTimer: ReturnType<typeof setInterval> | null = null;
+async function pollFeed(): Promise<void> {
+  const f = await fetchFeed();
+  useStore.setState({ feedFresh: f.fresh, feedAge: f.ageSeconds });
+}
+
 export function startStream(): () => void {
   useStore.getState().connect();
   if (!posMarkTimer) posMarkTimer = setInterval(pollPositionMarks, 1500);
+  if (!feedTimer) {
+    pollFeed();
+    feedTimer = setInterval(pollFeed, 2000);
+  }
   return () => {
     disconnect?.();
     if (posMarkTimer) {
       clearInterval(posMarkTimer);
       posMarkTimer = null;
+    }
+    if (feedTimer) {
+      clearInterval(feedTimer);
+      feedTimer = null;
     }
   };
 }

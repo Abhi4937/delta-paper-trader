@@ -12,6 +12,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import time
 from datetime import date
 
 import websockets
@@ -31,6 +32,20 @@ class MarketDataIngestor:
         self._symbols: list[str] = []
         self._task: asyncio.Task | None = None
         self.connected = False
+        self.last_message_at: float | None = None  # time.monotonic() of last WS msg
+
+    def feed_status(self) -> dict:
+        """Freshness of the Delta market-data feed (drives the stale-data guard).
+
+        `fresh` is False whenever the Delta WS is disconnected OR no message has
+        arrived in >5s — so the client never trades on frozen prices.
+        """
+        age = None if self.last_message_at is None else time.monotonic() - self.last_message_at
+        return {
+            "connected": self.connected,
+            "age_seconds": age,
+            "fresh": bool(self.connected and age is not None and age < 5.0),
+        }
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._run())
@@ -90,6 +105,7 @@ class MarketDataIngestor:
                     self.connected = True
                     log.info("Delta WS connected, %d option symbols", len(self._symbols))
                     async for raw in ws:
+                        self.last_message_at = time.monotonic()  # feed-freshness clock
                         m = json.loads(raw)
                         t = m.get("type")
                         if t == "v2/ticker" and "symbol" in m:

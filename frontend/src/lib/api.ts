@@ -189,6 +189,17 @@ export async function fetchAtmIv(
   return out;
 }
 
+// Delta-feed freshness for the stale-data guard. Backend unreachable → treat as stale.
+export async function fetchFeed(): Promise<{ connected: boolean; ageSeconds: number | null; fresh: boolean }> {
+  try {
+    const r = await fetch(`${API}/api/feed`);
+    const d = await r.json();
+    return { connected: !!d.connected, ageSeconds: d.age_seconds ?? null, fresh: !!d.fresh };
+  } catch {
+    return { connected: false, ageSeconds: null, fresh: false };
+  }
+}
+
 export async function fetchMargin(
   underlying: Underlying,
   legs: { product_id: number; side: "buy" | "sell"; size: number }[],

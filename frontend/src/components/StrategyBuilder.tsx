@@ -65,6 +65,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   const balance = useStore((s) => s.balance);
   const underlying = useStore((s) => s.underlying);
   const currency = useStore((s) => s.currency);
+  const feedFresh = useStore((s) => s.feedFresh);
   const spot = useStore((s) => s.chain?.spot ?? 0);
   const router = useRouter();
 
@@ -103,6 +104,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   );
 
   function place() {
+    if (!feedFresh) return; // never fill at stale/frozen prices
     placeStrategy(strategyName(selected) || "Strategy", {
       target: null,
       stopLossAmount: null,
@@ -236,11 +238,20 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
               <span>Available</span>
               <span className="tnum">{money(balance, currency)}</span>
             </div>
+            {!feedFresh && (
+              <div className="mb-2 rounded-[5px] border border-warn/40 bg-warn/10 px-2.5 py-1.5 text-[11px] text-warn">
+                ⚠ Delta feed is stale — prices may be frozen. Order placement is blocked until it’s live again (so you can’t fill at bad prices).
+              </div>
+            )}
             <button
               onClick={place}
-              className="w-full rounded-[5px] bg-accent py-2 text-[13px] font-semibold text-base transition-opacity hover:opacity-90"
+              disabled={!feedFresh}
+              className={clsx(
+                "w-full rounded-[5px] py-2 text-[13px] font-semibold transition-opacity",
+                feedFresh ? "bg-accent text-base hover:opacity-90" : "cursor-not-allowed bg-surface-3 text-text-mute",
+              )}
             >
-              Place Paper Order
+              {feedFresh ? "Place Paper Order" : "Data stale — placement blocked"}
             </button>
           </div>
         </>

@@ -64,6 +64,14 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__, "env": settings.app_env}
 
 
+@app.get("/api/feed")
+async def feed() -> dict:
+    """Delta market-data feed freshness — powers the stale-data guard (block order
+    placement when prices may be frozen). `fresh` is False if the Delta WS is down
+    or no message has arrived in >5s."""
+    return app.state.market.feed_status()
+
+
 @app.get("/api/marks")
 async def marks(symbols: str) -> dict:
     """Latest mark/bid/ask for arbitrary symbols (any expiry) from the WS cache —
