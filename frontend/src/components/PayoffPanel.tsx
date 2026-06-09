@@ -17,8 +17,9 @@ type Tab = "graph" | "table" | "greeks";
 const SLIDER = "h-1 w-full cursor-pointer appearance-none rounded bg-surface-3 accent-accent";
 const clampN = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
 
-export default function PayoffPanel() {
-  const selected = useStore((s) => s.selected);
+export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
+  const storeSelected = useStore((s) => s.selected);
+  const selected = legs ?? storeSelected; // analyse a placed position, or the builder basket
   const currency = useStore((s) => s.currency);
   const chain = useStore((s) => s.chain);
   const spot = chain?.spot ?? 0;

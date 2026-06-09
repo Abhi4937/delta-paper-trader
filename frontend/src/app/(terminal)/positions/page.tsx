@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, LineChart, X } from "lucide-react";
+import PayoffPanel from "@/components/PayoffPanel";
 import PositionCharts from "@/components/PositionCharts";
+import { exportPositionXlsx } from "@/lib/exportXlsx";
 import { legPnl } from "@/lib/engine";
 import { combinedFloor } from "@/lib/exit";
 import { legColorMap } from "@/lib/legColors";
@@ -73,6 +75,7 @@ function PositionCard({
   const exp = p.expiry.slice(5);
   // each strategy collapses; closed strategies start collapsed
   const [open, setOpen] = useState(!closed);
+  const [analyse, setAnalyse] = useState(false);
   // per-leg chart colors → swatch in the Symbol column maps rows to chart lines
   const legColors = legColorMap(p.legs);
 
@@ -131,6 +134,20 @@ function PositionCard({
               {pnl >= 0 ? "+" : ""}{money(pnl, currency)}
             </span>
           </span>
+          <button
+            onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
+            className={clsx("flex items-center gap-1 rounded-[5px] border px-2 py-1 text-[11px]", analyse ? "border-accent text-accent" : "border-line text-text-mute hover:text-text")}
+            title="Analyse this strategy's payoff (what-if spot / date / IV)"
+          >
+            <LineChart size={12} /> Analyse
+          </button>
+          <button
+            onClick={() => exportPositionXlsx(p)}
+            className="flex items-center gap-1 rounded-[5px] border border-line px-2 py-1 text-[11px] text-text-mute hover:text-text"
+            title="Download full strategy + every panel's chart data as Excel (.xlsx)"
+          >
+            <Download size={12} /> Excel
+          </button>
           {!closed && (
             <button
               onClick={() => onClose(p.id)}
@@ -144,6 +161,13 @@ function PositionCard({
 
       {open && (
         <>
+      {analyse && (
+        <div className="border-b border-line/60 bg-surface-2/40 px-4 py-3">
+          <div className="mx-auto max-w-[440px] rounded-lg border border-line bg-surface">
+            <PayoffPanel legs={p.legs} />
+          </div>
+        </div>
+      )}
       {/* legs — Delta-style columns (compact) */}
       <div className="overflow-x-auto px-4 py-0.5">
         <div className="grid min-w-[880px] grid-cols-[28px_minmax(140px,1.3fr)_104px_76px_84px_56px_76px_92px_84px_80px] gap-2 py-1 text-[9px] uppercase tracking-wider text-text-mute">
