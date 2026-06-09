@@ -107,7 +107,13 @@ function PositionCard({
             auto-exit paused · stale
           </span>
         )}
-        {closed && <span className="text-[10px] uppercase tracking-wider text-text-mute">closed</span>}
+        {closed && (
+          <span className="text-[10px] text-text-mute">
+            <span className="uppercase tracking-wider">closed</span>
+            {p.closeReason && <span className="ml-1 text-text-dim">· {p.closeReason}</span>}
+            {p.closedAt && <span className="ml-1 tnum">· {fmtEntry(p.closedAt)}</span>}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-5 text-[11px]">
           <span className="text-text-mute">
             Margin <span className="tnum text-text-dim">{money(p.margin, currency)}</span>
@@ -147,16 +153,17 @@ function PositionCard({
           <span className="text-right">UPNL</span><span className="text-right">Cashflow</span>
         </div>
         {p.legs.map((l) => {
+          const closed = l.status === "closed";
           const mark = legMark(l);
           const iv = legIv(l);
-          const lpnl = legPnl(l, mark);
+          const lpnl = closed ? (l.exitGross ?? 0) - (l.exitFees ?? 0) : legPnl(l, mark);
           const sign = l.side === "sell" ? -1 : 1;
           const sizeBtc = sign * l.qty * l.contractValue;
           const index = spotOf(l.underlying) || l.spotAtEntry;
           const notional = l.qty * l.contractValue * index;
           const cashflow = (l.side === "sell" ? 1 : -1) * l.entry * l.qty * l.contractValue;
           return (
-            <div key={l.id} className="grid min-w-[880px] grid-cols-[28px_minmax(140px,1.3fr)_104px_76px_84px_56px_76px_92px_84px_80px] items-center gap-2 border-t border-line/40 py-1 text-[11px]">
+            <div key={l.id} className={clsx("grid min-w-[880px] grid-cols-[28px_minmax(140px,1.3fr)_104px_76px_84px_56px_76px_92px_84px_80px] items-center gap-2 border-t border-line/40 py-1 text-[11px]", closed && "opacity-55")}>
               <span className={clsx("grid h-4 w-4 place-items-center rounded-[4px] text-[9px] font-bold", l.side === "buy" ? "bg-pos/15 text-pos" : "bg-neg/15 text-neg")}>
                 {l.side === "buy" ? "B" : "S"}
               </span>
@@ -167,16 +174,25 @@ function PositionCard({
                   title="chart line color"
                 />
                 <span className="tnum truncate">{l.symbol}</span>
+                {closed && (
+                  <span className="rounded-[3px] bg-surface-3 px-1 text-[8px] uppercase text-text-mute" title={l.exitAt ? `closed ${fmtEntry(l.exitAt)} · ${l.exitReason}` : ""}>
+                    exit · {l.exitReason}
+                  </span>
+                )}
               </span>
-              <span className="tnum text-[10px] text-text-mute">{fmtEntry(p.openedAt)}</span>
+              <span className="tnum text-[10px] text-text-mute">{closed && l.exitAt ? fmtEntry(l.exitAt) : fmtEntry(p.openedAt)}</span>
               <span className={clsx("tnum text-right", sizeBtc < 0 ? "text-neg" : "text-pos")}>{sizeBtc.toFixed(3)}</span>
               <span className="tnum text-right text-text-dim">{money(notional, currency)}</span>
               <span className="tnum text-right text-text-dim">{l.entry.toFixed(1)}</span>
               <span className="tnum text-right text-text-mute">{index.toLocaleString("en-US", { maximumFractionDigits: 1 })}</span>
               <span className="tnum text-right">
-                {mark.toFixed(1)} <span className="text-[9px] text-text-mute">{(iv * 100).toFixed(1)}%</span>
+                {closed ? (
+                  <span title="exit fill price">exit {l.exitPrice?.toFixed(1)}</span>
+                ) : (
+                  <>{mark.toFixed(1)} <span className="text-[9px] text-text-mute">{(iv * 100).toFixed(1)}%</span></>
+                )}
               </span>
-              <span className={clsx("tnum text-right font-medium", lpnl >= 0 ? "text-pos" : "text-neg")}>
+              <span className={clsx("tnum text-right font-medium", lpnl >= 0 ? "text-pos" : "text-neg")} title={closed ? `realized: gross ${money(l.exitGross ?? 0, currency)} − fees ${money(l.exitFees ?? 0, currency)}` : "live UPNL"}>
                 {lpnl >= 0 ? "+" : ""}{money(lpnl, currency)}
               </span>
               <span className="tnum text-right text-text-dim">{money(cashflow, currency)}</span>
@@ -228,8 +244,8 @@ function RiskPanel({ p, currency }: { p: Position; currency: Currency }) {
         </label>
       </div>
 
-      {/* per-leg TP/SL + close */}
-      {p.legs.map((l) => (
+      {/* per-leg TP/SL + close (open legs only) */}
+      {p.legs.filter((l) => l.status === "open").map((l) => (
         <div key={l.id} className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="w-16 font-medium">{l.strike} {l.type === "call" ? "CE" : "PE"}</span>
           <span className="text-[9px] uppercase text-text-mute">TP</span>

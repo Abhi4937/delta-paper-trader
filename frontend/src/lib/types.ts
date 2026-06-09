@@ -57,6 +57,12 @@ export interface Leg {
   autoExit: boolean; // auto-exit this leg when its TP/SL is hit
   closeScope: "leg" | "strategy"; // on trigger: close this leg only, or the whole strategy
   status: "open" | "closed"; // legs can be closed independently
+  // exit record (set when the leg is closed)
+  exitPrice: number | null; // exit fill premium (crosses the spread)
+  exitAt: number | null; // close timestamp
+  exitReason: string | null; // "manual" | "leg TP/SL" | "combined SL" | ...
+  exitGross: number | null; // gross PnL at exit fill (before fees)
+  exitFees: number | null; // entry + exit fee for this leg
 }
 
 // One sampled MTM/IV/greeks row for a position (taken ~1/sec from open). Net
@@ -95,6 +101,8 @@ export interface Position {
   stopLossPctOfMargin: number | null;
   autoExit: boolean; // combined auto-exit on
   autoExitSuspended: boolean; // runtime: stale marks → auto-exit paused
+  closedAt: number | null; // when the whole strategy closed
+  closeReason: string | null; // reason the strategy closed (manual / SL / ...)
   series: SeriesSample[]; // per-second net + per-leg MTM/IV/greeks, from open
   notes: { kind: "entry" | "exit"; body: string; at: number }[];
 }

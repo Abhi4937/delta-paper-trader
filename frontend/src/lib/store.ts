@@ -47,6 +47,8 @@ const marks = new Map<string, Mark>();
 const STALE_MS = 10_000; // suspend auto-exit if a held leg's mark is older than this
 const spots = new Map<string, number>(); // underlying -> latest spot (for notional fee)
 const atmIvs = new Map<string, number>(); // `${underlying}|${expiry}` -> ATM mark IV
+// still-open legs of a position (closed legs are realized; excluded from live PnL/greeks)
+const openLegs = (p: Position): Leg[] => p.legs.filter((l) => l.status === "open");
 function markRecord(legs: Leg[]): Record<string, number> {
   const m: Record<string, number> = {};
   for (const l of legs) m[l.symbol] = marks.get(l.symbol)?.mark ?? l.entry;
@@ -100,19 +102,20 @@ function sampleLegs(legs: Leg[]): Record<string, LegSample> {
 // One sampled row (net + per-leg) for a position at time `now`. ATM IV is sampled
 // for every distinct expiry the legs span (so calendars get one ATM line each).
 function buildSample(p: Position, now: number): SeriesSample {
-  const ng = netGreeks(p.legs);
+  const legs = openLegs(p);
+  const ng = netGreeks(legs);
   const atmIv: Record<string, number> = {};
-  for (const e of new Set(p.legs.map((l) => l.expiry))) {
+  for (const e of new Set(legs.map((l) => l.expiry))) {
     atmIv[e] = atmIvs.get(`${p.underlying}|${e}`) ?? 0;
   }
   return {
     t: now,
-    pnl: netPnl(p.legs, markRecord(p.legs)),
+    pnl: netPnl(legs, markRecord(legs)),
     delta: ng.delta,
     theta: ng.theta,
     vega: ng.vega,
     atmIv,
-    legs: sampleLegs(p.legs),
+    legs: sampleLegs(legs),
   };
 }
 
@@ -134,7 +137,7 @@ function buildExitInput(p: Position, now: number): ExitInput {
       closeScope: l.closeScope,
       status: l.status,
     })),
-    netPnl: netPnl(p.legs, markRecord(p.legs)),
+    netPnl: netPnl(openLegs(p), markRecord(openLegs(p))),
     margin: p.margin,
     combinedStop: { lossAmount: p.stopLossAmount, lossPctOfMargin: p.stopLossPctOfMargin },
     combinedAutoExit: p.autoExit,
@@ -295,6 +298,11 @@ export const useStore = create<State>()(
         autoExit: false,
         closeScope: "leg",
         status: "open",
+        exitPrice: null,
+        exitAt: null,
+        exitReason: null,
+        exitGross: null,
+        exitFees: null,
       };
       return { selected: [...s.selected, leg] };
     }),
@@ -328,6 +336,11 @@ export const useStore = create<State>()(
         autoExit: false,
         closeScope: "leg",
         status: "open",
+        exitPrice: null,
+        exitAt: null,
+        exitReason: null,
+        exitGross: null,
+        exitFees: null,
       };
       return { selected: [...s.selected, leg] };
     }),
@@ -368,6 +381,8 @@ export const useStore = create<State>()(
         stopLossPctOfMargin: opts.stopLossPctOfMargin,
         autoExit: opts.autoExit,
         autoExitSuspended: false,
+        closedAt: null,
+        closeReason: null,
         series: [],
         notes: [],
       };
@@ -386,36 +401,52 @@ export const useStore = create<State>()(
     set((s) => {
       const pos = s.positions.find((p) => p.id === id);
       if (!pos || pos.status === "closed") return s;
+      const legs = openLegs(pos);
+      const fills = exitFillRecord(legs);
       // gross at exit fills (carries exit slippage); net = gross − entry fee − exit fee
-      const gross = netPnl(pos.legs, exitFillRecord(pos.legs));
+      const gross = netPnl(legs, fills);
       const fees = entryFee(pos) + exitFee(pos);
       const net = gross - fees;
       const afterRelease = s.balance + pos.margin;
       const afterFees = afterRelease - fees;
       const balanceAfter = afterFees + gross;
+      const now = Date.now();
+      const why = reason ?? "manual";
+      const markClosed = (l: Leg): Leg => {
+        if (l.status !== "open") return l;
+        const exitFill = fills[l.symbol];
+        const spotNow = spots.get(l.underlying) ?? l.spotAtEntry;
+        const g = legPnl(l, exitFill);
+        const f = legFee(l.entry, l.spotAtEntry, l.contractValue, l.qty) + legFee(exitFill, spotNow, l.contractValue, l.qty);
+        return { ...l, status: "closed", exitPrice: exitFill, exitAt: now, exitReason: why, exitGross: g, exitFees: f };
+      };
       return {
-        positions: s.positions.map((p) => (p.id === id ? { ...p, status: "closed" } : p)),
+        positions: s.positions.map((p) =>
+          p.id === id ? { ...p, status: "closed", closedAt: now, closeReason: why, legs: p.legs.map(markClosed) } : p,
+        ),
         balance: balanceAfter,
         ledger: [
-          { t: Date.now(), type: "realized", amount: gross, balanceAfter, ref: pos.name },
-          { t: Date.now(), type: "fee", amount: -fees, balanceAfter: afterFees, ref: pos.name },
-          { t: Date.now(), type: "margin_release", amount: pos.margin, balanceAfter: afterRelease, ref: pos.name },
+          { t: now, type: "realized", amount: gross, balanceAfter, ref: pos.name },
+          { t: now, type: "fee", amount: -fees, balanceAfter: afterFees, ref: pos.name },
+          { t: now, type: "margin_release", amount: pos.margin, balanceAfter: afterRelease, ref: pos.name },
           ...s.ledger,
         ],
-        logs: log(s.logs, reason ? `AUTO-EXIT (${reason})` : "CLOSE",
+        logs: log(s.logs, `CLOSE (${why})`,
           `${pos.name} · net ${net >= 0 ? "+" : ""}$${fmt(net)} (gross ${gross >= 0 ? "+" : ""}$${fmt(gross)} − fees $${fmt(fees)})`,
           net >= 0 ? "pos" : "neg"),
       };
     }),
 
-  // close ONE leg: realize it, recompute exact margin for the rest, free the
-  // difference. Closing the last open leg closes the whole strategy.
+  // close ONE leg: realize it (record exit price/PnL/reason), recompute exact
+  // margin for the still-open legs, free the difference. The closed leg stays in
+  // the strategy (status="closed") so its exit details remain visible. Closing the
+  // last open leg closes the whole strategy.
   closeLeg: async (id, legId, reason) => {
     const pos = get().positions.find((p) => p.id === id);
     if (!pos || pos.status === "closed") return;
-    const leg = pos.legs.find((l) => l.id === legId);
+    const leg = pos.legs.find((l) => l.id === legId && l.status === "open");
     if (!leg) return;
-    const remaining = pos.legs.filter((l) => l.id !== legId);
+    const remaining = openLegs(pos).filter((l) => l.id !== legId); // still-open after this
 
     const exitFill = exitFillRecord([leg])[leg.symbol];
     const grossLeg = legPnl(leg, exitFill);
@@ -423,6 +454,7 @@ export const useStore = create<State>()(
     const feesLeg =
       legFee(leg.entry, leg.spotAtEntry, leg.contractValue, leg.qty) +
       legFee(exitFill, spotNow, leg.contractValue, leg.qty);
+    const why = reason ?? "manual";
 
     let newMargin = 0;
     let badge: MarginBadge = pos.marginBadge;
@@ -439,6 +471,7 @@ export const useStore = create<State>()(
       }
     }
     const label = `${leg.strike}${leg.type === "call" ? "CE" : "PE"}`;
+    const now = Date.now();
 
     set((s) => {
       const p = s.positions.find((x) => x.id === id);
@@ -447,25 +480,33 @@ export const useStore = create<State>()(
       const released = p.margin - newMargin; // freed margin back to balance
       const balanceAfter = s.balance + grossLeg - feesLeg + released;
       const net = grossLeg - feesLeg;
+      const closedLeg = (l: Leg): Leg =>
+        l.id === legId
+          ? { ...l, status: "closed", exitPrice: exitFill, exitAt: now, exitReason: why, exitGross: grossLeg, exitFees: feesLeg }
+          : l;
       return {
         positions: s.positions.map((x) =>
           x.id !== id
             ? x
-            : closing
-              ? { ...x, status: "closed" }
-              : { ...x, legs: remaining, margin: newMargin, marginBadge: badge },
+            : {
+                ...x,
+                legs: x.legs.map(closedLeg),
+                margin: closing ? x.margin : newMargin,
+                marginBadge: closing ? x.marginBadge : badge,
+                ...(closing ? { status: "closed" as const, closedAt: now, closeReason: why } : {}),
+              },
         ),
         balance: balanceAfter,
         ledger: [
-          { t: Date.now(), type: "realized", amount: grossLeg, balanceAfter, ref: `${p.name} · ${label}` },
-          { t: Date.now(), type: "fee", amount: -feesLeg, balanceAfter, ref: p.name },
-          { t: Date.now(), type: "margin_release", amount: released, balanceAfter, ref: p.name },
+          { t: now, type: "realized", amount: grossLeg, balanceAfter, ref: `${p.name} · ${label}` },
+          { t: now, type: "fee", amount: -feesLeg, balanceAfter, ref: p.name },
+          { t: now, type: "margin_release", amount: released, balanceAfter, ref: p.name },
           ...s.ledger,
         ],
         logs: log(
           s.logs,
-          reason ? `LEG EXIT (${reason})` : "CLOSE LEG",
-          `${p.name} · ${label} · net ${net >= 0 ? "+" : ""}$${fmt(net)}${closing ? " · strategy closed" : ""}`,
+          `LEG EXIT (${why})`,
+          `${p.name} · ${label} · exit ${exitFill.toFixed(1)} · net ${net >= 0 ? "+" : ""}$${fmt(net)}${closing ? " · strategy closed" : ""}`,
           net >= 0 ? "pos" : "neg",
         ),
       };
@@ -561,12 +602,13 @@ export function spotOf(u: Underlying): number {
   return spots.get(u) ?? 0;
 }
 export function positionPnl(p: Position): number {
-  return netPnl(p.legs, markRecord(p.legs));
+  const legs = openLegs(p);
+  return netPnl(legs, markRecord(legs));
 }
 // Cost of crossing the spread on entry (USD). Already reflected in MTM via the
 // fill price; shown separately for transparency. Brokerage is NOT included here.
 export function entrySlippage(p: Position): number {
-  return p.legs.reduce(
+  return openLegs(p).reduce(
     (s, l) => s + Math.abs(l.entry - l.markAtEntry) * l.qty * l.contractValue,
     0,
   );
@@ -603,11 +645,12 @@ function legFee(price: number, spot: number, cv: number, qty: number): number {
   return base * (1 - FEE_DISCOUNT) * (1 + GST);
 }
 export function entryFee(p: Position): number {
-  return p.legs.reduce((s, l) => s + legFee(l.entry, l.spotAtEntry, l.contractValue, l.qty), 0);
+  return openLegs(p).reduce((s, l) => s + legFee(l.entry, l.spotAtEntry, l.contractValue, l.qty), 0);
 }
 export function exitFee(p: Position): number {
-  const fills = exitFillRecord(p.legs);
-  return p.legs.reduce((s, l) => {
+  const legs = openLegs(p);
+  const fills = exitFillRecord(legs);
+  return legs.reduce((s, l) => {
     const spot = spots.get(l.underlying) ?? l.spotAtEntry;
     return s + legFee(fills[l.symbol], spot, l.contractValue, l.qty);
   }, 0);
