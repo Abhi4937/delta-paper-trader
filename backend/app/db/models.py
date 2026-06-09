@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import (
     BigInteger,
@@ -96,12 +97,12 @@ class Leg(Base):
     symbol: Mapped[str] = mapped_column(String(48))
     product_id: Mapped[int] = mapped_column(BigInteger)
     underlying: Mapped[str] = mapped_column(String(8))
-    type: Mapped[str] = mapped_column(String(4))  # call | put
+    type: Mapped[Literal["call", "put"]] = mapped_column(String(4))
     strike: Mapped[float] = mapped_column(Float)
     contract_value: Mapped[float] = mapped_column(Float)
     expiry: Mapped[str] = mapped_column(String(10))
     dte: Mapped[float] = mapped_column(Float)
-    side: Mapped[str] = mapped_column(String(4))  # buy | sell
+    side: Mapped[Literal["buy", "sell"]] = mapped_column(String(4))
     qty: Mapped[float] = mapped_column(Float)
     entry: Mapped[float] = mapped_column(Float)  # fill premium (crosses the spread)
     mark_at_entry: Mapped[float] = mapped_column(Float)
@@ -110,8 +111,8 @@ class Leg(Base):
     target_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
     stop_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
     auto_exit: Mapped[bool] = mapped_column(Boolean, default=False)
-    close_scope: Mapped[str] = mapped_column(String(8), default="leg")  # leg | strategy
-    status: Mapped[str] = mapped_column(String(8), default="open")
+    close_scope: Mapped[Literal["leg", "strategy"]] = mapped_column(String(8), default="leg")
+    status: Mapped[Literal["open", "closed"]] = mapped_column(String(8), default="open")
     # exit record (set on close)
     exit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     exit_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

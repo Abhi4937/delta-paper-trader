@@ -3,6 +3,8 @@ epoch-ms times) to match the frontend types directly."""
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -10,12 +12,12 @@ class PlaceLegIn(BaseModel):
     symbol: str
     product_id: int
     underlying: str
-    type: str  # call | put
+    type: Literal["call", "put"]
     strike: float
     contract_value: float
     expiry: str  # ISO date
     dte: float
-    side: str  # buy | sell
+    side: Literal["buy", "sell"]
     qty: float
 
 
@@ -43,7 +45,7 @@ class LegRiskPatch(BaseModel):
     target_pnl: float | None = None
     stop_pnl: float | None = None
     auto_exit: bool | None = None
-    close_scope: str | None = None  # leg | strategy
+    close_scope: Literal["leg", "strategy"] | None = None
 
 
 class NoteIn(BaseModel):

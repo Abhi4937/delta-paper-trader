@@ -81,10 +81,14 @@ class SimTicker:
                 decision = service.evaluate_position_exit(p, mv)
                 p.auto_exit_suspended = decision.kind == "suspended"
                 if decision.kind == "close-strategy":
-                    await service.close_position(session, user_id, self.app.state, p.id, decision.reason)
+                    await service.close_position(
+                        session, user_id, self.app.state, p.id, decision.reason
+                    )
                 elif decision.kind == "close-legs":
                     for lid in decision.leg_ids:
-                        await service.close_leg(session, user_id, self.app.state, p.id, uuid.UUID(lid), decision.reason)
+                        await service.close_leg(
+                            session, user_id, self.app.state, p.id, uuid.UUID(lid), decision.reason
+                        )
 
                 if p.status != "open":
                     continue
@@ -95,14 +99,24 @@ class SimTicker:
                 if len(ring) > SERIES_CAP:
                     del ring[: len(ring) - SERIES_CAP]
                 if write_db:
-                    session.add(StrategySeries(
-                        time=now, position_id=p.id, user_id=user_id, pnl=sample["pnl"],
-                        delta=sample["delta"], theta=sample["theta"], vega=sample["vega"],
-                        atm_iv=sample["atmIv"], legs=sample["legs"],
-                    ))
+                    session.add(
+                        StrategySeries(
+                            time=now,
+                            position_id=p.id,
+                            user_id=user_id,
+                            pnl=sample["pnl"],
+                            delta=sample["delta"],
+                            theta=sample["theta"],
+                            vega=sample["vega"],
+                            atm_iv=sample["atmIv"],
+                            legs=sample["legs"],
+                        )
+                    )
 
                 if refresh_margin:
-                    open_legs = [(lg.product_id, lg.side, lg.qty) for lg in p.legs if lg.status == "open"]
+                    open_legs = [
+                        (lg.product_id, lg.side, lg.qty) for lg in p.legs if lg.status == "open"
+                    ]
                     if open_legs:
                         with contextlib.suppress(Exception):
                             mq = await quote_margin(self.app.state, p.underlying, open_legs)

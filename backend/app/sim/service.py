@@ -41,7 +41,9 @@ async def _account(session: AsyncSession, user_id: uuid.UUID) -> Account:
     return res.scalar_one()
 
 
-async def _get_position(session: AsyncSession, user_id: uuid.UUID, pos_id: uuid.UUID) -> Position | None:
+async def _get_position(
+    session: AsyncSession, user_id: uuid.UUID, pos_id: uuid.UUID
+) -> Position | None:
     res = await session.execute(
         select(Position)
         .where(Position.id == pos_id, Position.user_id == user_id)
@@ -61,7 +63,9 @@ def _mark(mv: MarketView, leg: Leg) -> float:
 
 
 def position_pnl(pos: Position, mv: MarketView) -> float:
-    legs = [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in _open(pos)]  # type: ignore[arg-type]
+    legs = [
+        LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in _open(pos)
+    ]
     return net_pnl(legs)
 
 
@@ -73,11 +77,20 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
     for lg in legs:
         q = mv.quote(lg.symbol)
         mark = q.mark if (q and q.mark) else lg.entry
-        greeks.append(LegGreeks(lg.side, lg.qty, lg.contract_value, q.delta if q else 0, q.theta if q else 0, q.vega if q else 0))  # type: ignore[arg-type]
+        greeks.append(
+            LegGreeks(
+                lg.side,
+                lg.qty,
+                lg.contract_value,
+                q.delta if q else 0,
+                q.theta if q else 0,
+                q.vega if q else 0,
+            )
+        )
         leg_rows[str(lg.id)] = {
-            "pnl": leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, mark),  # type: ignore[arg-type]
+            "pnl": leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, mark),
             "iv": q.iv if q else 0.0,
-            "delta": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.delta if q else 0),  # type: ignore[arg-type]
+            "delta": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.delta if q else 0),
             "bid": q.bid if q else 0.0,
             "ask": q.ask if q else 0.0,
         }
@@ -85,7 +98,9 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
     atm_iv = {e: mv.atm_iv(pos.underlying, e) for e in {lg.expiry for lg in legs}}
     return {
         "t": _ms(now),
-        "pnl": net_pnl([LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in legs]),  # type: ignore[arg-type]
+        "pnl": net_pnl(
+            [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in legs]
+        ),
         "delta": ng["delta"],
         "theta": ng["theta"],
         "vega": ng["vega"],
@@ -96,7 +111,8 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
 
 def position_entry_slippage(pos: Position, mv: MarketView) -> float:
     return sum(
-        leg_entry_slippage(lg.entry, lg.mark_at_entry, lg.qty, lg.contract_value) for lg in _open(pos)
+        leg_entry_slippage(lg.entry, lg.mark_at_entry, lg.qty, lg.contract_value)
+        for lg in _open(pos)
     )
 
 
@@ -116,26 +132,55 @@ async def place_strategy(
         fill = entry_fill(spec.side, q.bid, q.ask, q.mark or q.bid or q.ask)
         leg_models.append(
             Leg(
-                user_id=user_id, symbol=spec.symbol, product_id=spec.product_id,
-                underlying=spec.underlying, type=spec.type, strike=spec.strike,
-                contract_value=spec.contract_value, expiry=spec.expiry, dte=spec.dte,
-                side=spec.side, qty=spec.qty, entry=fill, mark_at_entry=q.mark or fill,
+                user_id=user_id,
+                symbol=spec.symbol,
+                product_id=spec.product_id,
+                underlying=spec.underlying,
+                type=spec.type,
+                strike=spec.strike,
+                contract_value=spec.contract_value,
+                expiry=spec.expiry,
+                dte=spec.dte,
+                side=spec.side,
+                qty=spec.qty,
+                entry=fill,
+                mark_at_entry=q.mark or fill,
                 spot_at_entry=mv.spot(spec.underlying) or 0.0,
-                target_pnl=None, stop_pnl=None, auto_exit=False, close_scope="leg",
-                status="open", exit_price=None, exit_at=None, exit_reason=None,
-                exit_gross=None, exit_fees=None,
+                target_pnl=None,
+                stop_pnl=None,
+                auto_exit=False,
+                close_scope="leg",
+                status="open",
+                exit_price=None,
+                exit_at=None,
+                exit_reason=None,
+                exit_gross=None,
+                exit_fees=None,
             )
         )
 
-    mq = await quote_margin(app_state, underlying, [(s.product_id, s.side, s.qty) for s in req.legs])
+    mq = await quote_margin(
+        app_state, underlying, [(s.product_id, s.side, s.qty) for s in req.legs]
+    )
     margin, badge = mq.margin, mq.badge
 
     pos = Position(
-        user_id=user_id, name=req.name, underlying=underlying, expiry=req.legs[0].expiry,
-        margin=margin, entry_margin=margin, margin_badge=badge, opened_at=now, status="open",
-        target_pnl=req.target_pnl, stop_loss_amount=req.stop_loss_amount,
-        stop_loss_pct_of_margin=req.stop_loss_pct_of_margin, auto_exit=req.auto_exit,
-        auto_exit_suspended=False, closed_at=None, close_reason=None,
+        user_id=user_id,
+        name=req.name,
+        underlying=underlying,
+        expiry=req.legs[0].expiry,
+        margin=margin,
+        entry_margin=margin,
+        margin_badge=badge,
+        opened_at=now,
+        status="open",
+        target_pnl=req.target_pnl,
+        stop_loss_amount=req.stop_loss_amount,
+        stop_loss_pct_of_margin=req.stop_loss_pct_of_margin,
+        auto_exit=req.auto_exit,
+        auto_exit_suspended=False,
+        closed_at=None,
+        close_reason=None,
     )
     pos.legs = leg_models
     session.add(pos)
@@ -143,11 +188,40 @@ async def place_strategy(
 
     account = await _account(session, user_id)
     account.balance_usd -= margin
-    session.add(LedgerEntry(user_id=user_id, t=now, type="margin_reserve", amount=-margin, balance_after=account.balance_usd, ref=pos.name))
-    session.add(Log(user_id=user_id, t=now, action="PLACE", detail=f"{pos.name} · {len(leg_models)} legs · margin ${margin:,.2f}", tone="info"))
+    session.add(
+        LedgerEntry(
+            user_id=user_id,
+            t=now,
+            type="margin_reserve",
+            amount=-margin,
+            balance_after=account.balance_usd,
+            ref=pos.name,
+        )
+    )
+    session.add(
+        Log(
+            user_id=user_id,
+            t=now,
+            action="PLACE",
+            detail=f"{pos.name} · {len(leg_models)} legs · margin ${margin:,.2f}",
+            tone="info",
+        )
+    )
 
     s = build_sample(pos, mv, now)
-    session.add(StrategySeries(time=now, position_id=pos.id, user_id=user_id, pnl=s["pnl"], delta=s["delta"], theta=s["theta"], vega=s["vega"], atm_iv=s["atmIv"], legs=s["legs"]))
+    session.add(
+        StrategySeries(
+            time=now,
+            position_id=pos.id,
+            user_id=user_id,
+            pnl=s["pnl"],
+            delta=s["delta"],
+            theta=s["theta"],
+            vega=s["vega"],
+            atm_iv=s["atmIv"],
+            legs=s["legs"],
+        )
+    )
     await session.flush()
     return pos.id
 
@@ -168,9 +242,11 @@ async def close_position(
 
     def _exit_price(lg: Leg) -> float:
         q = exit_quotes[lg.symbol]
-        return exit_fill(lg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else lg.entry)  # type: ignore[arg-type]
+        return exit_fill(lg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else lg.entry)
 
-    gross = net_pnl([LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _exit_price(lg)) for lg in legs])  # type: ignore[arg-type]
+    gross = net_pnl(
+        [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _exit_price(lg)) for lg in legs]
+    )
     fees = 0.0
     for lg in legs:
         ex = _exit_price(lg)
@@ -185,22 +261,69 @@ async def close_position(
 
     for lg in legs:
         ex = _exit_price(lg)
-        g = leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, ex)  # type: ignore[arg-type]
-        f = leg_fee(lg.entry, lg.spot_at_entry, lg.contract_value, lg.qty) + leg_fee(ex, mv.spot(lg.underlying) or lg.spot_at_entry, lg.contract_value, lg.qty)
-        lg.status, lg.exit_price, lg.exit_at, lg.exit_reason, lg.exit_gross, lg.exit_fees = "closed", ex, now, why, g, f
+        g = leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, ex)
+        f = leg_fee(lg.entry, lg.spot_at_entry, lg.contract_value, lg.qty) + leg_fee(
+            ex, mv.spot(lg.underlying) or lg.spot_at_entry, lg.contract_value, lg.qty
+        )
+        lg.status, lg.exit_price, lg.exit_at, lg.exit_reason, lg.exit_gross, lg.exit_fees = (
+            "closed",
+            ex,
+            now,
+            why,
+            g,
+            f,
+        )
     pos.status, pos.closed_at, pos.close_reason = "closed", now, why
 
     net = gross - fees
-    session.add(LedgerEntry(user_id=user_id, t=now, type="realized", amount=gross, balance_after=balance_after, ref=pos.name))
-    session.add(LedgerEntry(user_id=user_id, t=now, type="fee", amount=-fees, balance_after=after_fees, ref=pos.name))
-    session.add(LedgerEntry(user_id=user_id, t=now, type="margin_release", amount=pos.margin, balance_after=after_release, ref=pos.name))
+    session.add(
+        LedgerEntry(
+            user_id=user_id,
+            t=now,
+            type="realized",
+            amount=gross,
+            balance_after=balance_after,
+            ref=pos.name,
+        )
+    )
+    session.add(
+        LedgerEntry(
+            user_id=user_id, t=now, type="fee", amount=-fees, balance_after=after_fees, ref=pos.name
+        )
+    )
+    session.add(
+        LedgerEntry(
+            user_id=user_id,
+            t=now,
+            type="margin_release",
+            amount=pos.margin,
+            balance_after=after_release,
+            ref=pos.name,
+        )
+    )
     sign = "pos" if net >= 0 else "neg"
-    session.add(Log(user_id=user_id, t=now, action=f"CLOSE ({why})", detail=f"{pos.name} · net {'+' if net >= 0 else ''}${net:,.2f} (gross {'+' if gross >= 0 else ''}${gross:,.2f} − fees ${fees:,.2f})", tone=sign))
+    session.add(
+        Log(
+            user_id=user_id,
+            t=now,
+            action=f"CLOSE ({why})",
+            detail=(
+                f"{pos.name} · net {'+' if net >= 0 else ''}${net:,.2f} "
+                f"(gross {'+' if gross >= 0 else ''}${gross:,.2f} − fees ${fees:,.2f})"
+            ),
+            tone=sign,
+        )
+    )
     return True
 
 
 async def close_leg(
-    session: AsyncSession, user_id: uuid.UUID, app_state: Any, pos_id: uuid.UUID, leg_id: uuid.UUID, reason: str | None
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    app_state: Any,
+    pos_id: uuid.UUID,
+    leg_id: uuid.UUID,
+    reason: str | None,
 ) -> bool:
     pos = await _get_position(session, user_id, pos_id)
     if pos is None or pos.status == "closed":
@@ -214,16 +337,20 @@ async def close_leg(
     remaining = [lg for lg in _open(pos) if lg.id != leg_id]
 
     q = mv.quote(leg.symbol)
-    ex = exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else leg.entry)  # type: ignore[arg-type]
-    gross = leg_pnl(leg.side, leg.qty, leg.contract_value, leg.entry, ex)  # type: ignore[arg-type]
+    ex = exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else leg.entry)
+    gross = leg_pnl(leg.side, leg.qty, leg.contract_value, leg.entry, ex)
     spot_now = mv.spot(leg.underlying) or leg.spot_at_entry
-    fees = leg_fee(leg.entry, leg.spot_at_entry, leg.contract_value, leg.qty) + leg_fee(ex, spot_now, leg.contract_value, leg.qty)
+    fees = leg_fee(leg.entry, leg.spot_at_entry, leg.contract_value, leg.qty) + leg_fee(
+        ex, spot_now, leg.contract_value, leg.qty
+    )
 
     new_margin = 0.0
     badge = pos.margin_badge
     if remaining:
         try:
-            mq = await quote_margin(app_state, pos.underlying, [(lg.product_id, lg.side, lg.qty) for lg in remaining])
+            mq = await quote_margin(
+                app_state, pos.underlying, [(lg.product_id, lg.side, lg.qty) for lg in remaining]
+            )
             new_margin, badge = mq.margin, mq.badge
         except ValueError:
             new_margin = pos.margin  # margin fetch failed → keep reserve
@@ -234,7 +361,14 @@ async def close_leg(
     balance_after = account.balance_usd + gross - fees + released
     account.balance_usd = balance_after
 
-    leg.status, leg.exit_price, leg.exit_at, leg.exit_reason, leg.exit_gross, leg.exit_fees = "closed", ex, now, why, gross, fees
+    leg.status, leg.exit_price, leg.exit_at, leg.exit_reason, leg.exit_gross, leg.exit_fees = (
+        "closed",
+        ex,
+        now,
+        why,
+        gross,
+        fees,
+    )
     if not closing:
         pos.margin, pos.margin_badge = new_margin, badge
     else:
@@ -242,15 +376,52 @@ async def close_leg(
 
     net = gross - fees
     label = f"{int(leg.strike)}{'CE' if leg.type == 'call' else 'PE'}"
-    session.add(LedgerEntry(user_id=user_id, t=now, type="realized", amount=gross, balance_after=balance_after, ref=f"{pos.name} · {label}"))
-    session.add(LedgerEntry(user_id=user_id, t=now, type="fee", amount=-fees, balance_after=balance_after, ref=f"{pos.name} · {label}"))
+    session.add(
+        LedgerEntry(
+            user_id=user_id,
+            t=now,
+            type="realized",
+            amount=gross,
+            balance_after=balance_after,
+            ref=f"{pos.name} · {label}",
+        )
+    )
+    session.add(
+        LedgerEntry(
+            user_id=user_id,
+            t=now,
+            type="fee",
+            amount=-fees,
+            balance_after=balance_after,
+            ref=f"{pos.name} · {label}",
+        )
+    )
     if released:
-        session.add(LedgerEntry(user_id=user_id, t=now, type="margin_release", amount=released, balance_after=balance_after, ref=pos.name))
-    session.add(Log(user_id=user_id, t=now, action=f"LEG EXIT ({why})", detail=f"{pos.name} · {label} · exit {ex} · net {'+' if net >= 0 else ''}${net:,.2f}", tone="pos" if net >= 0 else "neg"))
+        session.add(
+            LedgerEntry(
+                user_id=user_id,
+                t=now,
+                type="margin_release",
+                amount=released,
+                balance_after=balance_after,
+                ref=pos.name,
+            )
+        )
+    session.add(
+        Log(
+            user_id=user_id,
+            t=now,
+            action=f"LEG EXIT ({why})",
+            detail=f"{pos.name} · {label} · exit {ex} · net {'+' if net >= 0 else ''}${net:,.2f}",
+            tone="pos" if net >= 0 else "neg",
+        )
+    )
     return True
 
 
-async def set_position_risk(session: AsyncSession, user_id: uuid.UUID, pos_id: uuid.UUID, patch: Any) -> bool:
+async def set_position_risk(
+    session: AsyncSession, user_id: uuid.UUID, pos_id: uuid.UUID, patch: Any
+) -> bool:
     pos = await _get_position(session, user_id, pos_id)
     if pos is None:
         return False
@@ -265,7 +436,9 @@ async def set_position_risk(session: AsyncSession, user_id: uuid.UUID, pos_id: u
     return True
 
 
-async def set_leg_risk(session: AsyncSession, user_id: uuid.UUID, leg_id: uuid.UUID, patch: Any) -> bool:
+async def set_leg_risk(
+    session: AsyncSession, user_id: uuid.UUID, leg_id: uuid.UUID, patch: Any
+) -> bool:
     res = await session.execute(select(Leg).where(Leg.id == leg_id, Leg.user_id == user_id))
     leg = res.scalar_one_or_none()
     if leg is None:
@@ -281,11 +454,15 @@ async def set_leg_risk(session: AsyncSession, user_id: uuid.UUID, leg_id: uuid.U
     return True
 
 
-async def add_note(session: AsyncSession, user_id: uuid.UUID, pos_id: uuid.UUID, kind: str, body: str) -> bool:
+async def add_note(
+    session: AsyncSession, user_id: uuid.UUID, pos_id: uuid.UUID, kind: str, body: str
+) -> bool:
     pos = await _get_position(session, user_id, pos_id)
     if pos is None:
         return False
-    session.add(Note(user_id=user_id, position_id=pos_id, kind=kind, body=body, at=datetime.now(UTC)))
+    session.add(
+        Note(user_id=user_id, position_id=pos_id, kind=kind, body=body, at=datetime.now(UTC))
+    )
     return True
 
 
@@ -294,9 +471,12 @@ def exit_legs_of(pos: Position, mv: MarketView) -> list[ExitLeg]:
     return [
         ExitLeg(
             id=str(lg.id),
-            pnl=leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)),  # type: ignore[arg-type]
-            target_pnl=lg.target_pnl, stop_pnl=lg.stop_pnl, auto_exit=lg.auto_exit,
-            close_scope=lg.close_scope, status=lg.status,  # type: ignore[arg-type]
+            pnl=leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)),
+            target_pnl=lg.target_pnl,
+            stop_pnl=lg.stop_pnl,
+            auto_exit=lg.auto_exit,
+            close_scope=lg.close_scope,
+            status=lg.status,
         )
         for lg in pos.legs
     ]
@@ -317,31 +497,72 @@ def evaluate_position_exit(pos: Position, mv: MarketView) -> Any:
 def leg_dict(lg: Leg, mv: MarketView) -> dict[str, Any]:
     q = mv.quote(lg.symbol)
     closed = lg.status == "closed"
-    live_pnl = (lg.exit_gross or 0) - (lg.exit_fees or 0) if closed else leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg))  # type: ignore[arg-type]
+    live_pnl = (
+        (lg.exit_gross or 0) - (lg.exit_fees or 0)
+        if closed
+        else leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg))
+    )
     return {
-        "id": str(lg.id), "symbol": lg.symbol, "productId": lg.product_id, "underlying": lg.underlying,
-        "type": lg.type, "strike": lg.strike, "contractValue": lg.contract_value, "expiry": lg.expiry,
-        "dte": lg.dte, "side": lg.side, "qty": lg.qty, "entry": lg.entry, "markAtEntry": lg.mark_at_entry,
-        "spotAtEntry": lg.spot_at_entry, "targetPnl": lg.target_pnl, "stopPnl": lg.stop_pnl,
-        "autoExit": lg.auto_exit, "closeScope": lg.close_scope, "status": lg.status,
-        "exitPrice": lg.exit_price, "exitAt": _ms(lg.exit_at), "exitReason": lg.exit_reason,
-        "exitGross": lg.exit_gross, "exitFees": lg.exit_fees,
+        "id": str(lg.id),
+        "symbol": lg.symbol,
+        "productId": lg.product_id,
+        "underlying": lg.underlying,
+        "type": lg.type,
+        "strike": lg.strike,
+        "contractValue": lg.contract_value,
+        "expiry": lg.expiry,
+        "dte": lg.dte,
+        "side": lg.side,
+        "qty": lg.qty,
+        "entry": lg.entry,
+        "markAtEntry": lg.mark_at_entry,
+        "spotAtEntry": lg.spot_at_entry,
+        "targetPnl": lg.target_pnl,
+        "stopPnl": lg.stop_pnl,
+        "autoExit": lg.auto_exit,
+        "closeScope": lg.close_scope,
+        "status": lg.status,
+        "exitPrice": lg.exit_price,
+        "exitAt": _ms(lg.exit_at),
+        "exitReason": lg.exit_reason,
+        "exitGross": lg.exit_gross,
+        "exitFees": lg.exit_fees,
         # live book (best-bid/ask/spread) + mark/iv/pnl
-        "mark": q.mark if q else lg.entry, "iv": q.iv if q else 0.0,
-        "bid": q.bid if q else 0.0, "ask": q.ask if q else 0.0,
-        "spread": spread(q.bid, q.ask) if q else 0.0, "pnl": live_pnl,
+        "mark": q.mark if q else lg.entry,
+        "iv": q.iv if q else 0.0,
+        "bid": q.bid if q else 0.0,
+        "ask": q.ask if q else 0.0,
+        "spread": spread(q.bid, q.ask) if q else 0.0,
+        "pnl": live_pnl,
     }
 
 
 def series_dict(s: StrategySeries) -> dict[str, Any]:
-    return {"t": _ms(s.time), "pnl": s.pnl, "delta": s.delta, "theta": s.theta, "vega": s.vega, "atmIv": s.atm_iv, "legs": s.legs}
+    return {
+        "t": _ms(s.time),
+        "pnl": s.pnl,
+        "delta": s.delta,
+        "theta": s.theta,
+        "vega": s.vega,
+        "atmIv": s.atm_iv,
+        "legs": s.legs,
+    }
 
 
 def _net_greeks(pos: Position, mv: MarketView) -> dict[str, float]:
     rows = []
     for lg in _open(pos):
         q = mv.quote(lg.symbol)
-        rows.append(LegGreeks(lg.side, lg.qty, lg.contract_value, q.delta if q else 0, q.theta if q else 0, q.vega if q else 0))  # type: ignore[arg-type]
+        rows.append(
+            LegGreeks(
+                lg.side,
+                lg.qty,
+                lg.contract_value,
+                q.delta if q else 0,
+                q.theta if q else 0,
+                q.vega if q else 0,
+            )
+        )
     return net_greeks(rows)
 
 
@@ -349,16 +570,30 @@ def position_dict(pos: Position, mv: MarketView, series: list[dict[str, Any]]) -
     """Full position incl. its (already-serialized) series — for GET /api/state."""
     g = _net_greeks(pos, mv)
     return {
-        "id": str(pos.id), "name": pos.name, "underlying": pos.underlying, "expiry": pos.expiry,
-        "legs": [leg_dict(lg, mv) for lg in pos.legs], "margin": pos.margin, "entryMargin": pos.entry_margin,
-        "marginBadge": pos.margin_badge, "openedAt": _ms(pos.opened_at), "status": pos.status,
-        "targetPnl": pos.target_pnl, "stopLossAmount": pos.stop_loss_amount,
-        "stopLossPctOfMargin": pos.stop_loss_pct_of_margin, "autoExit": pos.auto_exit,
-        "autoExitSuspended": pos.auto_exit_suspended, "closedAt": _ms(pos.closed_at),
-        "closeReason": pos.close_reason, "series": series,
+        "id": str(pos.id),
+        "name": pos.name,
+        "underlying": pos.underlying,
+        "expiry": pos.expiry,
+        "legs": [leg_dict(lg, mv) for lg in pos.legs],
+        "margin": pos.margin,
+        "entryMargin": pos.entry_margin,
+        "marginBadge": pos.margin_badge,
+        "openedAt": _ms(pos.opened_at),
+        "status": pos.status,
+        "targetPnl": pos.target_pnl,
+        "stopLossAmount": pos.stop_loss_amount,
+        "stopLossPctOfMargin": pos.stop_loss_pct_of_margin,
+        "autoExit": pos.auto_exit,
+        "autoExitSuspended": pos.auto_exit_suspended,
+        "closedAt": _ms(pos.closed_at),
+        "closeReason": pos.close_reason,
+        "series": series,
         "notes": [{"kind": n.kind, "body": n.body, "at": _ms(n.at)} for n in pos.notes],
-        "pnl": position_pnl(pos, mv), "delta": g["delta"], "theta": g["theta"],
-        "vega": g["vega"], "entrySlippage": position_entry_slippage(pos, mv),
+        "pnl": position_pnl(pos, mv),
+        "delta": g["delta"],
+        "theta": g["theta"],
+        "vega": g["vega"],
+        "entrySlippage": position_entry_slippage(pos, mv),
     }
 
 
@@ -366,26 +601,42 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
     """Lightweight live update (no series) + one fresh sample to append — for the WS tick."""
     g = _net_greeks(pos, mv)
     return {
-        "id": str(pos.id), "status": pos.status, "margin": pos.margin, "marginBadge": pos.margin_badge,
-        "autoExitSuspended": pos.auto_exit_suspended, "closedAt": _ms(pos.closed_at), "closeReason": pos.close_reason,
+        "id": str(pos.id),
+        "status": pos.status,
+        "margin": pos.margin,
+        "marginBadge": pos.margin_badge,
+        "autoExitSuspended": pos.auto_exit_suspended,
+        "closedAt": _ms(pos.closed_at),
+        "closeReason": pos.close_reason,
         "legs": [leg_dict(lg, mv) for lg in pos.legs],
-        "pnl": position_pnl(pos, mv), "delta": g["delta"], "theta": g["theta"], "vega": g["vega"],
+        "pnl": position_pnl(pos, mv),
+        "delta": g["delta"],
+        "theta": g["theta"],
+        "vega": g["vega"],
         "entrySlippage": position_entry_slippage(pos, mv),
         "sample": build_sample(pos, mv, now),
     }
 
 
 async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str, Any]]:
-    res = await session.execute(select(StrategySeries).where(StrategySeries.position_id == pos_id).order_by(StrategySeries.time))
+    res = await session.execute(
+        select(StrategySeries)
+        .where(StrategySeries.position_id == pos_id)
+        .order_by(StrategySeries.time)
+    )
     return [series_dict(s) for s in res.scalars().all()]
 
 
 async def get_state(
-    session: AsyncSession, user_id: uuid.UUID, mv: MarketView, series_store: dict[str, list[dict[str, Any]]]
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    mv: MarketView,
+    series_store: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
     account = await _account(session, user_id)
     res = await session.execute(
-        select(Position).where(Position.user_id == user_id)
+        select(Position)
+        .where(Position.user_id == user_id)
         .options(selectinload(Position.legs), selectinload(Position.notes))
         .order_by(Position.opened_at.desc())
     )
@@ -395,12 +646,41 @@ async def get_state(
         # live per-second ring if present (charts stay 1s), else durable 1-min DB history
         series = series_store.get(str(p.id)) or await _db_series(session, p.id)
         pos_dicts.append(position_dict(p, mv, series))
-    led = (await session.execute(select(LedgerEntry).where(LedgerEntry.user_id == user_id).order_by(LedgerEntry.t.desc()))).scalars().all()
-    logs = (await session.execute(select(Log).where(Log.user_id == user_id).order_by(Log.t.desc()))).scalars().all()
+    led = (
+        (
+            await session.execute(
+                select(LedgerEntry)
+                .where(LedgerEntry.user_id == user_id)
+                .order_by(LedgerEntry.t.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    logs = (
+        (await session.execute(select(Log).where(Log.user_id == user_id).order_by(Log.t.desc())))
+        .scalars()
+        .all()
+    )
     return {
-        "account": {"balance": account.balance_usd, "currency": account.currency, "startBalance": account.start_balance_usd},
+        "account": {
+            "balance": account.balance_usd,
+            "currency": account.currency,
+            "startBalance": account.start_balance_usd,
+        },
         "positions": pos_dicts,
-        "ledger": [{"t": _ms(e.t), "type": e.type, "amount": e.amount, "balanceAfter": e.balance_after, "ref": e.ref} for e in led],
-        "logs": [{"t": _ms(lg.t), "action": lg.action, "detail": lg.detail, "tone": lg.tone} for lg in logs],
+        "ledger": [
+            {
+                "t": _ms(e.t),
+                "type": e.type,
+                "amount": e.amount,
+                "balanceAfter": e.balance_after,
+                "ref": e.ref,
+            }
+            for e in led
+        ],
+        "logs": [
+            {"t": _ms(lg.t), "action": lg.action, "detail": lg.detail, "tone": lg.tone}
+            for lg in logs
+        ],
     }
-

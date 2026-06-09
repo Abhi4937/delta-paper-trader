@@ -44,13 +44,17 @@ async def _state(request: Request, session: AsyncSession, user_id: uuid.UUID) ->
 
 
 @router.get("/state")
-async def get_state(request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def get_state(
+    request: Request, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
     user_id = await ensure_stub_user(session)
     return await _state(request, session, user_id)
 
 
 @router.post("/strategies")
-async def place(req: PlaceRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def place(
+    req: PlaceRequest, request: Request, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
     if not req.legs:
         raise HTTPException(400, "no legs")
     user_id = await ensure_stub_user(session)
@@ -62,7 +66,12 @@ async def place(req: PlaceRequest, request: Request, session: AsyncSession = Dep
 
 
 @router.post("/strategies/{pos_id}/close")
-async def close(pos_id: uuid.UUID, req: CloseRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def close(
+    pos_id: uuid.UUID,
+    req: CloseRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
     user_id = await ensure_stub_user(session)
     ok = await service.close_position(session, user_id, request.app.state, pos_id, req.reason)
     if not ok:
@@ -71,7 +80,13 @@ async def close(pos_id: uuid.UUID, req: CloseRequest, request: Request, session:
 
 
 @router.post("/strategies/{pos_id}/legs/{leg_id}/close")
-async def close_leg(pos_id: uuid.UUID, leg_id: uuid.UUID, req: CloseRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def close_leg(
+    pos_id: uuid.UUID,
+    leg_id: uuid.UUID,
+    req: CloseRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
     user_id = await ensure_stub_user(session)
     ok = await service.close_leg(session, user_id, request.app.state, pos_id, leg_id, req.reason)
     if not ok:
@@ -80,7 +95,12 @@ async def close_leg(pos_id: uuid.UUID, leg_id: uuid.UUID, req: CloseRequest, req
 
 
 @router.patch("/strategies/{pos_id}/risk")
-async def position_risk(pos_id: uuid.UUID, patch: PositionRiskPatch, request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def position_risk(
+    pos_id: uuid.UUID,
+    patch: PositionRiskPatch,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
     user_id = await ensure_stub_user(session)
     ok = await service.set_position_risk(session, user_id, pos_id, patch)
     if not ok:
@@ -89,7 +109,12 @@ async def position_risk(pos_id: uuid.UUID, patch: PositionRiskPatch, request: Re
 
 
 @router.patch("/legs/{leg_id}/risk")
-async def leg_risk(leg_id: uuid.UUID, patch: LegRiskPatch, request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def leg_risk(
+    leg_id: uuid.UUID,
+    patch: LegRiskPatch,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
     user_id = await ensure_stub_user(session)
     ok = await service.set_leg_risk(session, user_id, leg_id, patch)
     if not ok:
@@ -98,7 +123,9 @@ async def leg_risk(leg_id: uuid.UUID, patch: LegRiskPatch, request: Request, ses
 
 
 @router.post("/strategies/{pos_id}/notes")
-async def add_note(pos_id: uuid.UUID, note: NoteIn, request: Request, session: AsyncSession = Depends(get_session)) -> dict[str, Any]:
+async def add_note(
+    pos_id: uuid.UUID, note: NoteIn, request: Request, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
     user_id = await ensure_stub_user(session)
     ok = await service.add_note(session, user_id, pos_id, note.kind, note.body)
     if not ok:
@@ -117,7 +144,9 @@ async def ws_state(websocket: WebSocket) -> None:
         while True:
             async with SessionLocal() as session:
                 user_id = await ensure_stub_user(session)
-                account = (await session.execute(select(Account).where(Account.user_id == user_id))).scalar_one()
+                account = (
+                    await session.execute(select(Account).where(Account.user_id == user_id))
+                ).scalar_one()
                 res = await session.execute(
                     select(Position)
                     .where(Position.user_id == user_id, Position.status == "open")

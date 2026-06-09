@@ -7,6 +7,7 @@ computed server-side, the same way the builder's /api/margin does.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from app.services import chain as chain_svc
@@ -14,7 +15,7 @@ from app.services.margin import BasketLeg, MarginQuote, MarginService
 
 
 async def quote_margin(
-    app_state: Any, underlying: str, legs: list[tuple[int, str, float]]
+    app_state: Any, underlying: str, legs: Sequence[tuple[int, str, float]]
 ) -> MarginQuote:
     """legs = [(product_id, side, size), ...]. Raises ValueError on unknown product."""
     delta = app_state.delta
