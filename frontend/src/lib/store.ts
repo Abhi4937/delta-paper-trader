@@ -346,8 +346,10 @@ export const useStore = create<State>()(
       // Server owns positions/balance/ledger/logs now — persist ONLY UI prefs (the
       // builder basket + view selection + currency toggle). v2 migrate drops any
       // legacy persisted positions/account so we cleanly start from server state.
+      // NOTE: the builder basket (`selected`) is deliberately NOT persisted — it's a
+      // browser-local draft, so persisting it would leak one user's draft to whoever
+      // logs in next on the same browser. Only view prefs persist.
       partialize: (s) => ({
-        selected: s.selected,
         underlying: s.underlying,
         expiry: s.expiry,
         currency: s.currency,

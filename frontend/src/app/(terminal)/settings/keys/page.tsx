@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import { type KeyStatus, fetchKeys, saveKeys } from "@/lib/api";
 
 const SLOTS: { kind: string; label: string; hint: string }[] = [
-  { kind: "delta_read_key", label: "Delta API key (read-only)", hint: "Market data + your account positions (read)." },
-  { kind: "delta_read_secret", label: "Delta API secret (read-only)", hint: "Paired secret for the read-only key." },
   { kind: "delta_trade_key", label: "Delta trade API key", hint: "Used ONLY for live auto-close (reduce-only). Stored encrypted; not used yet." },
   { kind: "delta_trade_secret", label: "Delta trade API secret", hint: "Paired secret for the trade key." },
-  { kind: "delta_web_jwt", label: "Delta web session token", hint: "For the exact Strategy-Builder margin endpoint." },
+  { kind: "delta_web_jwt", label: "Delta web session token", hint: "Optional — for the exact Strategy-Builder margin number (else a local estimate is used)." },
 ];
 
 export default function ApiKeysPage() {
