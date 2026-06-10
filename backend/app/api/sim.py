@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.deps import current_user, resolve_ws_user
-from app.db.models import Account, Position
+from app.db.models import Account, Position, User
 from app.db.session import SessionLocal, get_session
 from app.sim import service
 from app.sim.marketview import MarketView
@@ -42,6 +42,18 @@ def _store(request: Request) -> dict[str, Any]:
 
 async def _state(request: Request, session: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
     return await service.get_state(session, user_id, _mv(request), _store(request))
+
+
+@router.get("/me")
+async def me(
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
+) -> dict[str, Any]:
+    """The authenticated user's identity + admin flag (drives the UI nav/header)."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "user not found")
+    return {"email": user.email, "displayName": user.display_name, "isAdmin": user.is_admin}
 
 
 @router.get("/state")

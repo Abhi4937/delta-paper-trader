@@ -4,14 +4,18 @@ import clsx from "clsx";
 import {
   LayoutGrid,
   LineChart,
+  LogOut,
   NotebookPen,
   ReceiptText,
   Settings,
+  Shield,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { type Me, fetchMe } from "@/lib/api";
+import { signOut } from "@/lib/auth";
 import { type Currency, money, startStream, useStore } from "@/lib/store";
 import type { Underlying } from "@/lib/types";
 
@@ -21,6 +25,7 @@ const NAV = [
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/notes", label: "Notes", icon: NotebookPen },
   { href: "/logs", label: "Logs", icon: ReceiptText },
+  { href: "/settings/keys", label: "API Keys", icon: Settings },
 ];
 
 function expLabel(iso: string): string {
@@ -30,12 +35,19 @@ function expLabel(iso: string): string {
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
   const { underlying, expiry, expiries, chain, balance, tickN, conn, currency, feedFresh, feedAge } = useStore();
   const setU = useStore((s) => s.setUnderlying);
   const setE = useStore((s) => s.setExpiry);
   const setCurrency = useStore((s) => s.setCurrency);
+  const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => startStream(), []);
+  useEffect(() => {
+    fetchMe().then(setMe);
+  }, []);
+
+  const nav = me?.isAdmin ? [...NAV, { href: "/admin", label: "Admin", icon: Shield }] : NAV;
 
   // stale = the Delta feed (not the localhost socket) is frozen/disconnected
   const stale = !feedFresh;
@@ -119,12 +131,26 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span className={clsx("text-[11px]", stale ? "font-medium text-warn" : "text-text-dim")}>{connLabel}</span>
             <span className="tnum text-[11px] text-text-mute">·{tickN}</span>
           </div>
-          <Settings size={16} className="text-text-mute hover:text-text-dim" />
+          {me && (
+            <div className="flex items-center gap-2 border-l border-line pl-3">
+              <span className="max-w-[160px] truncate text-[11px] text-text-dim" title={me.email}>
+                {me.email}
+                {me.isAdmin && <span className="ml-1 rounded-[3px] bg-accent/15 px-1 text-[9px] text-accent">admin</span>}
+              </span>
+              <button
+                onClick={() => signOut().then(() => router.replace("/login"))}
+                title="Sign out"
+                className="text-text-mute hover:text-neg"
+              >
+                <LogOut size={15} />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
       <nav className="flex flex-col items-center gap-1 border-r border-line py-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, label, icon: Icon }) => {
           const active = path === href;
           return (
             <Link

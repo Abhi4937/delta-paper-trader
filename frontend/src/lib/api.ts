@@ -409,3 +409,67 @@ export function connectState(
     ws?.close();
   };
 }
+
+// --- account / settings / admin (all authed) ------------------------------- //
+async function authedJson<T>(
+  path: string,
+  init?: { method?: string; body?: unknown },
+): Promise<T | null> {
+  try {
+    const r = await fetch(`${API}${path}`, {
+      method: init?.method ?? "GET",
+      headers: await authHeaders(init?.body ? { "Content-Type": "application/json" } : undefined),
+      body: init?.body ? JSON.stringify(init.body) : undefined,
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+export interface Me {
+  email: string;
+  displayName: string;
+  isAdmin: boolean;
+}
+export const fetchMe = (): Promise<Me | null> => authedJson<Me>("/api/me");
+
+// vault slots → boolean "is set" (plaintext never leaves the server)
+export type KeyStatus = Record<string, boolean>;
+export const fetchKeys = (): Promise<KeyStatus | null> => authedJson<KeyStatus>("/api/settings/keys");
+export const saveKeys = (body: Record<string, string>): Promise<KeyStatus | null> =>
+  authedJson<KeyStatus>("/api/settings/keys", { method: "PUT", body });
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string;
+  isAdmin: boolean;
+  isActive: boolean;
+  hasLogin: boolean;
+  createdAt: number | null;
+}
+export const fetchAdminUsers = (): Promise<AdminUser[] | null> =>
+  authedJson<AdminUser[]>("/api/admin/users");
+
+export interface AllowlistEntry {
+  email: string;
+  invitedBy: string | null;
+  createdAt: number | null;
+}
+export const fetchAllowlist = (): Promise<AllowlistEntry[] | null> =>
+  authedJson<AllowlistEntry[]>("/api/admin/allowlist");
+export const addAllowlist = (email: string): Promise<{ email: string } | null> =>
+  authedJson<{ email: string }>("/api/admin/allowlist", { method: "POST", body: { email } });
+export const removeAllowlist = (email: string): Promise<{ removed: string } | null> =>
+  authedJson<{ removed: string }>(`/api/admin/allowlist/${encodeURIComponent(email)}`, { method: "DELETE" });
+
+export interface UserLog {
+  t: number;
+  action: string;
+  detail: string;
+  tone: string | null;
+}
+export const fetchUserLogs = (id: string): Promise<UserLog[] | null> =>
+  authedJson<UserLog[]>(`/api/admin/users/${id}/logs`);
