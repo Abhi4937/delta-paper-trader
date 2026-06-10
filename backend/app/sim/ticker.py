@@ -28,7 +28,7 @@ from app.sim.marketview import MarketView
 
 log = logging.getLogger("sim_ticker")
 
-SERIES_CAP = 12 * 60 * 60  # 12h of 1s samples per position (in-memory ring)
+SERIES_CAP = 24 * 60 * 60  # 24h of 1s samples per position (in-memory ring)
 DB_WRITE_EVERY = 10.0  # 10s durable downsample → Timescale hypertable (full life of the position)
 MARGIN_REFRESH_EVERY = 30.0
 
