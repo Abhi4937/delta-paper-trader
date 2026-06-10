@@ -2,8 +2,8 @@
 
 Every ~1s: recompute MTM from live marks, run auto-exit (24/7, suspended on stale
 feed), append a per-second sample to the in-memory series ring (keeps the 1s
-charts), write a 1-min row to the Timescale hypertable, and periodically refresh
-exact margin. Single stub user for now; the schema is already user-isolated.
+charts), write a ~10s row to the Timescale hypertable (durable, full life of the
+position), and periodically refresh exact margin. Runs for ALL users' open positions.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ from app.sim.marketview import MarketView
 
 log = logging.getLogger("sim_ticker")
 
-SERIES_CAP = 12 * 60 * 60  # 12h of 1s samples per position (ring)
-DB_WRITE_EVERY = 60.0  # 1-min durable downsample → hypertable
+SERIES_CAP = 12 * 60 * 60  # 12h of 1s samples per position (in-memory ring)
+DB_WRITE_EVERY = 10.0  # 10s durable downsample → Timescale hypertable (full life of the position)
 MARGIN_REFRESH_EVERY = 30.0
 
 
