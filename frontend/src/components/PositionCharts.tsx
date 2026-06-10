@@ -182,15 +182,24 @@ export default function PositionCharts({
   const TITLES = ["MTM", "IV", "Delta", "Theta", "Vega"];
   const WEIGHT: Record<string, number> = { MTM: 1, IV: 1, Delta: 1, Theta: 0.6, Vega: 0.6 };
   const MINH: Record<string, number> = { MTM: 248, IV: 248, Delta: 248, Theta: 150, Vega: 150 };
+  // cap so a single open panel doesn't balloon to the whole budget (e.g. MTM alone)
+  const MAXH: Record<string, number> = { MTM: 360, IV: 360, Delta: 360, Theta: 240, Vega: 240 };
   const totalW = TITLES.reduce((s, t) => (collapsed[t] ? s : s + WEIGHT[t]), 0) || 1;
-  // each expanded panel: its min height, or a share of the budget when few are open
-  // (so collapsing others makes the rest grow). Theta/Vega are smaller (lower weight).
-  const heightOf = (t: string) => Math.max(MINH[t], Math.round((660 * WEIGHT[t]) / totalW));
+  // each expanded panel: clamp(min, share-of-budget, max) — collapsing others grows the
+  // rest but never past MAXH. Theta/Vega are smaller (lower weight + lower cap).
+  const heightOf = (t: string) =>
+    Math.min(MAXH[t], Math.max(MINH[t], Math.round((660 * WEIGHT[t]) / totalW)));
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 text-[9px] uppercase tracking-wider text-text-mute">
-        <span>analytics · net bold · legs light</span>
+        <span>
+          analytics
+          {series.length > 0 && (
+            <span className="text-text-dim"> · from {fmtDateTime(series[0].t / 1000, tf)}</span>
+          )}
+          {" · net bold · legs light"}
+        </span>
         <div className="flex items-center gap-1.5 normal-case">
           <Seg
             value={mtmType}
@@ -445,8 +454,11 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
     fitView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tf]);
+  // re-fit on each update so the WHOLE trade (entry→latest) stays visible as it grows.
+  // (Stable now that leg/IV lines carry full points; the sparse lines were the old flicker.)
   useEffect(() => {
     loadData();
+    fitView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [net, legs]);
 
