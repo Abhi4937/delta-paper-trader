@@ -53,6 +53,12 @@ export default function ApiKeysPage() {
 
       <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
         <div className="max-w-2xl space-y-3">
+          <div className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-[11px] text-text-dim">
+            <span className="font-medium text-accent">Optional.</span> Paper trading needs no keys —
+            the platform provides the live market data. Add your own Delta keys only for live-account
+            features (monitoring/closing your real Delta positions). The web session token is optional
+            too; without it, margin uses a local estimate.
+          </div>
           {SLOTS.map((s) => {
             const set = status[s.kind];
             return (
