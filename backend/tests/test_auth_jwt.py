@@ -74,3 +74,28 @@ def test_missing_sub_rejected() -> None:
 
     with pytest.raises(AuthError):
         verify_supabase_token(_token(sub=None))
+
+
+def test_es256_token_via_jwks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Asymmetric (current Supabase) tokens verify against the JWKS public key."""
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from app.auth import jwt as ajwt
+
+    priv = ec.generate_private_key(ec.SECP256R1())
+    token = jwt.encode(
+        {"aud": "authenticated", "aal": "aal2", "sub": "uid-9", "email": "e@x.com",
+         "exp": datetime.now(UTC) + timedelta(hours=1)},
+        priv, algorithm="ES256", headers={"kid": "k1"},
+    )
+
+    class _Key:
+        key = priv.public_key()
+
+    class _Client:
+        def get_signing_key_from_jwt(self, _t: str) -> _Key:
+            return _Key()
+
+    monkeypatch.setattr(ajwt, "_jwks", lambda: _Client())
+    claims = ajwt.verify_supabase_token(token)
+    assert claims["sub"] == "uid-9" and ajwt.is_mfa(claims)

@@ -34,8 +34,20 @@ class Settings(BaseSettings):
     # Supabase access tokens locally with the project JWT secret; app data stays in our
     # own Timescale Postgres. See docs ADR for the topology.
     supabase_url: str = ""  # e.g. https://<ref>.supabase.co
-    supabase_jwt_secret: str = ""  # HS256 secret used to verify access tokens
+    # Tokens are verified against the project's public JWKS (asymmetric ES256/RS256).
+    # Defaults to {supabase_url}/auth/v1/.well-known/jwks.json when blank.
+    supabase_jwks_url: str = ""
+    # Optional: only for legacy HS256 tokens during a signing-key rotation window.
+    supabase_jwt_secret: str = ""
     supabase_jwt_aud: str = "authenticated"
+
+    @property
+    def jwks_url(self) -> str:
+        if self.supabase_jwks_url:
+            return self.supabase_jwks_url
+        if self.supabase_url:
+            return f"{self.supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+        return ""
     # Per-user secret vault: master key (urlsafe base64, 32 bytes) for AES-GCM at rest.
     secret_vault_key: str = ""
     # First admin + first allowlist entry are seeded from this email on startup.

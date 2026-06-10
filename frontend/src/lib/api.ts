@@ -1,6 +1,7 @@
 // Real Delta data via the backend: all expiries + a live chain WebSocket.
 // Maps the backend (/v2/tickers-derived) shape into the UI types.
 
+import { getAccessToken } from "./auth";
 import type {
   ChainRow,
   Contract,
@@ -312,11 +313,18 @@ export interface PlaceStrategyIn {
   auto_exit: boolean;
 }
 
+// Attach the Supabase access token so the backend resolves the authenticated user
+// (in dev with no token the backend falls back to the stub user).
+async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  return { ...(extra ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
 async function postJson(path: string, body?: unknown): Promise<ServerState | null> {
   try {
     const r = await fetch(`${API}${path}`, {
       method: body && (body as { __patch?: boolean }).__patch ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders({ "Content-Type": "application/json" }),
       body: body ? JSON.stringify(stripMeta(body)) : undefined,
     });
     if (!r.ok) return null;
@@ -336,7 +344,7 @@ function stripMeta(b: unknown): unknown {
 
 export async function fetchState(): Promise<ServerState | null> {
   try {
-    const r = await fetch(`${API}/api/state`);
+    const r = await fetch(`${API}/api/state`, { headers: await authHeaders() });
     if (!r.ok) return null;
     return (await r.json()) as ServerState;
   } catch {
@@ -382,16 +390,22 @@ export function connectState(
   onState?: (s: "live" | "down") => void,
 ): () => void {
   let closed = false;
-  const ws = new WebSocket(`${WS}/api/ws/state`);
-  ws.onopen = () => onState?.("live");
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    if (m.type === "tick") onTick(m as StateTick);
-  };
-  ws.onclose = () => !closed && onState?.("down");
-  ws.onerror = () => onState?.("down");
+  let ws: WebSocket | null = null;
+  // browsers can't set headers on a WS, so the access token rides as ?token=
+  getAccessToken().then((token) => {
+    if (closed) return;
+    const q = token ? `?token=${encodeURIComponent(token)}` : "";
+    ws = new WebSocket(`${WS}/api/ws/state${q}`);
+    ws.onopen = () => onState?.("live");
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.type === "tick") onTick(m as StateTick);
+    };
+    ws.onclose = () => !closed && onState?.("down");
+    ws.onerror = () => onState?.("down");
+  });
   return () => {
     closed = true;
-    ws.close();
+    ws?.close();
   };
 }

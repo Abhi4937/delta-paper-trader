@@ -1,3 +1,4 @@
+import AuthGate from "@/components/AuthGate";
 import Shell from "@/components/Shell";
 
 export default function TerminalLayout({
@@ -5,5 +6,9 @@ export default function TerminalLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <Shell>{children}</Shell>;
+  return (
+    <AuthGate>
+      <Shell>{children}</Shell>
+    </AuthGate>
+  );
 }
