@@ -4,24 +4,25 @@ import clsx from "clsx";
 import {
   LayoutGrid,
   LineChart,
-  LogOut,
   NotebookPen,
+  Radio,
   ReceiptText,
   Settings,
   Shield,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { type Me, fetchMe } from "@/lib/api";
-import { signOut } from "@/lib/auth";
 import { type Currency, money, startStream, useStore } from "@/lib/store";
 import type { Underlying } from "@/lib/types";
+import UserMenu from "./UserMenu";
 
 const NAV = [
   { href: "/chain", label: "Chain & Builder", icon: LayoutGrid },
   { href: "/positions", label: "Positions", icon: Wallet },
+  { href: "/live", label: "Live monitoring", icon: Radio },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/notes", label: "Notes", icon: NotebookPen },
   { href: "/logs", label: "Logs", icon: ReceiptText },
@@ -35,7 +36,6 @@ function expLabel(iso: string): string {
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const router = useRouter();
   const { underlying, expiry, expiries, chain, balance, tickN, conn, currency, feedFresh, feedAge } = useStore();
   const setU = useStore((s) => s.setUnderlying);
   const setE = useStore((s) => s.setExpiry);
@@ -131,21 +131,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <span className={clsx("text-[11px]", stale ? "font-medium text-warn" : "text-text-dim")}>{connLabel}</span>
             <span className="tnum text-[11px] text-text-mute">·{tickN}</span>
           </div>
-          {me && (
-            <div className="flex items-center gap-2 border-l border-line pl-3">
-              <span className="max-w-[160px] truncate text-[11px] text-text-dim" title={me.email}>
-                {me.email}
-                {me.isAdmin && <span className="ml-1 rounded-[3px] bg-accent/15 px-1 text-[9px] text-accent">admin</span>}
-              </span>
-              <button
-                onClick={() => signOut().then(() => router.replace("/login"))}
-                title="Sign out"
-                className="text-text-mute hover:text-neg"
-              >
-                <LogOut size={15} />
-              </button>
-            </div>
-          )}
+          <div className="border-l border-line pl-3">
+            <UserMenu me={me} />
+          </div>
         </div>
       </header>
 

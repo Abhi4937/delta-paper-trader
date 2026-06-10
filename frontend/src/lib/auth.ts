@@ -20,3 +20,10 @@ export async function getAAL(): Promise<AAL> {
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
+
+// True once the user has a verified TOTP factor (2FA is set up). Independent of whether
+// the current session has stepped up to aal2.
+export async function hasTotp(): Promise<boolean> {
+  const { data } = await supabase.auth.mfa.listFactors();
+  return (data?.totp ?? []).some((f) => f.status === "verified");
+}

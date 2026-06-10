@@ -1,7 +1,10 @@
 "use client";
 
+import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type KeyStatus, fetchKeys, saveKeys } from "@/lib/api";
+import { hasTotp } from "@/lib/auth";
 
 const SLOTS: { kind: string; label: string; hint: string }[] = [
   { kind: "delta_trade_key", label: "Delta trade API key", hint: "Used ONLY for live auto-close (reduce-only). Stored encrypted; not used yet." },
@@ -14,8 +17,10 @@ export default function ApiKeysPage() {
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [mfa, setMfa] = useState<boolean | null>(null);
 
   useEffect(() => {
+    hasTotp().then(setMfa);
     fetchKeys().then((s) => s && setStatus(s));
   }, []);
 
@@ -50,6 +55,21 @@ export default function ApiKeysPage() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
+        {mfa === null ? (
+          <div className="text-[12px] text-text-mute">Loading…</div>
+        ) : !mfa ? (
+          <div className="mx-auto max-w-lg space-y-3 rounded-lg border border-line bg-surface-2 p-6 text-center">
+            <ShieldCheck size={26} className="mx-auto text-text-mute" />
+            <div className="text-[14px] font-semibold text-text">Set up two-factor auth first</div>
+            <p className="text-[12px] text-text-mute">
+              API keys unlock live-account features (real money), so they require an authenticator
+              app before you can add them.
+            </p>
+            <Link href="/enroll-2fa" className="inline-block rounded-[6px] bg-accent px-4 py-2 text-[13px] font-semibold text-base">
+              Set up 2FA
+            </Link>
+          </div>
+        ) : (
         <div className="max-w-2xl space-y-3">
           <div className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-[11px] text-text-dim">
             <span className="font-medium text-accent">Optional.</span> Paper trading needs no keys —
@@ -95,6 +115,7 @@ export default function ApiKeysPage() {
             {msg && <span className="text-[12px] text-text-dim">{msg}</span>}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
