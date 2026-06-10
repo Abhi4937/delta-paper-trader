@@ -13,10 +13,15 @@ from datetime import date
 
 import httpx
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
+from app.db.models import MarginCalibration
 from app.engines.margin import MarginLeg, compute_margin, implied_vol
 from app.services.chain import Contract
+
+_CAL_ALPHA = 0.15  # EWMA weight on each new (exact/local) observation
 
 # Underlying -> Delta spot-index symbol used by the estimator basket.
 INDEX_SYMBOL = {"BTC": ".DEXBTUSD", "ETH": ".DEXETHUSD"}
@@ -41,6 +46,7 @@ class MarginQuote:
     maintenance_margin: float | None = None
     local_margin: float | None = None
     divergence_pct: float | None = None
+    calibration_factor: float | None = None  # learned local→exact correction in effect
 
 
 def _order(leg: BasketLeg) -> dict:
@@ -74,6 +80,33 @@ def _margin_leg(leg: BasketLeg, spot: float, today: date) -> MarginLeg:
 class MarginService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.s = settings or get_settings()
+        # underlying -> (factor, samples); learned (exact/local) correction, EWMA-updated.
+        self._cal: dict[str, tuple[float, int]] = {}
+
+    def _factor(self, underlying: str) -> float:
+        return self._cal.get(underlying.upper(), (1.0, 0))[0]
+
+    def _observe(self, underlying: str, exact: float, local: float) -> None:
+        """Update the EWMA correction from a fresh (exact, local) pair."""
+        if local <= 0 or exact <= 0:
+            return
+        ratio = exact / local
+        u = underlying.upper()
+        factor, n = self._cal.get(u, (1.0, 0))
+        factor = ratio if n == 0 else _CAL_ALPHA * ratio + (1 - _CAL_ALPHA) * factor
+        self._cal[u] = (factor, n + 1)
+
+    async def load_calibration(self, session: AsyncSession) -> None:
+        res = await session.execute(select(MarginCalibration))
+        self._cal = {c.underlying: (c.factor, c.samples) for c in res.scalars().all()}
+
+    async def persist_calibration(self, session: AsyncSession) -> None:
+        for u, (factor, n) in self._cal.items():
+            row = await session.get(MarginCalibration, u)
+            if row is None:
+                session.add(MarginCalibration(underlying=u, factor=factor, samples=n))
+            else:
+                row.factor, row.samples = factor, n
 
     async def _live(
         self, client: httpx.AsyncClient, underlying: str, legs: list[BasketLeg], token: str | None
@@ -125,14 +158,18 @@ class MarginService:
         if live is None and web_jwt:
             live = await self._live(client, underlying, legs, web_jwt)
         if live is not None:
+            self._observe(underlying, live, local)  # self-tune the fallback correction
             divergence = (local - live) / live * 100.0 if live else None
             return MarginQuote(
                 margin=live, currency="USD", source="live", badge="matched",
                 local_margin=local, divergence_pct=divergence,
+                calibration_factor=self._factor(underlying),
             )
-        # A token was tried but rejected -> "stale"; no token at all -> "est".
+        # A token was tried but rejected -> "stale"; no token at all -> "est". Apply the
+        # learned correction so the fallback tracks Delta even without a token.
         badge = "stale" if (self.s.delta_web_jwt or web_jwt) else "est"
+        factor = self._factor(underlying)
         return MarginQuote(
-            margin=local, currency="USD", source="local", badge=badge,
-            local_margin=local,
+            margin=local * factor, currency="USD", source="local", badge=badge,
+            local_margin=local, calibration_factor=factor,
         )

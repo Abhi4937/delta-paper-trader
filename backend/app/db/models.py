@@ -49,6 +49,21 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class MarginCalibration(Base):
+    """Self-tuning correction for the local margin fallback: factor ≈ (Delta exact / local),
+    EWMA-updated whenever an exact margin is observed, applied when exact is unavailable.
+    One row per underlying (the ratio is ~scale-invariant)."""
+
+    __tablename__ = "margin_calibration"
+
+    underlying: Mapped[str] = mapped_column(String(8), primary_key=True)
+    factor: Mapped[float] = mapped_column(Float, default=1.0)
+    samples: Mapped[int] = mapped_column(BigInteger, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class AllowedEmail(Base):
     """Invite/allowlist: only these emails may log in. Admin-managed."""
 

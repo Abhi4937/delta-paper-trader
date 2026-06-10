@@ -54,6 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         admin = settings.admin_email.strip().lower()
         if admin and await session.get(AllowedEmail, admin) is None:
             session.add(AllowedEmail(email=admin, invited_by="startup"))
+        await app.state.margin.load_calibration(session)  # restore learned margin correction
         await session.commit()
     app.state.sim_ticker = SimTicker(app)
     await app.state.sim_ticker.start()

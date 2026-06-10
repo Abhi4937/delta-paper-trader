@@ -260,11 +260,12 @@ export async function fetchPayoff(req: {
 }
 
 export interface MarginQuote {
-  margin: number; // the order margin used (exact when matched, else the local estimate)
+  margin: number; // the order margin used (exact when matched, else the calibrated estimate)
   badge: string; // "matched" | "est" | "stale"
   source: string;
-  localMargin: number | null; // local Black-76 estimate (always computed)
+  localMargin: number | null; // raw local Black-76 estimate (always computed)
   divergence: number | null; // (local − exact)/exact %, when matched
+  calibrationFactor: number | null; // learned local→exact correction in effect
 }
 export async function fetchMargin(
   underlying: Underlying,
@@ -284,6 +285,7 @@ export async function fetchMargin(
       source: d.source,
       localMargin: d.local_margin ?? null,
       divergence: d.divergence_pct ?? null,
+      calibrationFactor: d.calibration_factor ?? null,
     };
   } catch {
     return null;

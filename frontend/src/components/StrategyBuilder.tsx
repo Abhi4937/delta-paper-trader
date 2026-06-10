@@ -71,7 +71,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   const router = useRouter();
 
   const [tab, setTab] = useState<"basket" | "payoff">("basket");
-  const [margin, setMargin] = useState<{ value: number; badge: string; localMargin: number | null; divergence: number | null } | null>(null);
+  const [margin, setMargin] = useState<{ value: number; badge: string; localMargin: number | null; divergence: number | null; calibrationFactor: number | null } | null>(null);
   const [loadingM, setLoadingM] = useState(false);
 
   const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}`).join(",");
@@ -89,7 +89,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
         selected.map((l) => ({ product_id: l.productId, side: l.side, size: l.qty })),
       );
       if (!cancelled) {
-        setMargin(r ? { value: r.margin, badge: r.badge, localMargin: r.localMargin, divergence: r.divergence } : null);
+        setMargin(r ? { value: r.margin, badge: r.badge, localMargin: r.localMargin, divergence: r.divergence, calibrationFactor: r.calibrationFactor } : null);
         setLoadingM(false);
       }
     }, 350);
@@ -243,7 +243,12 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
             {margin && margin.badge !== "matched" && (
               <div className="mb-1 flex items-center justify-between text-[10px] text-text-mute">
                 <span>Exact (Delta)</span>
-                <span className="tnum">unavailable · {margin.badge === "stale" ? "token expired/rejected" : "no token set"}</span>
+                <span className="tnum">
+                  unavailable
+                  {margin.calibrationFactor && Math.abs(margin.calibrationFactor - 1) > 0.005
+                    ? ` · est calibrated ×${margin.calibrationFactor.toFixed(3)}`
+                    : ` · ${margin.badge === "stale" ? "token expired" : "no token"}`}
+                </span>
               </div>
             )}
             <div className="mb-2 flex items-center justify-between text-[11px] text-text-mute">

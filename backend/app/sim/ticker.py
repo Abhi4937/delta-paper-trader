@@ -141,6 +141,8 @@ class SimTicker:
 
             if write_db:
                 self._last_db = mono
+                with contextlib.suppress(Exception):
+                    await self.app.state.margin.persist_calibration(session)
             if refresh_margin:
                 self._last_margin = mono
             await session.commit()
