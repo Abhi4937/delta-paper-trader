@@ -8,8 +8,8 @@ Caddy (auto-HTTPS)  ──/───────────────→  fro
 backend ─────────────────────────────────→ db (Postgres + TimescaleDB)
 ```
 
-Supabase (auth) stays in the cloud. **A domain is required** — the Google/Supabase auth flow
-needs HTTPS, and Caddy gets a free Let's Encrypt cert for your domain.
+Supabase (auth) stays in the cloud. You need a **hostname** (the auth flow needs HTTPS) — a
+**free DuckDNS subdomain** works (step 2); Caddy gets a free Let's Encrypt cert for it.
 
 > **Single process:** the backend runs **one** uvicorn worker on purpose (the 1-second tick
 > loop + in-memory series ring are per-process). Don't scale it to multiple workers without
@@ -32,9 +32,17 @@ needs HTTPS, and Caddy gets a free Let's Encrypt cert for your domain.
      sudo netfilter-persistent save
      ```
 
-## 2. Point your domain at the VM
-Create a DNS **A record** for your domain (e.g. `app.example.com`) → the VM's public IP.
-Wait for it to resolve (`ping app.example.com`).
+## 2. Get a free hostname with DuckDNS (no domain purchase needed)
+Oracle gives you a public **IP**, not a hostname — and HTTPS needs a hostname. Use a free
+[DuckDNS](https://www.duckdns.org) subdomain:
+1. duckdns.org → sign in (GitHub/Google).
+2. Add a subdomain, e.g. `paper-trader-abhi` → you now own `paper-trader-abhi.duckdns.org`.
+3. Put the VM's **public IP** in the box for that subdomain → **update ip**.
+4. Confirm it resolves: `ping paper-trader-abhi.duckdns.org` (should show your VM IP).
+
+That hostname is your `DOMAIN` everywhere below. Caddy gets a real Let's Encrypt cert for it
+automatically via the standard HTTP challenge — no DuckDNS token or DNS plugin needed (the
+included `Caddyfile` works as-is). *(A paid domain later works the same way — just swap `DOMAIN`.)*
 
 ## 3. Install Docker on the VM
 ```
@@ -61,8 +69,8 @@ python3 -c "import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).deco
 > can't be decrypted. (Different from your dev key is fine; just never lose the prod one.)
 
 ## 5. Point Supabase + Google at the prod domain
-- Supabase → **Authentication → URL Configuration**: Site URL `https://app.example.com`,
-  and add `https://app.example.com/**` to **Redirect URLs**.
+- Supabase → **Authentication → URL Configuration**: Site URL `https://paper-trader-abhi.duckdns.org`,
+  and add `https://paper-trader-abhi.duckdns.org/**` to **Redirect URLs**.
 - (Google OAuth redirect URI stays the Supabase callback — unchanged.)
 
 ## 6. Launch
@@ -75,7 +83,7 @@ start. Check:
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs -f backend caddy
 ```
-Open **https://app.example.com** → sign in with `ADMIN_EMAIL` → you're the admin.
+Open **https://paper-trader-abhi.duckdns.org** → sign in with `ADMIN_EMAIL` → you're the admin.
 
 ## 7. Updates
 ```
