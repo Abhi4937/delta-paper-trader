@@ -17,6 +17,7 @@ from typing import Any, cast
 import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app import __version__
 from app.api import admin as admin_api
@@ -29,6 +30,7 @@ from app.config import get_settings
 from app.db.models import AllowedEmail
 from app.db.session import SessionLocal
 from app.delta.rest import DeltaRestClient
+from app.ratelimit import RateLimiter
 from app.services import chain as chain_svc
 from app.services.margin import MarginService
 from app.services.market_data import MarketDataIngestor
@@ -72,6 +74,11 @@ app.include_router(sim_api.router)
 app.include_router(settings_api.router)
 app.include_router(admin_api.router)
 
+if settings.rate_limit_enabled:
+    app.add_middleware(BaseHTTPMiddleware, dispatch=RateLimiter(settings.rate_limit_per_min))
+
+# CORS is added last so it stays the OUTERMOST middleware (headers always present).
+# Origins are env-driven (CORS_ORIGINS) — set to your real domain in production, never "*".
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

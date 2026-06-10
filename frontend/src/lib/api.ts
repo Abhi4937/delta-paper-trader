@@ -391,11 +391,12 @@ export function connectState(
 ): () => void {
   let closed = false;
   let ws: WebSocket | null = null;
-  // browsers can't set headers on a WS, so the access token rides as ?token=
+  // token rides in the Sec-WebSocket-Protocol handshake (not the URL → not logged)
   getAccessToken().then((token) => {
     if (closed) return;
-    const q = token ? `?token=${encodeURIComponent(token)}` : "";
-    ws = new WebSocket(`${WS}/api/ws/state${q}`);
+    ws = token
+      ? new WebSocket(`${WS}/api/ws/state`, ["jwt", token])
+      : new WebSocket(`${WS}/api/ws/state`);
     ws.onopen = () => onState?.("live");
     ws.onmessage = (e) => {
       const m = JSON.parse(e.data);

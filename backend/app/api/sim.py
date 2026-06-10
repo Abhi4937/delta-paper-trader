@@ -156,10 +156,15 @@ async def add_note(
 async def ws_state(websocket: WebSocket) -> None:
     """Live tick (~1s): balance + per-open-position live values + a sample to append.
     `openIds` lets the client detect server-side auto-exits and refetch GET /api/state."""
-    await websocket.accept()
+    # Token rides in the Sec-WebSocket-Protocol header as ["jwt", "<token>"] — not the
+    # URL — so it never lands in access logs. Echo the "jwt" subprotocol on accept.
+    raw_proto = websocket.headers.get("sec-websocket-protocol", "")
+    protos = [p.strip() for p in raw_proto.split(",") if p.strip()]
+    token = protos[1] if len(protos) >= 2 and protos[0] == "jwt" else None
+    await websocket.accept(subprotocol="jwt" if token else None)
     async with SessionLocal() as session:
         try:
-            user_id = await resolve_ws_user(websocket, session)
+            user_id = await resolve_ws_user(token, session)
         except HTTPException:
             await websocket.close(code=4401)  # auth failed
             return

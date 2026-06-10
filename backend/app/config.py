@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     # App
     app_env: str = "dev"
     cors_origins: str = "http://localhost:3000"
+    # Auth bypass for local dev (no token → stub user) is OPT-IN: it only works when BOTH
+    # app_env == "dev" AND this flag is set. So a prod deploy is safe by default even if
+    # app_env is misconfigured — the bypass is off unless explicitly enabled.
+    allow_dev_no_auth: bool = False
+    # Per-IP fixed-window rate limit (requests/min). Mitigates floods/brute-force on the API.
+    rate_limit_enabled: bool = True
+    rate_limit_per_min: int = 1200
     virtual_start_balance_inr: int = Field(default=500_000)
     # Sim: single trusted user used as the dev bypass when app_env == "dev" and a request
     # arrives without a bearer token (schema is already user-isolated).

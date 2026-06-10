@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import Depends, HTTPException, Request, WebSocket
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import AuthError, is_mfa, verify_supabase_token
@@ -27,7 +27,7 @@ async def _user_from_token(session: AsyncSession, token: str | None) -> User:
     settings = get_settings()
 
     if not token:
-        if settings.is_dev:
+        if settings.is_dev and settings.allow_dev_no_auth:
             uid = await ensure_stub_user(session)
             user = await session.get(User, uid)
             assert user is not None
@@ -84,11 +84,9 @@ async def require_admin(
     return user.id
 
 
-async def resolve_ws_user(websocket: WebSocket, session: AsyncSession) -> uuid.UUID:
-    """WebSocket auth: browsers can't set headers on WS, so the token rides as ?token=.
-
-    Raises HTTPException (caller closes the socket on failure).
-    """
-    token = websocket.query_params.get("token")
+async def resolve_ws_user(token: str | None, session: AsyncSession) -> uuid.UUID:
+    """WebSocket auth. The token is sent in the Sec-WebSocket-Protocol handshake header
+    (not the URL — keeps it out of access logs); the handler extracts it and passes it
+    here. Raises HTTPException (caller closes the socket on failure)."""
     user = await _user_from_token(session, token)
     return user.id
