@@ -24,17 +24,15 @@ import {
   type IChartApi,
   type ISeriesApi,
   type Time,
-  type UTCTimestamp,
 } from "lightweight-charts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import clsx from "clsx";
+import { type Pt, type TF, atmPoints, buckets, legPoints, netPoints, toLine } from "@/lib/chartData";
 import { atmColorFor, legColorMap } from "@/lib/legColors";
 import { type Currency, money } from "@/lib/store";
 import type { Leg, SeriesSample } from "@/lib/types";
 
-type TF = 1 | 60 | 300;
 type ChartType = "line" | "candle";
-type Pt = { t: number; v: number };
 type LegLine = { id: string; label: string; color: string; pts: Pt[]; width?: number };
 type RegisterFn = (chart: IChartApi) => () => void;
 
@@ -66,35 +64,6 @@ function fmtDateTime(sec: number, tf: TF): string {
   const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   return `${date} ${fmtTime(sec, tf)}`;
 }
-
-type OHLC = { time: UTCTimestamp; open: number; high: number; low: number; close: number };
-
-// Aggregate {t(ms), v} samples into `tf`-second OHLC buckets. Open = previous
-// bucket's close (continuous / gap-free) so even 1s candles show direction.
-function buckets(pts: Pt[], tf: TF): OHLC[] {
-  const map = new Map<number, OHLC>();
-  const order: number[] = [];
-  let prevClose: number | null = null;
-  for (const p of pts) {
-    const bk = Math.floor(p.t / 1000 / tf) * tf;
-    let b = map.get(bk);
-    if (!b) {
-      const o: number = prevClose ?? p.v;
-      b = { time: bk as UTCTimestamp, open: o, high: Math.max(o, p.v), low: Math.min(o, p.v), close: p.v };
-      map.set(bk, b);
-      order.push(bk);
-    } else {
-      b.high = Math.max(b.high, p.v);
-      b.low = Math.min(b.low, p.v);
-      b.close = p.v;
-    }
-    prevClose = b.close;
-  }
-  return order.map((bk) => map.get(bk)!);
-}
-
-const toLine = (pts: Pt[], tf: TF) =>
-  buckets(pts, tf).map((b) => ({ time: b.time, value: b.close }));
 
 // stretch a series' autoscale to always include 0 (so the dashed 0-line shows
 // even when the data never crosses 0 — e.g. all-negative theta, all-positive vega)
@@ -140,10 +109,10 @@ export default function PositionCharts({
   }, []);
 
   // derive per-metric point arrays from the sampled series
-  const netMtm = series.map((s) => ({ t: s.t, v: s.pnl }));
-  const netDelta = series.map((s) => ({ t: s.t, v: s.delta }));
-  const netTheta = series.map((s) => ({ t: s.t, v: s.theta }));
-  const netVega = series.map((s) => ({ t: s.t, v: s.vega }));
+  const netMtm = netPoints(series, "pnl");
+  const netDelta = netPoints(series, "delta");
+  const netTheta = netPoints(series, "theta");
+  const netVega = netPoints(series, "vega");
 
   // per-leg colors: grouped by expiry, CE/PE as shades; same leg → same color in
   // every panel (so a leg's MTM, IV and Delta lines all share its color).
@@ -154,7 +123,7 @@ export default function PositionCharts({
       id: l.id,
       label: legLabel(l),
       color: legColorById[l.id],
-      pts: series.map((s) => ({ t: s.t, v: pick(s.legs[l.id]) })),
+      pts: legPoints(series, l.id, pick),
     }));
 
   // IV panel: a bold ATM-IV line for EACH expiry present + each leg's IV (faint, leg color)
@@ -164,7 +133,7 @@ export default function PositionCharts({
       label: `ATM ${e.slice(5)}`,
       color: atmColorFor(e, expiries),
       width: 2,
-      pts: series.map((s) => ({ t: s.t, v: (s.atmIv[e] ?? 0) * 100 })),
+      pts: atmPoints(series, e),
     })),
     ...legLines((x) => (x?.iv ?? 0) * 100),
   ];
