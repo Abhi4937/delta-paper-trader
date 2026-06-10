@@ -6,7 +6,7 @@
 // picker, and per-leg greeks with a lot toggle. Compact. Backend = /api/payoff
 // (Black-Scholes r=0); per-leg IV calibrated to the live mark.
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 import clsx from "clsx";
 import { type PayoffData, fetchPayoff } from "@/lib/api";
 import { greeks as bsGreeks, impliedVol } from "@/lib/bs";
@@ -28,8 +28,13 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
   const chain = useStore((s) => s.chain);
   const spot = chain?.spot ?? 0;
   const atmIv = chain?.atmIv ?? 0;
-  const baseDte = selected[0]?.dte ?? 7;
-  const expiryMs = selected[0]?.expiry ? new Date(`${selected[0].expiry}T12:00:00Z`).getTime() : 0;
+  // The FRONT (earliest) expiry drives the date slider + the "on expiry" reference.
+  const frontLeg = selected.reduce<Leg | undefined>((a, l) => (!a || l.dte < a.dte ? l : a), undefined);
+  const baseDte = frontLeg?.dte ?? 7;
+  const expiryMs = frontLeg?.expiry ? new Date(`${frontLeg.expiry}T12:00:00Z`).getTime() : 0;
+  // distinct expiry dates, nearest first — aligns 1:1 with the API's per-expiry curves
+  const expiryDates = [...new Set(selected.map((l) => l.expiry))].sort();
+  const fmtExpiry = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 
   const [tab, setTab] = useState<Tab>("graph");
   const [targetSpot, setTargetSpot] = useState<number | null>(null);
@@ -40,10 +45,10 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
   const [data, setData] = useState<PayoffData | null>(null);
 
   const ts = targetSpot ?? spot;
-  const dte = dteOverride ?? baseDte;
-  const tYears = Math.max(dte, 0) / 365;
+  const dte = dteOverride ?? baseDte; // remaining life of the FRONT expiry at the target date
+  const elapsedYears = Math.max(baseDte - dte, 0) / 365; // now → target date
   const spotStep = Math.max(Math.round(spot * 0.0005), 1);
-  const sd = spot * atmIv * Math.sqrt(tYears); // 1 SD price move on the target day
+  const sd = spot * atmIv * Math.sqrt(Math.max(baseDte, 0) / 365); // 1 SD expected move by front expiry
 
   // calibrate each leg's base vol to its live mark; total = base + per-leg adj + global
   const baseIv = (l: Leg) => impliedVol(l.type, spot, l.strike, l.dte / 365, legMark(l)) || 0.5;
@@ -70,9 +75,9 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
         legs: selected.map((l) => ({
           option_type: l.type, side: l.side, qty: l.qty, strike: l.strike, entry: entryOf(l),
           iv: Math.max(baseIv(l) + (legIvAdj[l.id] ?? 0) / 100, 1e-3),
-          contract_value: l.contractValue,
+          contract_value: l.contractValue, t_years: Math.max(l.dte, 0) / 365,
         })),
-        spot: ts, lo, hi, points: 161, t_years: tYears, iv_shift: ivShift / 100,
+        spot: ts, lo, hi, points: 161, elapsed_years: elapsedYears, iv_shift: ivShift / 100,
       });
       setData(d);
     }, 180);
@@ -120,7 +125,7 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
 
       {tab === "graph" && (
         <>
-          <PayoffChart data={data} chain={chain} spot={spot} ts={ts} sd={sd} lo={lo} hi={hi} tsProj={tsProj} currency={currency} nearest={nearest} />
+          <PayoffChart data={data} chain={chain} spot={spot} ts={ts} sd={sd} lo={lo} hi={hi} tsProj={tsProj} currency={currency} expiryLabels={expiryDates.map(fmtExpiry)} />
           <div className="flex items-center justify-between rounded-[5px] bg-surface-2 px-2 py-1">
             <span className="text-text-mute">
               @ <span className="tnum text-accent">{ts.toFixed(0)}</span>{" "}
@@ -166,19 +171,24 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
       )}
 
       {tab === "table" && <PnlTable data={data} spot={spot} sd={sd} strikes={strikes} currency={currency} nearest={nearest} />}
-      {tab === "greeks" && <GreeksTab selected={selected} ts={ts} tYears={tYears} legSigma={legSigma} lotMode={lotMode} setLotMode={setLotMode} spot={spot} sd={sd} />}
+      {tab === "greeks" && <GreeksTab selected={selected} ts={ts} elapsedYears={elapsedYears} legSigma={legSigma} lotMode={lotMode} setLotMode={setLotMode} spot={spot} sd={sd} />}
     </div>
   );
 }
 
 // ---- chart ----------------------------------------------------------------
 function PayoffChart({
-  data, chain, spot, ts, sd, lo, hi, tsProj, currency, nearest,
+  data, chain, spot, ts, sd, lo, hi, tsProj, currency, expiryLabels,
 }: {
   data: PayoffData | null; chain: OptionChain | null; spot: number; ts: number; sd: number;
-  lo: number; hi: number; tsProj: number; currency: Currency; nearest: (s: number) => number;
+  lo: number; hi: number; tsProj: number; currency: Currency;
+  expiryLabels: string[];
 }) {
   const w = 384, hgt = 168;
+  // one at-expiry curve per distinct leg expiry (nearest first); the last is the front-most
+  // (solid), later expiries lighten. Falls back to the single `expiry` array if absent.
+  const expCurves = data ? (data.expiries?.length ? data.expiries : [{ tYears: 0, pnl: data.expiry }]) : [];
+  const multiExp = expCurves.length > 1;
   const bes = data?.breakevens?.length ? data.breakevens : [];
   const aV = [spot, ts, ...bes, spot - 2 * sd, spot + 2 * sd].filter((x) => x > 0);
   const vMin = aV.length ? Math.min(...aV) : lo;
@@ -188,7 +198,9 @@ function PayoffChart({
   const viewHi = Math.min(vMax + vPad, hi);
 
   const idxs = data ? data.spots.map((_, i) => i).filter((i) => data.spots[i] >= viewLo && data.spots[i] <= viewHi) : [];
-  const winVals = data && idxs.length ? [...idxs.map((i) => data.expiry[i]), ...idxs.map((i) => data.projected[i]), 0] : [0];
+  const winVals = data && idxs.length
+    ? [...expCurves.flatMap((c) => idxs.map((i) => c.pnl[i])), ...idxs.map((i) => data.projected[i]), 0]
+    : [0];
   const minP = Math.min(...winVals), maxP = Math.max(...winVals);
   const range = Math.max(maxP - minP, 1e-6);
   const x = (s: number) => (viewHi > viewLo ? ((s - viewLo) / (viewHi - viewLo)) * w : 0);
@@ -196,22 +208,41 @@ function PayoffChart({
   const y0 = y(0);
   const tsX = x(clampN(ts, viewLo, viewHi));
   const path = (arr?: number[]) => (data && arr ? idxs.map((i, k) => `${k === 0 ? "M" : "L"}${x(data.spots[i])},${y(arr[i])}`).join(" ") : "");
+  // front expiry solid white; each later expiry fades. Single-expiry → just white.
+  const expColor = (i: number) => (multiExp ? `color-mix(in srgb, var(--color-text) ${Math.round(100 - (i * 55) / Math.max(expCurves.length - 1, 1))}%, var(--color-surface-3))` : "var(--color-text)");
 
-  // OI bars (Call/Put notional) behind the curve, scaled to the bottom 40%
+  // OI bars (Call/Put notional) hang from the zero P&L line, faint, behind the curve.
   const oiRows = (chain?.rows ?? []).filter((r) => r.strike >= viewLo && r.strike <= viewHi);
   const maxOi = Math.max(1, ...oiRows.flatMap((r) => [r.call.oiValueUsd, r.put.oiValueUsd]));
-  const oiH = (v: number) => (v / maxOi) * hgt * 0.4;
+  const oiH = (v: number) => Math.min((v / maxOi) * hgt * 0.4, Math.max(hgt - y0, 0));
 
   const sdLines = sd > 0 ? [-2, -1, 1, 2].map((m) => ({ m, s: spot + m * sd })).filter((d) => d.s >= viewLo && d.s <= viewHi) : [];
+
+  // Front (nearest) expiry is the primary P&L curve: green fill/line in profit (above the
+  // zero line), red in loss (below). The filled area is split by clipping at the zero line.
+  const front = expCurves[0]?.pnl;
+  const areaPath = (arr?: number[]) => {
+    if (!data || !arr || idxs.length === 0) return "";
+    const line = idxs.map((i, k) => `${k === 0 ? "M" : "L"}${x(data.spots[i])},${y(arr[i])}`).join(" ");
+    const x0 = x(data.spots[idxs[0]]), x1 = x(data.spots[idxs[idxs.length - 1]]);
+    return `${line} L${x1},${y0} L${x0},${y0} Z`;
+  };
+  const clipAbove = Math.min(Math.max(y0, 0), hgt); // zero line within the chart box
+  const cid = useId().replace(/:/g, ""); // unique, CSS-url-safe clip ids per instance
+  const above = `pf-${cid}-a`, below = `pf-${cid}-b`;
 
   return (
     <div>
       <svg width={w} height={hgt} className="w-full">
-        {/* OI bars */}
+        <defs>
+          <clipPath id={above}><rect x={0} y={0} width={w} height={clipAbove} /></clipPath>
+          <clipPath id={below}><rect x={0} y={clipAbove} width={w} height={hgt - clipAbove} /></clipPath>
+        </defs>
+        {/* OI bars hanging from the zero line (calls red, puts green), behind the curve */}
         {oiRows.map((r, i) => (
           <g key={i}>
-            <rect x={x(r.strike) - 2.5} y={hgt - oiH(r.call.oiValueUsd)} width={2.2} height={oiH(r.call.oiValueUsd)} fill="var(--color-neg)" opacity={0.22} />
-            <rect x={x(r.strike) + 0.3} y={hgt - oiH(r.put.oiValueUsd)} width={2.2} height={oiH(r.put.oiValueUsd)} fill="var(--color-pos)" opacity={0.22} />
+            <rect x={x(r.strike) - 2.5} y={y0} width={2.2} height={oiH(r.call.oiValueUsd)} fill="var(--color-neg)" opacity={0.18} />
+            <rect x={x(r.strike) + 0.3} y={y0} width={2.2} height={oiH(r.put.oiValueUsd)} fill="var(--color-pos)" opacity={0.18} />
           </g>
         ))}
         {/* SD bands */}
@@ -221,10 +252,21 @@ function PayoffChart({
             <text x={x(d.s)} y={9} fill="var(--color-text-mute)" fontSize={7} textAnchor="middle">{d.m > 0 ? `+${d.m}σ` : `${d.m}σ`}</text>
           </g>
         ))}
-        <line x1={0} x2={w} y1={y0} y2={y0} stroke="var(--color-line-strong)" strokeDasharray="3 3" />
+        {/* green profit fill above the zero line, red loss fill below (front expiry) */}
+        <path d={areaPath(front)} fill="var(--color-pos)" opacity={0.16} clipPath={`url(#${above})`} />
+        <path d={areaPath(front)} fill="var(--color-neg)" opacity={0.16} clipPath={`url(#${below})`} />
+        {/* zero P&L baseline */}
+        <line x1={0} x2={w} y1={y0} y2={y0} stroke="var(--color-line-strong)" strokeWidth={1} />
         {spot >= viewLo && spot <= viewHi && <line x1={x(spot)} x2={x(spot)} y1={0} y2={hgt} stroke="var(--color-text-mute)" strokeWidth={1} strokeDasharray="2 2" />}
         <line x1={tsX} x2={tsX} y1={0} y2={hgt} stroke="var(--color-accent)" strokeWidth={1} />
-        <path d={path(data?.expiry)} fill="none" stroke="var(--color-text)" strokeWidth={1.5} />
+        {/* later expiries: faded dashed lines under the front curve */}
+        {expCurves.map((c, i) => i).filter((i) => i > 0).reverse().map((i) => (
+          <path key={i} d={path(expCurves[i].pnl)} fill="none" stroke={expColor(i)} strokeWidth={1.3} strokeDasharray="2 2" />
+        ))}
+        {/* front expiry line: green above the zero line, red below */}
+        <path d={path(front)} fill="none" stroke="var(--color-pos)" strokeWidth={1.7} clipPath={`url(#${above})`} />
+        <path d={path(front)} fill="none" stroke="var(--color-neg)" strokeWidth={1.7} clipPath={`url(#${below})`} />
+        {/* projected (target-date / now) */}
         <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="4 3" />
         {bes.filter((b) => b >= viewLo && b <= viewHi).map((b, i) => <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />)}
         {data && <circle cx={tsX} cy={y(tsProj)} r={3.5} fill="var(--color-accent)" />}
@@ -243,9 +285,21 @@ function PayoffChart({
         <span className="text-text-mute">current <span className="text-text-dim">{spot.toFixed(0)}</span> · target <span className="text-accent">{ts.toFixed(0)}</span></span>
         <span>{viewHi.toFixed(0)}</span>
       </div>
-      <div className="mt-1 flex items-center gap-3 text-[9px] text-text-mute">
-        <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-text" /> On Expiry</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-accent" /> On Target Date</span>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-text-mute">
+        {expCurves.map((_, i) => (
+          <span key={i} className="flex items-center gap-1">
+            {i === 0 ? (
+              <span className="inline-flex h-0.5 w-3 overflow-hidden">
+                <span className="h-0.5 w-1.5" style={{ backgroundColor: "var(--color-pos)" }} />
+                <span className="h-0.5 w-1.5" style={{ backgroundColor: "var(--color-neg)" }} />
+              </span>
+            ) : (
+              <span className="inline-block h-0.5 w-3" style={{ backgroundColor: expColor(i) }} />
+            )}
+            {multiExp ? `Exp ${expiryLabels[i] ?? ""}` : "P&L on expiry"}
+          </span>
+        ))}
+        <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 bg-accent" /> Target date</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-neg/40" /> Call OI</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-pos/40" /> Put OI</span>
       </div>
@@ -282,13 +336,14 @@ function PnlTable({
 
 // ---- Greeks tab (net + per-leg, lot toggle, SD/futures) --------------------
 function GreeksTab({
-  selected, ts, tYears, legSigma, lotMode, setLotMode, spot, sd,
+  selected, ts, elapsedYears, legSigma, lotMode, setLotMode, spot, sd,
 }: {
-  selected: Leg[]; ts: number; tYears: number; legSigma: (l: Leg) => number;
+  selected: Leg[]; ts: number; elapsedYears: number; legSigma: (l: Leg) => number;
   lotMode: "position" | "perlot"; setLotMode: (m: "position" | "perlot") => void; spot: number; sd: number;
 }) {
   const perLeg = selected.map((l) => {
-    const g = bsGreeks(l.type, ts, l.strike, tYears, legSigma(l));
+    const residual = Math.max(l.dte / 365 - elapsedYears, 0); // per-leg time to expiry at target date
+    const g = bsGreeks(l.type, ts, l.strike, residual, legSigma(l));
     const sign = l.side === "buy" ? 1 : -1;
     const k = sign * (lotMode === "position" ? l.qty : 1) * l.contractValue;
     return { l, delta: k * g.delta, gamma: k * g.gamma, theta: k * g.theta, vega: k * g.vega };

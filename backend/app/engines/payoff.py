@@ -127,7 +127,12 @@ def payoff_profile(
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class ScenarioLeg:
-    """An option leg with the data needed to reprice it (Black-Scholes, r=0)."""
+    """An option leg with the data needed to reprice it (Black-Scholes, r=0).
+
+    `t_years` is the leg's OWN time-to-expiry measured from now, so a basket may mix
+    expiries (calendars/diagonals). A scenario is evaluated `elapsed_years` into the
+    future; the leg's residual life there is max(t_years − elapsed_years, 0).
+    """
 
     option_type: LegKind  # "call" | "put"
     side: LegSide
@@ -136,6 +141,7 @@ class ScenarioLeg:
     entry: float  # entry premium (per unit underlying)
     iv: float  # current per-leg IV (fraction)
     contract_value: float
+    t_years: float  # this leg's time-to-expiry from now (years)
 
     @property
     def signed_qty(self) -> float:
@@ -143,30 +149,44 @@ class ScenarioLeg:
 
 
 def projected_pnl(
-    legs: list[ScenarioLeg], prices: NDArray[np.float64], t_years: float, iv_shift: float
+    legs: list[ScenarioLeg], prices: NDArray[np.float64], elapsed_years: float, iv_shift: float
 ) -> NDArray[np.float64]:
-    """Theoretical net P/L across `prices` at `t_years` to expiry with IV shifted by
-    `iv_shift`. At t_years=0 this equals the at-expiry payoff (intrinsic)."""
+    """Theoretical net P/L across `prices` evaluated `elapsed_years` from now, IV shifted
+    by `iv_shift`. Each leg's residual life is max(t_years − elapsed_years, 0); a leg whose
+    expiry has passed (residual 0) is valued at intrinsic. Evaluating at elapsed_years equal
+    to a leg's t_years gives that leg's at-expiry payoff while later legs keep time value."""
     prices = np.asarray(prices, dtype=np.float64)
     total = np.zeros_like(prices)
     for leg in legs:
+        residual = max(leg.t_years - elapsed_years, 0.0)
         sigma = max(leg.iv + iv_shift, 0.0)
         vals = np.array(
-            [_bs_price(leg.option_type, float(s), leg.strike, t_years, sigma) for s in prices]
+            [_bs_price(leg.option_type, float(s), leg.strike, residual, sigma) for s in prices]
         )
         total += leg.signed_qty * (vals - leg.entry) * leg.contract_value
     return total
 
 
 def net_greeks(
-    legs: list[ScenarioLeg], spot: float, t_years: float, iv_shift: float
+    legs: list[ScenarioLeg], spot: float, elapsed_years: float, iv_shift: float
 ) -> dict[str, float]:
-    """Net strategy greeks at `spot` for the scenario: Σ signed_qty × cv × per-option greek."""
+    """Net strategy greeks at `spot` for the scenario: Σ signed_qty × cv × per-option greek.
+    Each leg uses its residual life max(t_years − elapsed_years, 0)."""
     out = {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
     for leg in legs:
+        residual = max(leg.t_years - elapsed_years, 0.0)
         sigma = max(leg.iv + iv_shift, 0.0)
-        g = _greeks(leg.option_type, spot, leg.strike, t_years, sigma)
+        g = _greeks(leg.option_type, spot, leg.strike, residual, sigma)
         k = leg.signed_qty * leg.contract_value
         for key in out:
             out[key] += k * g[key]
+    return out
+
+
+def distinct_expiries(legs: list[ScenarioLeg], tol: float = 1e-6) -> list[float]:
+    """Sorted unique leg expiries (t_years), nearest first. One entry per expiry date."""
+    out: list[float] = []
+    for t in sorted(leg.t_years for leg in legs):
+        if not out or abs(t - out[-1]) > tol:
+            out.append(t)
     return out

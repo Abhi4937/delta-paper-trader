@@ -217,10 +217,16 @@ export interface PayoffLegIn {
   entry: number;
   iv: number;
   contract_value: number;
+  t_years: number; // this leg's time-to-expiry from now (years) — enables calendars
+}
+export interface ExpiryCurve {
+  tYears: number;
+  pnl: number[];
 }
 export interface PayoffData {
   spots: number[];
-  expiry: number[];
+  expiries: ExpiryCurve[]; // one at-expiry curve per distinct leg expiry (nearest first)
+  expiry: number[]; // primary (front) expiry curve
   projected: number[];
   greeks: { delta: number; gamma: number; theta: number; vega: number };
   breakevens: number[];
@@ -228,14 +234,14 @@ export interface PayoffData {
   max_loss: number;
 }
 
-// Analyse Payoff: expiry + projected (what-if date/IV) curves + net greeks (Black-76, r=0).
+// Analyse Payoff: per-expiry curves + projected (what-if date/IV) curve + net greeks.
 export async function fetchPayoff(req: {
   legs: PayoffLegIn[];
   spot: number;
   lo: number;
   hi: number;
   points: number;
-  t_years: number;
+  elapsed_years: number; // time from now to the target scenario date (0 = now)
   iv_shift: number;
 }): Promise<PayoffData | null> {
   try {

@@ -62,33 +62,54 @@ def test_qty_and_contract_value_scale() -> None:
 
 
 # --- Analyse Payoff: projected curve + net greeks --------------------------- #
-def test_projected_at_t0_equals_expiry() -> None:
-    legs = [ScenarioLeg("call", "long", 1, 100, 5, 0.5, 1.0)]
+# Each ScenarioLeg carries its OWN time-to-expiry (`t_years`, from "now"). A scenario
+# is evaluated at `elapsed_years` into the future; each leg's residual life is
+# max(t_years − elapsed_years, 0). This supports calendars/diagonals (per-leg expiry).
+def test_projected_at_full_elapsed_equals_intrinsic() -> None:
+    # elapsed == the leg's own expiry → residual 0 → intrinsic − entry.
+    legs = [ScenarioLeg("call", "long", 1, 100, 5, 0.5, 1.0, t_years=0.25)]
     prices = np.array([90.0, 100.0, 110.0])
-    proj = projected_pnl(legs, prices, t_years=0.0, iv_shift=0.0)
-    assert np.allclose(proj, [-5.0, -5.0, 5.0])  # intrinsic − entry
+    proj = projected_pnl(legs, prices, elapsed_years=0.25, iv_shift=0.0)
+    assert np.allclose(proj, [-5.0, -5.0, 5.0])
 
 
 def test_projected_has_time_value_before_expiry() -> None:
     # A long option is worth MORE than intrinsic before expiry → P/L above expiry.
-    legs = [ScenarioLeg("call", "long", 1, 100, 5, 0.5, 1.0)]
+    legs = [ScenarioLeg("call", "long", 1, 100, 5, 0.5, 1.0, t_years=0.25)]
     prices = np.array([100.0])
-    at_expiry = projected_pnl(legs, prices, 0.0, 0.0)[0]
-    before = projected_pnl(legs, prices, t_years=0.25, iv_shift=0.0)[0]
-    assert before > at_expiry
+    at_expiry = projected_pnl(legs, prices, elapsed_years=0.25, iv_shift=0.0)[0]
+    now = projected_pnl(legs, prices, elapsed_years=0.0, iv_shift=0.0)[0]
+    assert now > at_expiry
+
+
+def test_calendar_not_flat_at_front_expiry() -> None:
+    # Same-strike calendar: short front call (7d) + long back call (30d). At the FRONT
+    # expiry the back leg still has time value → a tent peaking near the strike. The old
+    # single-t_years engine expired BOTH legs → identical intrinsics cancel → flat line
+    # (the "no payoff graph" bug). Per-leg expiry must restore the curve.
+    front = ScenarioLeg("call", "short", 1, 100, 2.0, 0.5, 1.0, t_years=7 / 365)
+    back = ScenarioLeg("call", "long", 1, 100, 4.0, 0.5, 1.0, t_years=30 / 365)
+    legs = [front, back]
+    prices = np.linspace(80.0, 120.0, 201)
+    elapsed = min(leg.t_years for leg in legs)  # the front expiry
+    curve = projected_pnl(legs, prices, elapsed_years=elapsed, iv_shift=0.0)
+    assert float(curve.max() - curve.min()) > 0.1  # NOT flat
+    peak = float(prices[int(np.argmax(curve))])
+    assert abs(peak - 100.0) < 5.0  # calendar tent peaks near the strike
 
 
 def test_net_greeks_long_straddle_is_delta_neutral_at_atm() -> None:
     legs = [
-        ScenarioLeg("call", "long", 1, 100, 4, 0.5, 1.0),
-        ScenarioLeg("put", "long", 1, 100, 4, 0.5, 1.0),
+        ScenarioLeg("call", "long", 1, 100, 4, 0.5, 1.0, t_years=0.1),
+        ScenarioLeg("put", "long", 1, 100, 4, 0.5, 1.0, t_years=0.1),
     ]
-    g = net_greeks(legs, spot=100, t_years=0.1, iv_shift=0.0)
+    g = net_greeks(legs, spot=100, elapsed_years=0.0, iv_shift=0.0)
     assert abs(g["delta"]) < 0.1  # ATM-spot straddle ≈ delta-neutral (small ½σ²T residual)
     assert g["vega"] > 0 and g["gamma"] > 0  # long vol/gamma
     assert g["theta"] < 0  # pays time decay
 
 
 def test_net_greeks_short_call_signs() -> None:
-    g = net_greeks([ScenarioLeg("call", "short", 1, 100, 4, 0.5, 1.0)], 100, 0.1, 0.0)
+    legs = [ScenarioLeg("call", "short", 1, 100, 4, 0.5, 1.0, t_years=0.1)]
+    g = net_greeks(legs, spot=100, elapsed_years=0.0, iv_shift=0.0)
     assert g["delta"] < 0 and g["vega"] < 0 and g["theta"] > 0  # short call collects theta
