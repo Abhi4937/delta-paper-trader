@@ -154,8 +154,7 @@ export default function PositionCharts({
       id: l.id,
       label: legLabel(l),
       color: legColorById[l.id],
-      // skip lightweight ring samples (empty legs) so per-leg lines don't drop to 0
-      pts: series.filter((s) => s.legs[l.id] !== undefined).map((s) => ({ t: s.t, v: pick(s.legs[l.id]) })),
+      pts: series.map((s) => ({ t: s.t, v: pick(s.legs[l.id]) })),
     }));
 
   // IV panel: a bold ATM-IV line for EACH expiry present + each leg's IV (faint, leg color)
@@ -165,7 +164,7 @@ export default function PositionCharts({
       label: `ATM ${e.slice(5)}`,
       color: atmColorFor(e, expiries),
       width: 2,
-      pts: series.filter((s) => s.atmIv[e] !== undefined).map((s) => ({ t: s.t, v: (s.atmIv[e] ?? 0) * 100 })),
+      pts: series.map((s) => ({ t: s.t, v: (s.atmIv[e] ?? 0) * 100 })),
     })),
     ...legLines((x) => (x?.iv ?? 0) * 100),
   ];
@@ -420,14 +419,14 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
       });
     }
     loadData();
+    fitView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candle, kind, chartVer]);
 
-  // setData on the primary + leg series, then fit start→latest so the whole trade
-  // is always visible in one panel (x/y rescale as new points append).
+  // setData on the primary + leg series. Fit the view ONLY on create / timeframe change —
+  // NEVER on a live tick — so the visible range (and any pan/zoom) doesn't reset every second.
   function loadData() {
-    const chart = chartRef.current;
-    if (!chart) return;
+    if (!chartRef.current) return;
     const s = primaryRef.current;
     if (s) {
       if (kind === "mtm" && candle) {
@@ -437,10 +436,13 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
       }
     }
     legRefs.current.forEach((ls, i) => ls.setData(toLine(legs[i]?.pts ?? [], tf)));
-    chart.timeScale().fitContent();
+  }
+  function fitView() {
+    chartRef.current?.timeScale().fitContent();
   }
   useEffect(() => {
     loadData();
+    fitView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tf]);
   useEffect(() => {

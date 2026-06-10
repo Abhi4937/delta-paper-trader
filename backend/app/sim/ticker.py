@@ -95,21 +95,9 @@ class SimTicker:
                 if p.status != "open":
                     continue
 
-                sample = service.build_sample(p, mv, now)  # full → durable 10s DB row
+                sample = service.build_sample(p, mv, now)
                 ring = self.series.setdefault(str(p.id), [])
-                # Lightweight ring: net P&L + greeks only (per-leg/IV detail stays in the
-                # 10s DB). ~5x less RAM so a 24h 1-second window fits a small backend.
-                ring.append(
-                    {
-                        "t": sample["t"],
-                        "pnl": sample["pnl"],
-                        "delta": sample["delta"],
-                        "theta": sample["theta"],
-                        "vega": sample["vega"],
-                        "atmIv": {},
-                        "legs": {},
-                    }
-                )
+                ring.append(sample)  # full sample — per-leg + IV detail kept for the charts
                 if len(ring) > SERIES_CAP:
                     del ring[: len(ring) - SERIES_CAP]
                 if write_db:
@@ -138,6 +126,11 @@ class SimTicker:
                                 self.app.state, p.underlying, open_legs, web_jwt=web_jwt
                             )
                             p.margin, p.margin_badge = mq.margin, mq.badge
+
+            # free rings of positions that are no longer open (avoid unbounded RAM growth)
+            live_ids = {str(p.id) for p in positions if p.status == "open"}
+            for dead in [k for k in self.series if k not in live_ids]:
+                del self.series[dead]
 
             if write_db:
                 self._last_db = mono
