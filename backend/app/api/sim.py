@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth import vault
 from app.auth.deps import current_user, resolve_ws_user
 from app.db.models import Account, Position, User
 from app.db.session import SessionLocal, get_session
@@ -50,11 +51,19 @@ async def me(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    """The authenticated user's identity + admin flag (drives the UI nav/header)."""
+    """The authenticated user's identity + admin flag + whether they hold live trade keys
+    (drives the UI nav/header and the 'force 2FA when live keys exist' rule)."""
     user = await session.get(User, user_id)
     if user is None:
         raise HTTPException(404, "user not found")
-    return {"email": user.email, "displayName": user.display_name, "isAdmin": user.is_admin}
+    status = await vault.secret_status(session, user_id)
+    has_live_keys = bool(status.get("delta_trade_key") and status.get("delta_trade_secret"))
+    return {
+        "email": user.email,
+        "displayName": user.display_name,
+        "isAdmin": user.is_admin,
+        "hasLiveKeys": has_live_keys,
+    }
 
 
 async def _account(session: AsyncSession, user_id: uuid.UUID) -> Account:

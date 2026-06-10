@@ -450,6 +450,7 @@ export interface Me {
   email: string;
   displayName: string;
   isAdmin: boolean;
+  hasLiveKeys: boolean; // holds live Delta trade keys → 2FA required at every login
 }
 export const fetchMe = (): Promise<Me | null> => authedJson<Me>("/api/me");
 

@@ -27,3 +27,11 @@ export async function hasTotp(): Promise<boolean> {
   const { data } = await supabase.auth.mfa.listFactors();
   return (data?.totp ?? []).some((f) => f.status === "verified");
 }
+
+// Remove all TOTP factors (disable 2FA). Caller must ensure no live keys remain.
+export async function unenrollTotp(): Promise<void> {
+  const { data } = await supabase.auth.mfa.listFactors();
+  for (const f of data?.totp ?? []) {
+    await supabase.auth.mfa.unenroll({ factorId: f.id });
+  }
+}

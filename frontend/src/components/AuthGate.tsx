@@ -3,12 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchMe } from "@/lib/api";
-import { signOut } from "@/lib/auth";
+import { getAAL, signOut } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
-// Client-side route guard for the terminal. Requires: 1) a Supabase session, and
-//  2) backend authorization — /api/me succeeds only if the email is allowlisted.
-// (2FA is optional for paper trading; live/real-money features will require it.)
+// Client-side route guard for the terminal. Requires: 1) a Supabase session, 2) backend
+// authorization (/api/me succeeds only if allowlisted), and 3) a 2FA-cleared (aal2)
+// session IF the user holds live Delta trade keys. Paper-only users skip 2FA.
 // A logged-in but non-allowlisted user gets a "not authorized" screen, never the app.
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -23,7 +23,19 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
       const me = await fetchMe(); // null if the backend rejects (not allowlisted)
-      if (active) setState(me ? "ok" : "unauthorized");
+      if (!me) {
+        if (active) setState("unauthorized");
+        return;
+      }
+      // Live-key holders must clear 2FA every session; paper-only users don't.
+      if (me.hasLiveKeys) {
+        const aal = await getAAL();
+        if (aal.current !== "aal2") {
+          router.replace("/enroll-2fa");
+          return;
+        }
+      }
+      if (active) setState("ok");
     }
     check();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {

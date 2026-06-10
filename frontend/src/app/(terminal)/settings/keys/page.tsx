@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type KeyStatus, fetchKeys, saveKeys } from "@/lib/api";
-import { hasTotp } from "@/lib/auth";
+import { hasTotp, unenrollTotp } from "@/lib/auth";
 
 const SLOTS: { kind: string; label: string; hint: string }[] = [
   { kind: "delta_trade_key", label: "Delta trade API key", hint: "Used ONLY for live auto-close (reduce-only). Stored encrypted; not used yet." },
@@ -44,6 +44,17 @@ export default function ApiKeysPage() {
     setBusy(true);
     const s = await saveKeys({ [kind]: "" });
     if (s) setStatus(s);
+    setBusy(false);
+  }
+
+  // live trade keys present → 2FA is mandatory and can't be removed yet
+  const hasLiveKeys = !!status.delta_trade_key && !!status.delta_trade_secret;
+
+  async function removeTotp() {
+    if (hasLiveKeys) return;
+    setBusy(true);
+    await unenrollTotp();
+    setMfa(false);
     setBusy(false);
   }
 
@@ -113,6 +124,22 @@ export default function ApiKeysPage() {
               {busy ? "Saving…" : "Save changes"}
             </button>
             {msg && <span className="text-[12px] text-text-dim">{msg}</span>}
+          </div>
+
+          {/* Disable live monitoring: remove 2FA (only once live keys are cleared) */}
+          <div className="mt-4 rounded-lg border border-line bg-surface-2 p-3">
+            <div className="text-[12px] font-medium text-text">Two-factor authentication · enabled</div>
+            <p className="mb-2 text-[10px] text-text-mute">
+              Required while you hold live trade keys. To fully back out of live monitoring, clear
+              your live keys above, then remove 2FA.
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={removeTotp} disabled={busy || hasLiveKeys}
+                className="rounded-[6px] border border-line px-3 py-1.5 text-[11px] text-text-mute hover:text-neg disabled:opacity-40">
+                Remove 2FA
+              </button>
+              {hasLiveKeys && <span className="text-[10px] text-warn">Clear your live trade key + secret first.</span>}
+            </div>
           </div>
         </div>
         )}
