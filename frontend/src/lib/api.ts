@@ -266,7 +266,7 @@ export async function fetchMargin(
   try {
     const r = await fetch(`${API}/api/margin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ underlying, legs }),
     });
     if (!r.ok) return null;

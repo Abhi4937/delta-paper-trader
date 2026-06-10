@@ -76,10 +76,10 @@ class MarginService:
         self.s = settings or get_settings()
 
     async def _live(
-        self, client: httpx.AsyncClient, underlying: str, legs: list[BasketLeg]
+        self, client: httpx.AsyncClient, underlying: str, legs: list[BasketLeg], token: str | None
     ) -> float | None:
-        """Exact margin via the web estimator; None if no/expired token or error."""
-        if not self.s.delta_web_jwt:
+        """Exact margin via the web estimator with the given token; None if no token/error."""
+        if not token:
             return None
         url = f"{self.s.delta_web_base}/v2/orders/estimate_margin/basket"
         payload = {
@@ -88,7 +88,7 @@ class MarginService:
             "source": "desktop",
         }
         headers = {
-            "authorization": self.s.delta_web_jwt,  # raw token, no "Bearer"
+            "authorization": token,  # raw token, no "Bearer"
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0",
         }
@@ -116,20 +116,22 @@ class MarginService:
         underlying: str,
         legs: list[BasketLeg],
         spot: float,
-        token_present: bool | None = None,
+        web_jwt: str | None = None,
     ) -> MarginQuote:
-        """Live primary -> local fallback, with divergence logged in the quote."""
+        """Live primary -> local fallback. Token precedence: the GLOBAL web token first,
+        then the user's vault token (`web_jwt`) if the global is absent or rejected."""
         local = self._local(underlying, legs, spot)
-        live = await self._live(client, underlying, legs)
+        live = await self._live(client, underlying, legs, self.s.delta_web_jwt)
+        if live is None and web_jwt:
+            live = await self._live(client, underlying, legs, web_jwt)
         if live is not None:
             divergence = (local - live) / live * 100.0 if live else None
             return MarginQuote(
                 margin=live, currency="USD", source="live", badge="matched",
                 local_margin=local, divergence_pct=divergence,
             )
-        # No/expired token -> local estimate. Badge "stale" if a token was set but
-        # rejected, else "est".
-        badge = "stale" if self.s.delta_web_jwt else "est"
+        # A token was tried but rejected -> "stale"; no token at all -> "est".
+        badge = "stale" if (self.s.delta_web_jwt or web_jwt) else "est"
         return MarginQuote(
             margin=local, currency="USD", source="local", badge=badge,
             local_margin=local,

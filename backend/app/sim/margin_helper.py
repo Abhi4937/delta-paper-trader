@@ -15,9 +15,13 @@ from app.services.margin import BasketLeg, MarginQuote, MarginService
 
 
 async def quote_margin(
-    app_state: Any, underlying: str, legs: Sequence[tuple[int, str, float]]
+    app_state: Any,
+    underlying: str,
+    legs: Sequence[tuple[int, str, float]],
+    web_jwt: str | None = None,
 ) -> MarginQuote:
-    """legs = [(product_id, side, size), ...]. Raises ValueError on unknown product."""
+    """legs = [(product_id, side, size), ...]. Raises ValueError on unknown product.
+    `web_jwt` is the user's vault token, used as a fallback after the global one."""
     delta = app_state.delta
     http = app_state.http
     service: MarginService = app_state.margin
@@ -38,4 +42,4 @@ async def quote_margin(
         spot = spot or (c.spot_price or 0.0)
         basket.append(BasketLeg(contract=c, side=side, size=int(size)))
 
-    return await service.get_margin(http, underlying.upper(), basket, spot)
+    return await service.get_margin(http, underlying.upper(), basket, spot, web_jwt=web_jwt)

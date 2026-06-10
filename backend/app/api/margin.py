@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
-import httpx
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+import uuid
 
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth.deps import current_user
+from app.auth.vault import get_secret
+from app.db.session import get_session
 from app.delta.rest import DeltaRestClient
 from app.services import chain as chain_svc
 from app.services.margin import BasketLeg, MarginQuote, MarginService
@@ -25,7 +31,12 @@ class MarginRequest(BaseModel):
 
 
 @router.post("")
-async def margin(req: MarginRequest, request: Request) -> MarginQuote:
+async def margin(
+    req: MarginRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
+) -> MarginQuote:
     delta: DeltaRestClient = request.app.state.delta
     http: httpx.AsyncClient = request.app.state.http
     service: MarginService = request.app.state.margin
@@ -51,4 +62,6 @@ async def margin(req: MarginRequest, request: Request) -> MarginQuote:
         spot = spot or (c.spot_price or 0.0)
         basket.append(BasketLeg(contract=c, side=leg.side, size=leg.size))
 
-    return await service.get_margin(http, req.underlying.upper(), basket, spot)
+    # the caller's own Delta web-session token (vault) is the fallback after the global one
+    web_jwt = await get_secret(session, user_id, "delta_web_jwt")
+    return await service.get_margin(http, req.underlying.upper(), basket, spot, web_jwt=web_jwt)

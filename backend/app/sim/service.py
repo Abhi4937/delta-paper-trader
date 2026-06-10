@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.vault import get_secret
 from app.db.models import Account, LedgerEntry, Leg, Log, Note, Position, StrategySeries
 from app.engines.money import (
     LegGreeks,
@@ -159,8 +160,9 @@ async def place_strategy(
             )
         )
 
+    web_jwt = await get_secret(session, user_id, "delta_web_jwt")
     mq = await quote_margin(
-        app_state, underlying, [(s.product_id, s.side, s.qty) for s in req.legs]
+        app_state, underlying, [(s.product_id, s.side, s.qty) for s in req.legs], web_jwt=web_jwt
     )
     margin, badge = mq.margin, mq.badge
 
@@ -348,8 +350,10 @@ async def close_leg(
     badge = pos.margin_badge
     if remaining:
         try:
+            web_jwt = await get_secret(session, user_id, "delta_web_jwt")
             mq = await quote_margin(
-                app_state, pos.underlying, [(lg.product_id, lg.side, lg.qty) for lg in remaining]
+                app_state, pos.underlying,
+                [(lg.product_id, lg.side, lg.qty) for lg in remaining], web_jwt=web_jwt,
             )
             new_margin, badge = mq.margin, mq.badge
         except ValueError:
