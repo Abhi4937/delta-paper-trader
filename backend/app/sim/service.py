@@ -647,8 +647,16 @@ async def get_state(
     positions = list(res.scalars().all())
     pos_dicts = []
     for p in positions:
-        # live per-second ring if present (charts stay 1s), else durable 1-min DB history
-        series = series_store.get(str(p.id)) or await _db_series(session, p.id)
+        # Merge: durable 1-min DB history (survives restarts) up to where the live 1s
+        # ring begins, then the ring — so the chart starts at entry AND stays 1s for the
+        # live window, with no gap across backend restarts.
+        ring = series_store.get(str(p.id)) or []
+        if ring:
+            first_t = ring[0]["t"]
+            db = await _db_series(session, p.id)
+            series = [s for s in db if s["t"] < first_t] + ring
+        else:
+            series = await _db_series(session, p.id)
         pos_dicts.append(position_dict(p, mv, series))
     led = (
         (

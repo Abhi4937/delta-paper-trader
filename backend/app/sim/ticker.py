@@ -19,12 +19,12 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.auth.vault import get_secret
 from app.db.models import Position, StrategySeries
 from app.db.session import SessionLocal
 from app.sim import service
 from app.sim.margin_helper import quote_margin
 from app.sim.marketview import MarketView
-from app.sim.user import ensure_stub_user
 
 log = logging.getLogger("sim_ticker")
 
@@ -68,26 +68,28 @@ class SimTicker:
         refresh_margin = (mono - self._last_margin) >= MARGIN_REFRESH_EVERY
 
         async with SessionLocal() as session:
-            user_id = await ensure_stub_user(session)
+            # ALL users' open positions (not just one) — every user's MTM history,
+            # auto-exit, and margin refresh run server-side.
             res = await session.execute(
                 select(Position)
-                .where(Position.user_id == user_id, Position.status == "open")
+                .where(Position.status == "open")
                 .options(selectinload(Position.legs))
             )
             positions = list(res.scalars().all())
             now = datetime.now(UTC)
 
             for p in positions:
+                uid = p.user_id
                 decision = service.evaluate_position_exit(p, mv)
                 p.auto_exit_suspended = decision.kind == "suspended"
                 if decision.kind == "close-strategy":
                     await service.close_position(
-                        session, user_id, self.app.state, p.id, decision.reason
+                        session, uid, self.app.state, p.id, decision.reason
                     )
                 elif decision.kind == "close-legs":
                     for lid in decision.leg_ids:
                         await service.close_leg(
-                            session, user_id, self.app.state, p.id, uuid.UUID(lid), decision.reason
+                            session, uid, self.app.state, p.id, uuid.UUID(lid), decision.reason
                         )
 
                 if p.status != "open":
@@ -103,7 +105,7 @@ class SimTicker:
                         StrategySeries(
                             time=now,
                             position_id=p.id,
-                            user_id=user_id,
+                            user_id=uid,
                             pnl=sample["pnl"],
                             delta=sample["delta"],
                             theta=sample["theta"],
@@ -119,7 +121,10 @@ class SimTicker:
                     ]
                     if open_legs:
                         with contextlib.suppress(Exception):
-                            mq = await quote_margin(self.app.state, p.underlying, open_legs)
+                            web_jwt = await get_secret(session, uid, "delta_web_jwt")
+                            mq = await quote_margin(
+                                self.app.state, p.underlying, open_legs, web_jwt=web_jwt
+                            )
                             p.margin, p.margin_badge = mq.margin, mq.badge
 
             if write_db:
