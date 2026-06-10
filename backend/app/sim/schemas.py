@@ -3,7 +3,7 @@ epoch-ms times) to match the frontend types directly."""
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
@@ -51,3 +51,8 @@ class LegRiskPatch(BaseModel):
 class NoteIn(BaseModel):
     kind: str = "entry"  # entry | exit
     body: str
+
+
+class DraftIn(BaseModel):
+    # The builder's unexecuted basket (client Leg[]); stored opaquely, per user.
+    legs: list[dict[str, Any]] = []

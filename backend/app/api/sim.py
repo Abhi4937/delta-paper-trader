@@ -23,6 +23,7 @@ from app.sim import service
 from app.sim.marketview import MarketView
 from app.sim.schemas import (
     CloseRequest,
+    DraftIn,
     LegRiskPatch,
     NoteIn,
     PlaceRequest,
@@ -54,6 +55,34 @@ async def me(
     if user is None:
         raise HTTPException(404, "user not found")
     return {"email": user.email, "displayName": user.display_name, "isAdmin": user.is_admin}
+
+
+async def _account(session: AsyncSession, user_id: uuid.UUID) -> Account:
+    return (
+        await session.execute(select(Account).where(Account.user_id == user_id))
+    ).scalar_one()
+
+
+@router.get("/draft")
+async def get_draft(
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
+) -> dict[str, Any]:
+    """The user's saved builder draft basket (syncs across their devices)."""
+    acct = await _account(session, user_id)
+    return {"legs": acct.draft_basket or []}
+
+
+@router.put("/draft")
+async def put_draft(
+    body: DraftIn,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
+) -> dict[str, Any]:
+    acct = await _account(session, user_id)
+    acct.draft_basket = body.legs
+    await session.flush()
+    return {"ok": True}
 
 
 @router.get("/state")

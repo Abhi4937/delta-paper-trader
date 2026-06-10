@@ -11,10 +11,12 @@ import {
   closePositionApi,
   connectChain,
   connectState,
+  fetchDraft,
   fetchExpiries,
   fetchFeed,
   fetchState,
   placeStrategy as placeStrategyApi,
+  saveDraft,
   setLegRiskApi,
   setPositionRiskApi,
 } from "./api";
@@ -70,6 +72,19 @@ let disconnectChain: (() => void) | null = null;
 let stateDisconnect: (() => void) | null = null;
 let feedTimer: ReturnType<typeof setInterval> | null = null;
 let refetching = false;
+// builder draft (server-side per user → syncs across devices)
+let draftUnsub: (() => void) | null = null;
+let draftTimer: ReturnType<typeof setTimeout> | null = null;
+let draftHydrating = false;
+
+// Load the user's saved draft basket into `selected` (guarded so it doesn't echo back).
+async function hydrateDraft(): Promise<void> {
+  const d = await fetchDraft();
+  if (!d) return;
+  draftHydrating = true;
+  useStore.setState({ selected: d.legs });
+  draftHydrating = false;
+}
 
 function applyServerState(st: ServerState): void {
   // Positions/balance/ledger/logs are server-owned. Currency stays a client-only
@@ -373,11 +388,20 @@ export const useStore = create<State>()(
 // positions) + the feed poll (stale guard). Returns a teardown fn.
 export function startStream(): () => void {
   hydrate();
+  hydrateDraft();
   useStore.getState().connect();
   if (!stateDisconnect) stateDisconnect = connectState(onStateTick);
   if (!feedTimer) {
     pollFeed();
     feedTimer = setInterval(pollFeed, 2000);
+  }
+  // persist the builder basket to the server (debounced) whenever it changes
+  if (!draftUnsub) {
+    draftUnsub = useStore.subscribe((state, prev) => {
+      if (draftHydrating || state.selected === prev.selected) return;
+      if (draftTimer) clearTimeout(draftTimer);
+      draftTimer = setTimeout(() => saveDraft(useStore.getState().selected), 700);
+    });
   }
   return () => {
     disconnectChain?.();
@@ -387,6 +411,12 @@ export function startStream(): () => void {
     if (feedTimer) {
       clearInterval(feedTimer);
       feedTimer = null;
+    }
+    draftUnsub?.();
+    draftUnsub = null;
+    if (draftTimer) {
+      clearTimeout(draftTimer);
+      draftTimer = null;
     }
   };
 }

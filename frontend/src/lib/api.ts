@@ -6,6 +6,7 @@ import type {
   ChainRow,
   Contract,
   LedgerEntry,
+  Leg,
   LogEntry,
   OptionChain,
   Position,
@@ -474,3 +475,9 @@ export interface UserLog {
 }
 export const fetchUserLogs = (id: string): Promise<UserLog[] | null> =>
   authedJson<UserLog[]>(`/api/admin/users/${id}/logs`);
+
+// Builder draft basket — server-side per user, so it follows the user across devices.
+export const fetchDraft = (): Promise<{ legs: Leg[] } | null> =>
+  authedJson<{ legs: Leg[] }>("/api/draft");
+export const saveDraft = (legs: Leg[]): Promise<{ ok: boolean } | null> =>
+  authedJson<{ ok: boolean }>("/api/draft", { method: "PUT", body: { legs } });

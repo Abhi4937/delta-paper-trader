@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy import (
     BigInteger,
@@ -87,6 +87,11 @@ class Account(Base):
     balance_usd: Mapped[float] = mapped_column(Float, nullable=False)
     start_balance_usd: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="USD")  # display preference
+    # The builder's unexecuted draft basket (Leg[] as the client stores it), per user, so
+    # it follows the user across devices. Opaque JSON — the server never interprets it.
+    draft_basket: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB, nullable=True, default=list
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
