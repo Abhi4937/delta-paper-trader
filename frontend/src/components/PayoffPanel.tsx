@@ -263,8 +263,9 @@ function PayoffChart({
         {expCurves.map((c, i) => i).filter((i) => i > 0).reverse().map((i) => (
           <path key={i} d={path(expCurves[i].pnl)} fill="none" stroke={expColor(i)} strokeWidth={1.3} strokeDasharray="2 2" />
         ))}
-        {/* front expiry line: solid orange (Delta-style); green/red lives in the fill */}
-        <path d={path(front)} fill="none" stroke="var(--color-accent)" strokeWidth={1.8} />
+        {/* front expiry line: green above the zero line (profit), red below (loss) */}
+        <path d={path(front)} fill="none" stroke="var(--color-pos)" strokeWidth={1.8} clipPath={`url(#${above})`} />
+        <path d={path(front)} fill="none" stroke="var(--color-neg)" strokeWidth={1.8} clipPath={`url(#${below})`} />
         {/* projected (target-date / now) */}
         <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="4 3" />
         {bes.filter((b) => b >= viewLo && b <= viewHi).map((b, i) => <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />)}
@@ -287,16 +288,18 @@ function PayoffChart({
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-text-mute">
         {expCurves.map((_, i) => (
           <span key={i} className="flex items-center gap-1">
-            <span
-              className="inline-block h-0.5 w-3"
-              style={{ backgroundColor: i === 0 ? "var(--color-accent)" : expColor(i) }}
-            />
+            {i === 0 ? (
+              <span className="inline-flex h-0.5 w-3 overflow-hidden">
+                <span className="h-0.5 w-1.5" style={{ backgroundColor: "var(--color-pos)" }} />
+                <span className="h-0.5 w-1.5" style={{ backgroundColor: "var(--color-neg)" }} />
+              </span>
+            ) : (
+              <span className="inline-block h-0.5 w-3" style={{ backgroundColor: expColor(i) }} />
+            )}
             {multiExp ? `Exp ${expiryLabels[i] ?? ""}` : "On expiry"}
           </span>
         ))}
-        <span className="flex items-center gap-1"><span className="inline-block h-0.5 w-3 border-t border-dashed border-accent" /> Target date</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 bg-pos/30" /> Profit</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-3 bg-neg/30" /> Loss</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-0 w-3 border-t border-dashed border-accent" /> Target date</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-neg/40" /> Call OI</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-pos/40" /> Put OI</span>
       </div>
