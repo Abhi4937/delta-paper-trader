@@ -1,8 +1,10 @@
 """FastAPI auth dependencies.
 
 `current_user` replaces the old `ensure_stub_user` call at every endpoint: it verifies
-the Supabase token, enforces mandatory 2FA + the invite allowlist, provisions the local
-user on first login, and returns the local `user_id`. `require_admin` adds the admin gate.
+the Supabase token, enforces the invite allowlist, provisions the local user on first
+login, and returns the local `user_id`. `require_admin` adds the admin gate; `require_mfa`
+demands a 2FA-cleared session (for future live/real-money endpoints — 2FA is optional for
+paper trading).
 
 Dev bypass: when `app_env == "dev"` and a request arrives WITHOUT a bearer token, we fall
 back to the single stub user so local development keeps working without Supabase.
@@ -39,10 +41,8 @@ async def _user_from_token(session: AsyncSession, token: str | None) -> User:
     except AuthError as e:
         raise HTTPException(401, f"invalid token: {e}") from e
 
-    if not is_mfa(claims):
-        # Authenticated but no 2FA yet — force enrollment before any access.
-        raise HTTPException(403, "2FA enrollment required")
-
+    # 2FA is OPTIONAL for paper trading (no real money). Live/real-money endpoints
+    # (sub-project B/C) must use `require_mfa` to demand a 2FA-cleared (aal2) session.
     sub = claims.get("sub")
     email = (claims.get("email") or "").strip().lower()
     if not sub or not email:
@@ -81,6 +81,25 @@ async def require_admin(
     user = await _user_from_token(session, _bearer(request))
     if not user.is_admin:
         raise HTTPException(403, "admin only")
+    return user.id
+
+
+async def require_mfa(
+    request: Request, session: AsyncSession = Depends(get_session)
+) -> uuid.UUID:
+    """Gate for live/real-money actions: require a 2FA-cleared (aal2) session. 2FA is
+    optional for paper trading, so wire this onto live endpoints (sub-project B/C) and
+    the live-key save path when they land."""
+    token = _bearer(request)
+    if not token:
+        raise HTTPException(401, "missing bearer token")
+    try:
+        claims = verify_supabase_token(token)
+    except AuthError as e:
+        raise HTTPException(401, f"invalid token: {e}") from e
+    if not is_mfa(claims):
+        raise HTTPException(403, "two-factor authentication required for this action")
+    user = await _user_from_token(session, token)
     return user.id
 
 

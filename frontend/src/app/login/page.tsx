@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getAAL } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -17,8 +16,7 @@ export default function LoginPage() {
     const route = async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) return;
-      const aal = await getAAL();
-      router.replace(aal.current === "aal2" ? "/chain" : "/enroll-2fa");
+      router.replace("/chain");
     };
     route();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -43,8 +41,7 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      const aal = await getAAL();
-      router.replace(aal.current === "aal2" ? "/chain" : "/enroll-2fa");
+      router.replace("/chain");
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Sign in failed");
     } finally {

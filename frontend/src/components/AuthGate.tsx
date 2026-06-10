@@ -3,12 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchMe } from "@/lib/api";
-import { getAAL, signOut } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
-// Client-side route guard for the terminal. Requires, in order:
-//  1) a Supabase session, 2) a 2FA-cleared (aal2) assurance level, and
-//  3) backend authorization — /api/me succeeds only if the email is allowlisted.
+// Client-side route guard for the terminal. Requires: 1) a Supabase session, and
+//  2) backend authorization — /api/me succeeds only if the email is allowlisted.
+// (2FA is optional for paper trading; live/real-money features will require it.)
 // A logged-in but non-allowlisted user gets a "not authorized" screen, never the app.
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -20,11 +20,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         router.replace("/login");
-        return;
-      }
-      const aal = await getAAL();
-      if (aal.current !== "aal2") {
-        router.replace("/enroll-2fa");
         return;
       }
       const me = await fetchMe(); // null if the backend rejects (not allowlisted)
