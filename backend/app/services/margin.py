@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Any, Literal, cast
 
 import httpx
 from pydantic import BaseModel
@@ -49,7 +50,7 @@ class MarginQuote:
     calibration_factor: float | None = None  # learned local→exact correction in effect
 
 
-def _order(leg: BasketLeg) -> dict:
+def _order(leg: BasketLeg) -> dict[str, Any]:
     return {
         "product_id": leg.contract.product_id,
         "side": leg.side,
@@ -61,12 +62,13 @@ def _order(leg: BasketLeg) -> dict:
 
 def _margin_leg(leg: BasketLeg, spot: float, today: date) -> MarginLeg:
     c = leg.contract
+    ot = cast(Literal["call", "put", "future"], c.option_type)
     dte = max((c.expiry - today).days, 1) if c.expiry else 1
-    iv = implied_vol(c.option_type, spot, c.strike, dte / 365.0, c.mark_price or 0.0)
+    iv = implied_vol(ot, spot, c.strike, dte / 365.0, c.mark_price or 0.0)
     if iv <= 0:
         iv = c.quote.mark_iv or 0.0
     return MarginLeg(
-        option_type=c.option_type,
+        option_type=ot,
         side="long" if leg.side == "buy" else "short",
         qty=leg.size,
         strike=c.strike,
