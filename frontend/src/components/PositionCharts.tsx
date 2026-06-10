@@ -154,7 +154,8 @@ export default function PositionCharts({
       id: l.id,
       label: legLabel(l),
       color: legColorById[l.id],
-      pts: series.map((s) => ({ t: s.t, v: pick(s.legs[l.id]) })),
+      // skip lightweight ring samples (empty legs) so per-leg lines don't drop to 0
+      pts: series.filter((s) => s.legs[l.id] !== undefined).map((s) => ({ t: s.t, v: pick(s.legs[l.id]) })),
     }));
 
   // IV panel: a bold ATM-IV line for EACH expiry present + each leg's IV (faint, leg color)
@@ -164,7 +165,7 @@ export default function PositionCharts({
       label: `ATM ${e.slice(5)}`,
       color: atmColorFor(e, expiries),
       width: 2,
-      pts: series.map((s) => ({ t: s.t, v: (s.atmIv[e] ?? 0) * 100 })),
+      pts: series.filter((s) => s.atmIv[e] !== undefined).map((s) => ({ t: s.t, v: (s.atmIv[e] ?? 0) * 100 })),
     })),
     ...legLines((x) => (x?.iv ?? 0) * 100),
   ];

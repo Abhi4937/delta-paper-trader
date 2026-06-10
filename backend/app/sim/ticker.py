@@ -95,9 +95,21 @@ class SimTicker:
                 if p.status != "open":
                     continue
 
-                sample = service.build_sample(p, mv, now)
+                sample = service.build_sample(p, mv, now)  # full → durable 10s DB row
                 ring = self.series.setdefault(str(p.id), [])
-                ring.append(sample)
+                # Lightweight ring: net P&L + greeks only (per-leg/IV detail stays in the
+                # 10s DB). ~5x less RAM so a 24h 1-second window fits a small backend.
+                ring.append(
+                    {
+                        "t": sample["t"],
+                        "pnl": sample["pnl"],
+                        "delta": sample["delta"],
+                        "theta": sample["theta"],
+                        "vega": sample["vega"],
+                        "atmIv": {},
+                        "legs": {},
+                    }
+                )
                 if len(ring) > SERIES_CAP:
                     del ring[: len(ring) - SERIES_CAP]
                 if write_db:
