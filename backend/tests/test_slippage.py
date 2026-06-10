@@ -57,6 +57,28 @@ def test_empty_book_fallback() -> None:
     assert f.fill_price == D(101)  # mark + 2 ticks * 0.5
 
 
+def test_buy_against_bids_only_falls_back() -> None:
+    # Book has bids but no asks -> buy can't walk the offer side -> synthetic fill.
+    book = _book([(99, 5)], [])
+    f = compute_fill("buy", D(4), book, mark=D(100), tick_size=D("0.5"),
+                     slippage_ticks=D(2))
+    assert f.used_fallback
+    assert f.filled_qty == D(4)  # fallback fills the full requested qty
+    # one-sided book -> no spread -> price = mark + slippage (2 ticks * 0.5)
+    assert f.fill_price == D(101)
+
+
+def test_sell_against_asks_only_falls_back() -> None:
+    # Book has asks but no bids -> sell can't walk the bid side -> synthetic fill.
+    book = _book([], [(101, 5)])
+    f = compute_fill("sell", D(4), book, mark=D(100), tick_size=D("0.5"),
+                     slippage_ticks=D(2))
+    assert f.used_fallback
+    assert f.filled_qty == D(4)
+    # sell fallback: price = mark - slippage (2 ticks * 0.5)
+    assert f.fill_price == D(99)
+
+
 def test_impact_pushes_buy_above_vwap() -> None:
     book = _book([], [(100, 1000)])
     f = compute_fill("buy", D(1), book, mark=D(100), tick_size=D("0.5"),

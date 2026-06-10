@@ -122,6 +122,8 @@ async def place_strategy(
     session: AsyncSession, user_id: uuid.UUID, app_state: Any, req: Any
 ) -> uuid.UUID:
     mv = MarketView(app_state.market)
+    if not mv.fresh():
+        raise ValueError("market feed is stale — refusing to fill at frozen prices")
     underlying = req.legs[0].underlying
     now = datetime.now(UTC)
 
