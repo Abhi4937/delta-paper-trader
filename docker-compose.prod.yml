@@ -1,0 +1,67 @@
+# Production stack for a single VM (e.g. Oracle Cloud Always Free).
+#   Caddy (auto-HTTPS) ── / ──────────────→ frontend (Next.js)
+#                       └─ /api,/ws,/health → backend (FastAPI, 1 process)
+#   backend ─→ db (Postgres + TimescaleDB)
+#
+# Compose-level vars come from a root .env (see .env.prod.example). Backend secrets come
+# from backend/.env.prod. Bring up:  docker compose -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-paper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-paper_trader}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-paper} -d ${POSTGRES_DB:-paper_trader}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    env_file: ./backend/.env.prod
+    environment:
+      # derived here so the DB password lives in one place (.env)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-paper}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-paper_trader}
+      APP_ENV: production
+      ALLOW_DEV_NO_AUTH: "false"
+      CORS_ORIGINS: https://${DOMAIN:?set DOMAIN in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE: https://${DOMAIN}
+        NEXT_PUBLIC_WS_BASE: wss://${DOMAIN}
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL in .env}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:?set SUPABASE_ANON_KEY in .env}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:

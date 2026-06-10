@@ -1,0 +1,13 @@
+# Auto-HTTPS reverse proxy. Caddy fetches a Let's Encrypt cert for $DOMAIN automatically
+# (ports 80/443 must be open + DNS must point here). WebSockets pass through natively.
+{$DOMAIN} {
+	# backend: API, websockets, health
+	@backend path /api/* /ws /ws/* /health
+	handle @backend {
+		reverse_proxy backend:8010
+	}
+	# everything else → the Next.js frontend
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
