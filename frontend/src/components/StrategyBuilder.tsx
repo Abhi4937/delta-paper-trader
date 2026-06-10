@@ -71,7 +71,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   const router = useRouter();
 
   const [tab, setTab] = useState<"basket" | "payoff">("basket");
-  const [margin, setMargin] = useState<{ value: number; badge: string } | null>(null);
+  const [margin, setMargin] = useState<{ value: number; badge: string; localMargin: number | null; divergence: number | null } | null>(null);
   const [loadingM, setLoadingM] = useState(false);
 
   const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}`).join(",");
@@ -89,7 +89,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
         selected.map((l) => ({ product_id: l.productId, side: l.side, size: l.qty })),
       );
       if (!cancelled) {
-        setMargin(r ? { value: r.margin, badge: r.badge } : null);
+        setMargin(r ? { value: r.margin, badge: r.badge, localMargin: r.localMargin, divergence: r.divergence } : null);
         setLoadingM(false);
       }
     }, 350);
@@ -230,6 +230,22 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
                 )}
               </span>
             </div>
+            {/* surface BOTH: the exact Delta margin and the local estimate */}
+            {margin && margin.badge === "matched" && margin.localMargin != null && (
+              <div className="mb-1 flex items-center justify-between text-[10px] text-text-mute">
+                <span>Local estimate</span>
+                <span className="tnum">
+                  {moneyBoth(margin.localMargin, currency)}
+                  {margin.divergence != null && ` · ${margin.divergence >= 0 ? "+" : ""}${margin.divergence.toFixed(1)}% vs exact`}
+                </span>
+              </div>
+            )}
+            {margin && margin.badge !== "matched" && (
+              <div className="mb-1 flex items-center justify-between text-[10px] text-text-mute">
+                <span>Exact (Delta)</span>
+                <span className="tnum">unavailable · {margin.badge === "stale" ? "token expired/rejected" : "no token set"}</span>
+              </div>
+            )}
             <div className="mb-2 flex items-center justify-between text-[11px] text-text-mute">
               <span>Net {net >= 0 ? "credit" : "debit"}</span>
               <span className={clsx("tnum", net >= 0 ? "text-pos" : "text-neg")}>

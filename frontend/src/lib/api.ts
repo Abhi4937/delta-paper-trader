@@ -259,10 +259,17 @@ export async function fetchPayoff(req: {
   }
 }
 
+export interface MarginQuote {
+  margin: number; // the order margin used (exact when matched, else the local estimate)
+  badge: string; // "matched" | "est" | "stale"
+  source: string;
+  localMargin: number | null; // local Black-76 estimate (always computed)
+  divergence: number | null; // (local − exact)/exact %, when matched
+}
 export async function fetchMargin(
   underlying: Underlying,
   legs: { product_id: number; side: "buy" | "sell"; size: number }[],
-): Promise<{ margin: number; badge: string; source: string } | null> {
+): Promise<MarginQuote | null> {
   try {
     const r = await fetch(`${API}/api/margin`, {
       method: "POST",
@@ -270,7 +277,14 @@ export async function fetchMargin(
       body: JSON.stringify({ underlying, legs }),
     });
     if (!r.ok) return null;
-    return await r.json();
+    const d = await r.json();
+    return {
+      margin: d.margin,
+      badge: d.badge,
+      source: d.source,
+      localMargin: d.local_margin ?? null,
+      divergence: d.divergence_pct ?? null,
+    };
   } catch {
     return null;
   }
