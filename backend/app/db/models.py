@@ -19,6 +19,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    LargeBinary,
     String,
     Text,
     func,
@@ -39,7 +40,40 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(120), default="")
+    # Supabase user id (sub claim). Null for the dev stub user. Unique when set.
+    supabase_uid: Mapped[str | None] = mapped_column(
+        String(64), unique=True, index=True, nullable=True
+    )
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AllowedEmail(Base):
+    """Invite/allowlist: only these emails may log in. Admin-managed."""
+
+    __tablename__ = "allowed_emails"
+
+    email: Mapped[str] = mapped_column(String(320), primary_key=True)
+    invited_by: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class UserSecret(Base):
+    """Per-user Delta credentials, AES-GCM encrypted at rest. Plaintext NEVER leaves
+    the server. One row per (user, kind); `kind` is one of the SECRET_KINDS slots."""
+
+    __tablename__ = "user_secrets"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(String(32), primary_key=True)
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary(12))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Account(Base):
@@ -81,7 +115,9 @@ class Position(Base):
     close_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
     legs: Mapped[list[Leg]] = relationship(back_populates="position", cascade="all, delete-orphan")
-    notes: Mapped[list[Note]] = relationship(back_populates="position", cascade="all, delete-orphan")
+    notes: Mapped[list[Note]] = relationship(
+        back_populates="position", cascade="all, delete-orphan"
+    )
 
 
 class Leg(Base):
@@ -131,7 +167,8 @@ class LedgerEntry(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     t: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    type: Mapped[str] = mapped_column(String(20))  # deposit|margin_reserve|margin_release|realized|fee
+    # deposit | margin_reserve | margin_release | realized | fee
+    type: Mapped[str] = mapped_column(String(20))
     amount: Mapped[float] = mapped_column(Float)
     balance_after: Mapped[float] = mapped_column(Float)
     ref: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -186,6 +223,7 @@ class StrategySeries(Base):
     theta: Mapped[float] = mapped_column(Float)
     vega: Mapped[float] = mapped_column(Float)
     atm_iv: Mapped[dict[str, float]] = mapped_column(JSONB)  # {expiry: iv}
-    legs: Mapped[dict[str, dict[str, float]]] = mapped_column(JSONB)  # {leg_id: {pnl,iv,delta,bid,ask}}
+    # {leg_id: {pnl, iv, delta, bid, ask}}
+    legs: Mapped[dict[str, dict[str, float]]] = mapped_column(JSONB)
 
     __table_args__ = (Index("ix_series_pos_time", "position_id", "time"),)

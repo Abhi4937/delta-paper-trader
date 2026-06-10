@@ -30,13 +30,29 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://paper:paper@localhost:5432/paper_trader"
     redis_url: str = "redis://localhost:6379/0"
 
+    # Auth (Supabase = identity only: login + TOTP 2FA + JWTs). The backend verifies
+    # Supabase access tokens locally with the project JWT secret; app data stays in our
+    # own Timescale Postgres. See docs ADR for the topology.
+    supabase_url: str = ""  # e.g. https://<ref>.supabase.co
+    supabase_jwt_secret: str = ""  # HS256 secret used to verify access tokens
+    supabase_jwt_aud: str = "authenticated"
+    # Per-user secret vault: master key (urlsafe base64, 32 bytes) for AES-GCM at rest.
+    secret_vault_key: str = ""
+    # First admin + first allowlist entry are seeded from this email on startup.
+    admin_email: str = ""
+
     # App
     app_env: str = "dev"
     cors_origins: str = "http://localhost:3000"
     virtual_start_balance_inr: int = Field(default=500_000)
-    # Sim: single trusted user until real auth lands (schema is already user-isolated).
+    # Sim: single trusted user used as the dev bypass when app_env == "dev" and a request
+    # arrives without a bearer token (schema is already user-isolated).
     stub_user_email: str = "trader@paper.local"
     virtual_start_balance_usd: float = 5000.0  # matches client START_BALANCE
+
+    @property
+    def is_dev(self) -> bool:
+        return self.app_env == "dev"
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -19,11 +19,14 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
+from app.api import admin as admin_api
 from app.api import chain as chain_api
 from app.api import margin as margin_api
 from app.api import payoff as payoff_api
+from app.api import settings as settings_api
 from app.api import sim as sim_api
 from app.config import get_settings
+from app.db.models import AllowedEmail
 from app.db.session import SessionLocal
 from app.delta.rest import DeltaRestClient
 from app.services import chain as chain_svc
@@ -43,9 +46,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.margin = MarginService(settings)
     app.state.market = MarketDataIngestor(settings)
     await app.state.market.start()
-    # seed the stub user/account, then start the server-authoritative sim tick loop
+    # seed the stub user/account + the admin allowlist entry, then start the sim tick loop
     async with SessionLocal() as session:
         await ensure_stub_user(session)
+        admin = settings.admin_email.strip().lower()
+        if admin and await session.get(AllowedEmail, admin) is None:
+            session.add(AllowedEmail(email=admin, invited_by="startup"))
         await session.commit()
     app.state.sim_ticker = SimTicker(app)
     await app.state.sim_ticker.start()
@@ -63,6 +69,8 @@ app.include_router(chain_api.router)
 app.include_router(margin_api.router)
 app.include_router(payoff_api.router)
 app.include_router(sim_api.router)
+app.include_router(settings_api.router)
+app.include_router(admin_api.router)
 
 app.add_middleware(
     CORSMiddleware,

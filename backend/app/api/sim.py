@@ -1,5 +1,6 @@
 """Sim state API: full state (GET) + mutations (place/close/leg-close/risk/note)
-+ a live WS tick. Stub user resolved on every call; every query is user-scoped.
++ a live WS tick. The authenticated user is resolved via `current_user` (Supabase
+token, or the dev stub when running locally without a token); every query is user-scoped.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.deps import current_user, resolve_ws_user
 from app.db.models import Account, Position
 from app.db.session import SessionLocal, get_session
 from app.sim import service
@@ -26,7 +28,6 @@ from app.sim.schemas import (
     PlaceRequest,
     PositionRiskPatch,
 )
-from app.sim.user import ensure_stub_user
 
 router = APIRouter(prefix="/api", tags=["sim"])
 
@@ -45,19 +46,22 @@ async def _state(request: Request, session: AsyncSession, user_id: uuid.UUID) ->
 
 @router.get("/state")
 async def get_state(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    user_id = await ensure_stub_user(session)
     return await _state(request, session, user_id)
 
 
 @router.post("/strategies")
 async def place(
-    req: PlaceRequest, request: Request, session: AsyncSession = Depends(get_session)
+    req: PlaceRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     if not req.legs:
         raise HTTPException(400, "no legs")
-    user_id = await ensure_stub_user(session)
     try:
         await service.place_strategy(session, user_id, request.app.state, req)
     except ValueError as e:
@@ -71,8 +75,8 @@ async def close(
     req: CloseRequest,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    user_id = await ensure_stub_user(session)
     ok = await service.close_position(session, user_id, request.app.state, pos_id, req.reason)
     if not ok:
         raise HTTPException(404, "position not found or already closed")
@@ -86,8 +90,8 @@ async def close_leg(
     req: CloseRequest,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    user_id = await ensure_stub_user(session)
     ok = await service.close_leg(session, user_id, request.app.state, pos_id, leg_id, req.reason)
     if not ok:
         raise HTTPException(404, "leg not found or already closed")
@@ -100,8 +104,8 @@ async def position_risk(
     patch: PositionRiskPatch,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    user_id = await ensure_stub_user(session)
     ok = await service.set_position_risk(session, user_id, pos_id, patch)
     if not ok:
         raise HTTPException(404, "position not found")
@@ -114,8 +118,8 @@ async def leg_risk(
     patch: LegRiskPatch,
     request: Request,
     session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    user_id = await ensure_stub_user(session)
     ok = await service.set_leg_risk(session, user_id, leg_id, patch)
     if not ok:
         raise HTTPException(404, "leg not found")
@@ -124,9 +128,12 @@ async def leg_risk(
 
 @router.post("/strategies/{pos_id}/notes")
 async def add_note(
-    pos_id: uuid.UUID, note: NoteIn, request: Request, session: AsyncSession = Depends(get_session)
+    pos_id: uuid.UUID,
+    note: NoteIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
-    user_id = await ensure_stub_user(session)
     ok = await service.add_note(session, user_id, pos_id, note.kind, note.body)
     if not ok:
         raise HTTPException(404, "position not found")
@@ -138,12 +145,17 @@ async def ws_state(websocket: WebSocket) -> None:
     """Live tick (~1s): balance + per-open-position live values + a sample to append.
     `openIds` lets the client detect server-side auto-exits and refetch GET /api/state."""
     await websocket.accept()
+    async with SessionLocal() as session:
+        try:
+            user_id = await resolve_ws_user(websocket, session)
+        except HTTPException:
+            await websocket.close(code=4401)  # auth failed
+            return
     mv = MarketView(websocket.app.state.market)
     store = getattr(websocket.app.state, "sim_series", {})
     try:
         while True:
             async with SessionLocal() as session:
-                user_id = await ensure_stub_user(session)
                 account = (
                     await session.execute(select(Account).where(Account.user_id == user_id))
                 ).scalar_one()
