@@ -266,8 +266,8 @@ function PayoffChart({
         {/* front expiry line: green above the zero line (profit), red below (loss) */}
         <path d={path(front)} fill="none" stroke="var(--color-pos)" strokeWidth={1.8} clipPath={`url(#${above})`} />
         <path d={path(front)} fill="none" stroke="var(--color-neg)" strokeWidth={1.8} clipPath={`url(#${below})`} />
-        {/* projected (target-date / now) */}
-        <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="4 3" />
+        {/* projected (target-date / now) — solid accent line */}
+        <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} />
         {bes.filter((b) => b >= viewLo && b <= viewHi).map((b, i) => <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />)}
         {data && <circle cx={tsX} cy={y(tsProj)} r={3.5} fill="var(--color-accent)" />}
       </svg>
@@ -299,7 +299,7 @@ function PayoffChart({
             {multiExp ? `Exp ${expiryLabels[i] ?? ""}` : "On expiry"}
           </span>
         ))}
-        <span className="flex items-center gap-1"><span className="inline-block h-0 w-3 border-t border-dashed border-accent" /> Target date</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-0 w-3 border-t border-accent" /> Target date</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-neg/40" /> Call OI</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-pos/40" /> Put OI</span>
       </div>

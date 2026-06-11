@@ -30,10 +30,11 @@ export default function ChainPage() {
   const centeredFor = useRef("");
   const [builderMode, setBuilderMode] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
-  // mobile: which mark cell has its B/S revealed (tap-to-reveal, ONE at a time) — keeps the
-  // chain clean instead of showing B/S on every row. Desktop still uses hover-reveal.
+  // which mark cell has its add-popover open (ONE at a time) — keeps the chain clean instead
+  // of B/S on every row. Tap a mark in builder mode → popover with a lot stepper + Buy/Sell.
   const [activeCell, setActiveCell] = useState<string | null>(null);
-  // mobile: depth opens as an on-demand bottom sheet (tap a mark in view mode)
+  const [lots, setLots] = useState(1); // lot count in the open add-popover (resets per open)
+  // depth opens as an on-demand bottom sheet (tap a mark in view mode)
   const [depthOpen, setDepthOpen] = useState(false);
 
   useEffect(() => {
@@ -158,10 +159,10 @@ export default function ChainPage() {
                 const callSel = builderMode ? sel.get(cs) : undefined;
                 const putSel = builderMode ? sel.get(ps) : undefined;
                 // VIEW mode: tapping a cell focuses it and (mobile) opens the depth sheet.
-                // BUILDER mode: tapping the MARK reveals B/S for that one cell (tap-to-reveal).
+                // BUILDER mode: tapping the MARK opens the add-popover for that one cell.
                 const onView = (sym: string) => () => { setFocused(sym); if (!builderMode) setDepthOpen(true); };
-                const onReveal = (sym: string) => () => setActiveCell((a) => (a === sym ? null : sym));
-                const addLeg = (c: Contract, s: Side) => { selectLeg(c, s); setActiveCell(null); };
+                const onReveal = (sym: string) => () => { setLots(1); setActiveCell((a) => (a === sym ? null : sym)); };
+                const addLeg = (c: Contract, s: Side) => { selectLeg(c, s, lots); setActiveCell(null); };
                 const onCall = onView(cs);
                 const onPut = onView(ps);
                 return (
@@ -170,11 +171,11 @@ export default function ChainPage() {
                       <Cell n={row.call.greeks.theta.toFixed(1)} hl={callHl} badge={callSel} badgeSide="left" onClick={onCall} />
                       <Cell n={(row.call.iv * 100).toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={row.call.greeks.delta.toFixed(2)} hl={callHl} onClick={onCall} />
-                      <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} active={activeCell === cs} onReveal={onReveal(cs)} onView={onCall} onAdd={addLeg} align="right" />
+                      <MarkCell c={row.call} label={`${row.strike} CE`} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} active={activeCell === cs} lots={lots} onLots={setLots} onReveal={onReveal(cs)} onView={onCall} onAdd={addLeg} align="right" />
                       <OiCell n={oiC(row.call)} max={maxCallOi} side="left" hl={callHl} onClick={onCall} />
                       <td ref={atm ? atmRef : undefined} className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
                       <OiCell n={oiC(row.put)} max={maxPutOi} side="right" hl={putHl} onClick={onPut} />
-                      <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} active={activeCell === ps} onReveal={onReveal(ps)} onView={onPut} onAdd={addLeg} align="left" />
+                      <MarkCell c={row.put} label={`${row.strike} PE`} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} active={activeCell === ps} lots={lots} onLots={setLots} onReveal={onReveal(ps)} onView={onPut} onAdd={addLeg} align="left" />
                       <Cell n={row.put.greeks.delta.toFixed(2)} hl={putHl} onClick={onPut} />
                       <Cell n={(row.put.iv * 100).toFixed(1)} hl={putHl} onClick={onPut} />
                       <Cell n={row.put.greeks.theta.toFixed(1)} hl={putHl} badge={putSel} badgeSide="right" onClick={onPut} />
@@ -228,6 +229,11 @@ export default function ChainPage() {
         </div>
       )}
 
+      {/* tap outside an open add-popover to dismiss it */}
+      {builderMode && activeCell && (
+        <button aria-label="Close add menu" className="fixed inset-0 z-40 cursor-default" onClick={() => setActiveCell(null)} />
+      )}
+
       {/* Mobile: depth opens on demand as a bottom sheet (view mode, tap a mark). */}
       <MarketDepthSheet
         open={depthOpen && !builderMode}
@@ -274,20 +280,16 @@ function OiCell({
 }
 
 // Mark = tradeable cell. VIEW mode: tap → focus + (mobile) open the depth sheet. BUILDER
-// mode: tap → reveal B/S for THIS cell only (`active`); tap B/S to add. The B/S stay hidden
-// (and non-interactive) until revealed — on desktop via hover, on mobile via the tap — so the
-// chain isn't littered with B/S on every row. `pos` shows L/S for an open position.
+// mode: tap → open the add-popover for THIS cell only (`active`) — a lot stepper + Buy/Sell,
+// so the chain stays clean (no B/S littered on every row) and you choose the lots up front.
+// `pos` shows L/S for an open position.
 function MarkCell({
-  c, itm, hl, pos, flash, mode, active, onReveal, onView, onAdd, align,
+  c, label, itm, hl, pos, flash, mode, active, lots, onLots, onReveal, onView, onAdd, align,
 }: {
-  c: Contract; itm: boolean; hl?: boolean; pos?: Side; flash?: "up" | "down";
-  mode: boolean; active: boolean; onReveal: () => void; onView: () => void;
-  onAdd: (c: Contract, s: Side) => void; align: "left" | "right";
+  c: Contract; label: string; itm: boolean; hl?: boolean; pos?: Side; flash?: "up" | "down";
+  mode: boolean; active: boolean; lots: number; onLots: (n: number) => void;
+  onReveal: () => void; onView: () => void; onAdd: (c: Contract, s: Side) => void; align: "left" | "right";
 }) {
-  // visible when this cell is the tapped one (mobile) OR the row is hovered (desktop)
-  const reveal = active
-    ? "opacity-100"
-    : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100";
   return (
     <td
       onClick={mode ? onReveal : onView}
@@ -296,6 +298,7 @@ function MarkCell({
         "relative cursor-pointer px-2 py-1.5 tnum font-semibold",
         itm ? "text-text" : "text-text-dim",
         !mode && "hover:text-accent",
+        active && "text-accent",
         flash === "up" && "flash-up",
         flash === "down" && "flash-down",
         hl && HL,
@@ -310,27 +313,28 @@ function MarkCell({
           {pos === "buy" ? "L" : "S"}
         </span>
       )}
-      <div className="flex items-center justify-center gap-1.5">
-        {mode && (
-          <button
-            aria-label={`Buy ${c.symbol}`}
-            onClick={(e) => { e.stopPropagation(); onAdd(c, "buy"); }}
-            className={clsx("rounded bg-pos px-2 py-1 text-[12px] font-bold leading-none text-base transition-opacity touch-manipulation hover:opacity-90", reveal)}
-          >
-            B
-          </button>
-        )}
+      <div className="flex items-center justify-center">
         <span>{c.mark.toFixed(1)}</span>
-        {mode && (
-          <button
-            aria-label={`Sell ${c.symbol}`}
-            onClick={(e) => { e.stopPropagation(); onAdd(c, "sell"); }}
-            className={clsx("rounded bg-neg px-2 py-1 text-[12px] font-bold leading-none text-base transition-opacity touch-manipulation hover:opacity-90", reveal)}
-          >
-            S
-          </button>
-        )}
       </div>
+
+      {mode && active && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute left-1/2 top-full z-50 mt-1 w-[150px] -translate-x-1/2 rounded-lg border border-line bg-surface-2 p-2 shadow-xl"
+        >
+          <div className="mb-1.5 text-center text-[11px] font-semibold text-text-dim">{label}</div>
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <button aria-label="Fewer lots" onClick={() => onLots(Math.max(1, lots - 1))} className="grid h-8 w-8 touch-manipulation place-items-center rounded bg-surface-3 text-[16px] leading-none text-text-dim hover:text-text">−</button>
+            <span className="tnum w-7 text-center text-[14px] font-semibold text-text">{lots}</span>
+            <button aria-label="More lots" onClick={() => onLots(lots + 1)} className="grid h-8 w-8 touch-manipulation place-items-center rounded bg-surface-3 text-[16px] leading-none text-text-dim hover:text-text">+</button>
+            <span className="text-[9px] text-text-mute">lot{lots > 1 ? "s" : ""}</span>
+          </div>
+          <div className="flex gap-1.5">
+            <button aria-label={`Buy ${c.symbol}`} onClick={() => onAdd(c, "buy")} className="flex-1 touch-manipulation rounded bg-pos py-1.5 text-[12px] font-bold text-base hover:opacity-90">Buy</button>
+            <button aria-label={`Sell ${c.symbol}`} onClick={() => onAdd(c, "sell")} className="flex-1 touch-manipulation rounded bg-neg py-1.5 text-[12px] font-bold text-base hover:opacity-90">Sell</button>
+          </div>
+        </div>
+      )}
     </td>
   );
 }

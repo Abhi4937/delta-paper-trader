@@ -186,7 +186,7 @@ interface State {
   setExpiry: (e: string) => void;
   setCurrency: (c: Currency) => void;
   addLeg: (c: Contract, side: Side) => void;
-  selectLeg: (c: Contract, side: Side) => void;
+  selectLeg: (c: Contract, side: Side, qty?: number) => void;
   removeLeg: (id: string) => void;
   setLegQty: (id: string, qty: number) => void;
   toggleLegSide: (id: string) => void;
@@ -290,14 +290,15 @@ export const useStore = create<State>()(
       addLeg: (c, side) =>
         set((s) => (s.chain ? { selected: [...s.selected, newLeg(c, side, s.chain, s.underlying)] } : s)),
       // set-or-add: if this contract is already in the basket, set its side; else add
-      selectLeg: (c, side) =>
+      selectLeg: (c, side, qty = 1) =>
         set((s) => {
           if (!s.chain) return s;
           const entry = side === "buy" ? c.ask || c.mark : c.bid || c.mark;
+          const lots = Math.max(1, Math.round(qty));
           if (s.selected.some((l) => l.symbol === c.symbol)) {
-            return { selected: s.selected.map((l) => (l.symbol === c.symbol ? { ...l, side, entry } : l)) };
+            return { selected: s.selected.map((l) => (l.symbol === c.symbol ? { ...l, side, entry, qty: lots } : l)) };
           }
-          return { selected: [...s.selected, newLeg(c, side, s.chain, s.underlying)] };
+          return { selected: [...s.selected, { ...newLeg(c, side, s.chain, s.underlying), qty: lots }] };
         }),
       removeLeg: (id) => set((s) => ({ selected: s.selected.filter((l) => l.id !== id) })),
       setLegQty: (id, qty) =>
