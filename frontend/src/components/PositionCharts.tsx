@@ -131,11 +131,14 @@ export default function PositionCharts({
       color: legColorById[l.id],
       pts: legPoints(series, l.id, pick),
     }));
-  // "Net" hides the per-leg lines; "Legs" shows them.
+  // "Net" hides the per-leg lines, "Legs" shows them. Keep a CONSTANT number of leg lines
+  // (empty data when hidden) so toggling doesn't change the series count and force a chart
+  // re-create — that re-create is what blanked the panel until a timeframe change.
+  const hide = (ll: LegLine): LegLine => (showLegs ? ll : { ...ll, pts: [] });
   const legsFor = (pick: (ls: SeriesSample["legs"][string] | undefined) => number): LegLine[] =>
-    showLegs ? legLines(pick) : [];
+    legLines(pick).map(hide);
 
-  // IV panel: bold ATM-IV line per expiry (always) + each leg's IV (only in "Legs" mode)
+  // IV panel: bold ATM-IV line per expiry (always) + each leg's IV (hidden in "Net" mode)
   const ivAtm: LegLine[] = expiries.map((e) => ({
     id: `atm-${e}`,
     label: `ATM ${e.slice(5)}`,
@@ -143,7 +146,7 @@ export default function PositionCharts({
     width: 2,
     pts: atmPoints(series, e),
   }));
-  const ivLines: LegLine[] = showLegs ? [...ivAtm, ...legLines((x) => (x?.iv ?? 0) * 100)] : ivAtm;
+  const ivLines: LegLine[] = [...ivAtm, ...legLines((x) => (x?.iv ?? 0) * 100).map(hide)];
 
   const fMoney = (v: number) => (v < 0 ? "-" : "+") + money(Math.abs(v), currency);
   const fPct = (v: number) => `${v.toFixed(1)}%`;

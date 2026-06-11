@@ -71,6 +71,7 @@ const openLegs = (p: Position): Leg[] => p.legs.filter((l) => l.status === "open
 let disconnectChain: (() => void) | null = null;
 let stateDisconnect: (() => void) | null = null;
 let feedTimer: ReturnType<typeof setInterval> | null = null;
+let rehydrateTimer: ReturnType<typeof setInterval> | null = null;
 let refetching = false;
 // builder draft (server-side per user → syncs across devices)
 let draftUnsub: (() => void) | null = null;
@@ -395,6 +396,9 @@ export function startStream(): () => void {
     pollFeed();
     feedTimer = setInterval(pollFeed, 2000);
   }
+  // Re-hydrate the full (server-downsampled) state every 90s so the MTM series always spans
+  // entry→now and never trims its start against MTM_CAP from accumulated live 1s samples.
+  if (!rehydrateTimer) rehydrateTimer = setInterval(hydrate, 90_000);
   // persist the builder basket to the server (debounced) whenever it changes
   if (!draftUnsub) {
     draftUnsub = useStore.subscribe((state, prev) => {
@@ -411,6 +415,10 @@ export function startStream(): () => void {
     if (feedTimer) {
       clearInterval(feedTimer);
       feedTimer = null;
+    }
+    if (rehydrateTimer) {
+      clearInterval(rehydrateTimer);
+      rehydrateTimer = null;
     }
     draftUnsub?.();
     draftUnsub = null;
