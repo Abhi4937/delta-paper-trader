@@ -34,7 +34,7 @@ export default function OrderBook({
   const spread = bestBid != null && bestAsk != null ? bestAsk - bestBid : null;
 
   return (
-    <aside className="flex w-[420px] shrink-0 flex-col border-l border-line bg-surface">
+    <aside className="flex max-h-[55vh] w-full shrink-0 flex-col border-t border-line bg-surface lg:max-h-none lg:w-[420px] lg:border-l lg:border-t-0">
       <div className="border-b border-line px-3 py-2.5">
         <div className="text-[13px] font-semibold text-text">Order Book</div>
         <div className="tnum text-[10px] text-text-mute">{symbol ?? "—"}</div>

@@ -119,7 +119,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <aside className="flex w-[420px] shrink-0 flex-col border-l border-line bg-surface">
+    <aside className="flex max-h-[55vh] w-full shrink-0 flex-col border-t border-line bg-surface lg:max-h-none lg:w-[420px] lg:border-l lg:border-t-0">
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
         <div className="flex items-center gap-2">
           <span className="text-[13px] font-semibold">Strategy Builder</span>

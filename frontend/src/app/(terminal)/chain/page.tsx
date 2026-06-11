@@ -71,8 +71,8 @@ export default function ChainPage() {
   const focusedLtp = focusedC?.ltp ?? null;
 
   return (
-    <div className="flex h-full">
-      <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex h-full flex-col lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-4 border-b border-line px-4 py-2.5">
           <h1 className="text-[13px] font-semibold tracking-tight text-text">Option Chain</h1>
           <span className="rounded-[5px] border border-line bg-surface px-2 py-0.5 text-[11px] text-text-dim">
@@ -94,7 +94,7 @@ export default function ChainPage() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full table-fixed border-collapse text-[12px]">
+          <table className="w-full min-w-[640px] table-fixed border-collapse text-[12px]">
             <colgroup>
               {/* CALLS: θ IV Δ Mark OI — Mark widened for the B · price · S row */}
               <col className="w-[8%]" />

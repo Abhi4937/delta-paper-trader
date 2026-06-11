@@ -81,8 +81,8 @@ export default function AnalyticsPage() {
         </div>
 
         {/* closed trades */}
-        <div className="rounded-lg border border-line bg-surface-2">
-          <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr_1fr] gap-2 border-b border-line px-3 py-1.5 text-[9px] uppercase tracking-wider text-text-mute">
+        <div className="overflow-x-auto rounded-lg border border-line bg-surface-2">
+          <div className="grid min-w-[480px] grid-cols-[1.6fr_1fr_1fr_1fr_1fr] gap-2 border-b border-line px-3 py-1.5 text-[9px] uppercase tracking-wider text-text-mute">
             <span>Strategy</span><span>Closed</span><span className="text-right">Gross</span><span className="text-right">Fees</span><span className="text-right">Net</span>
           </div>
           {trades.length === 0 ? (
@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
             [...trades].reverse().map(({ p, net }) => {
               const gross = p.legs.reduce((s, l) => s + (l.status === "closed" ? l.exitGross ?? 0 : 0), 0);
               return (
-                <div key={p.id} className="grid grid-cols-[1.6fr_1fr_1fr_1fr_1fr] items-center gap-2 border-t border-line/40 px-3 py-1.5 text-[12px]">
+                <div key={p.id} className="grid min-w-[480px] grid-cols-[1.6fr_1fr_1fr_1fr_1fr] items-center gap-2 border-t border-line/40 px-3 py-1.5 text-[12px]">
                   <span className="truncate text-text-dim">{p.name} <span className="text-[10px] text-text-mute">{p.closeReason ?? ""}</span></span>
                   <span className="tnum text-[11px] text-text-mute">{p.closedAt ? fmtT(p.closedAt) : "—"}</span>
                   <span className="tnum text-right text-text-dim">{money(gross, currency)}</span>
