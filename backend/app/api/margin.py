@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -44,14 +45,18 @@ async def margin(
     if not req.legs:
         raise HTTPException(400, "no legs")
 
-    # Resolve every leg to a live Contract by product_id (across all expiries,
-    # so calendars/diagonals work).
+    # Resolve every leg to a live Contract by product_id (across all expiries, so
+    # calendars/diagonals work). Use the REST snapshot AND the live WS cache the chain is
+    # built from — the REST /v2/tickers set can drop a just-settling 0-DTE contract that the
+    # WS cache (and thus the basket the user built) still has, which would otherwise 404.
     tickers = await chain_svc.fetch_option_tickers(delta, req.underlying.upper())
-    by_id = {}
-    for t in tickers:
+    ws_cache = getattr(request.app.state.market, "tickers", {}) or {}
+    ws_tickers = [t for k, t in ws_cache.items() if not str(k).startswith("MARK:")]
+    by_id: dict[int, Any] = {}
+    for t in [*tickers, *ws_tickers]:  # REST first (freshest); WS fills any gaps
         c = chain_svc.normalize_contract(t)
         if c and c.product_id is not None:
-            by_id[c.product_id] = c
+            by_id.setdefault(c.product_id, c)
 
     basket: list[BasketLeg] = []
     spot = 0.0
