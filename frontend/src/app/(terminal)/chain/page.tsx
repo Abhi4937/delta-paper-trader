@@ -1,7 +1,9 @@
 "use client";
 
 import clsx from "clsx";
+import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
+import MarketDepthSheet from "@/components/MarketDepthSheet";
 import OrderBook from "@/components/OrderBook";
 import StrategyBuilder from "@/components/StrategyBuilder";
 import { useStore } from "@/lib/store";
@@ -21,15 +23,28 @@ export default function ChainPage() {
   const selected = useStore((s) => s.selected);
   const positions = useStore((s) => s.positions);
   const selectLeg = useStore((s) => s.selectLeg);
+  const clearLegs = useStore((s) => s.clearLegs);
+  const router = useRouter();
   const prev = useRef<Map<string, number>>(new Map());
   const atmRef = useRef<HTMLTableCellElement>(null);
   const centeredFor = useRef("");
   const [builderMode, setBuilderMode] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
+  // mobile: which mark cell has its B/S revealed (tap-to-reveal, ONE at a time) — keeps the
+  // chain clean instead of showing B/S on every row. Desktop still uses hover-reveal.
+  const [activeCell, setActiveCell] = useState<string | null>(null);
+  // mobile: depth opens as an on-demand bottom sheet (tap a mark in view mode)
+  const [depthOpen, setDepthOpen] = useState(false);
 
   useEffect(() => {
     if (selected.length > 0) setBuilderMode(true);
   }, [selected.length]);
+
+  // reset the transient mobile reveal/sheet when switching build⇄view
+  useEffect(() => {
+    setActiveCell(null);
+    setDepthOpen(false);
+  }, [builderMode]);
 
   useEffect(() => {
     const key = chain ? `${chain.underlying}-${chain.expiry}` : "";
@@ -142,21 +157,24 @@ export default function ChainPage() {
                 const putHl = builderMode && sel.has(ps);
                 const callSel = builderMode ? sel.get(cs) : undefined;
                 const putSel = builderMode ? sel.get(ps) : undefined;
-                // clicking a cell only focuses its order book; legs are added solely
-                // via the explicit B / S buttons on the mark.
-                const onCall = () => setFocused(cs);
-                const onPut = () => setFocused(ps);
+                // VIEW mode: tapping a cell focuses it and (mobile) opens the depth sheet.
+                // BUILDER mode: tapping the MARK reveals B/S for that one cell (tap-to-reveal).
+                const onView = (sym: string) => () => { setFocused(sym); if (!builderMode) setDepthOpen(true); };
+                const onReveal = (sym: string) => () => setActiveCell((a) => (a === sym ? null : sym));
+                const addLeg = (c: Contract, s: Side) => { selectLeg(c, s); setActiveCell(null); };
+                const onCall = onView(cs);
+                const onPut = onView(ps);
                 return (
                   <Fragment key={row.strike}>
                     <tr className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
                       <Cell n={row.call.greeks.theta.toFixed(1)} hl={callHl} badge={callSel} badgeSide="left" onClick={onCall} />
                       <Cell n={(row.call.iv * 100).toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={row.call.greeks.delta.toFixed(2)} hl={callHl} onClick={onCall} />
-                      <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} onAdd={selectLeg} onClick={onCall} align="right" />
+                      <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} active={activeCell === cs} onReveal={onReveal(cs)} onView={onCall} onAdd={addLeg} align="right" />
                       <OiCell n={oiC(row.call)} max={maxCallOi} side="left" hl={callHl} onClick={onCall} />
                       <td ref={atm ? atmRef : undefined} className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
                       <OiCell n={oiC(row.put)} max={maxPutOi} side="right" hl={putHl} onClick={onPut} />
-                      <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} onAdd={selectLeg} onClick={onPut} align="left" />
+                      <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} active={activeCell === ps} onReveal={onReveal(ps)} onView={onPut} onAdd={addLeg} align="left" />
                       <Cell n={row.put.greeks.delta.toFixed(2)} hl={putHl} onClick={onPut} />
                       <Cell n={(row.put.iv * 100).toFixed(1)} hl={putHl} onClick={onPut} />
                       <Cell n={row.put.greeks.theta.toFixed(1)} hl={putHl} badge={putSel} badgeSide="right" onClick={onPut} />
@@ -182,11 +200,42 @@ export default function ChainPage() {
         </div>
       </div>
 
-      {builderMode ? (
-        <StrategyBuilder onClose={() => setBuilderMode(false)} />
-      ) : (
-        <OrderBook symbol={focusedSym} mark={focusedMark} ltp={focusedLtp} />
+      {/* Desktop (lg+): persistent side panel — builder XOR order book. */}
+      <div className="hidden lg:flex">
+        {builderMode ? (
+          <StrategyBuilder onClose={() => setBuilderMode(false)} />
+        ) : (
+          <OrderBook symbol={focusedSym} mark={focusedMark} ltp={focusedLtp} />
+        )}
+      </div>
+
+      {/* Mobile: builder mode → sticky "Done" bar → full-screen builder page.
+          The chain keeps the full height; the basket lives on its own page. */}
+      {builderMode && selected.length > 0 && (
+        <div className="sticky bottom-0 z-30 flex items-center gap-3 border-t border-line bg-surface px-3 py-2 lg:hidden">
+          <span className="text-[12px] font-medium text-text-dim">
+            {selected.length} {selected.length === 1 ? "leg" : "legs"} added
+          </span>
+          <button onClick={clearLegs} className="text-[12px] text-text-mute hover:text-text-dim">
+            Clear all
+          </button>
+          <button
+            onClick={() => router.push("/chain/builder")}
+            className="ml-auto rounded-[6px] bg-accent px-5 py-2 text-[13px] font-semibold text-base"
+          >
+            Done
+          </button>
+        </div>
       )}
+
+      {/* Mobile: depth opens on demand as a bottom sheet (view mode, tap a mark). */}
+      <MarketDepthSheet
+        open={depthOpen && !builderMode}
+        symbol={focusedSym}
+        mark={focusedMark}
+        ltp={focusedLtp}
+        onClose={() => setDepthOpen(false)}
+      />
     </div>
   );
 }
@@ -224,18 +273,25 @@ function OiCell({
   );
 }
 
-// Mark = tradeable cell. Click anywhere (incl. this cell) selects the side; in
-// builder mode B sits left of the mark, S right of it. Shows L/S for positions.
+// Mark = tradeable cell. VIEW mode: tap → focus + (mobile) open the depth sheet. BUILDER
+// mode: tap → reveal B/S for THIS cell only (`active`); tap B/S to add. The B/S stay hidden
+// (and non-interactive) until revealed — on desktop via hover, on mobile via the tap — so the
+// chain isn't littered with B/S on every row. `pos` shows L/S for an open position.
 function MarkCell({
-  c, itm, hl, pos, flash, mode, onAdd, onClick, align,
+  c, itm, hl, pos, flash, mode, active, onReveal, onView, onAdd, align,
 }: {
   c: Contract; itm: boolean; hl?: boolean; pos?: Side; flash?: "up" | "down";
-  mode: boolean; onAdd: (c: Contract, s: Side) => void; onClick: () => void; align: "left" | "right";
+  mode: boolean; active: boolean; onReveal: () => void; onView: () => void;
+  onAdd: (c: Contract, s: Side) => void; align: "left" | "right";
 }) {
+  // visible when this cell is the tapped one (mobile) OR the row is hovered (desktop)
+  const reveal = active
+    ? "opacity-100"
+    : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100";
   return (
     <td
-      onClick={onClick}
-      title={!mode ? "view depth" : undefined}
+      onClick={mode ? onReveal : onView}
+      title={mode ? "tap to add" : "view depth"}
       className={clsx(
         "relative cursor-pointer px-2 py-1.5 tnum font-semibold",
         itm ? "text-text" : "text-text-dim",
@@ -259,9 +315,7 @@ function MarkCell({
           <button
             aria-label={`Buy ${c.symbol}`}
             onClick={(e) => { e.stopPropagation(); onAdd(c, "buy"); }}
-            // hover-reveal on a mouse, but ALWAYS visible on touch (coarse pointer) — the
-            // old `group-hover:visible` was invisible on phones, so legs couldn't be added.
-            className="rounded bg-pos px-2 py-1 text-[12px] font-bold leading-none text-base opacity-0 transition-opacity touch-manipulation hover:opacity-90 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+            className={clsx("rounded bg-pos px-2 py-1 text-[12px] font-bold leading-none text-base transition-opacity touch-manipulation hover:opacity-90", reveal)}
           >
             B
           </button>
@@ -271,7 +325,7 @@ function MarkCell({
           <button
             aria-label={`Sell ${c.symbol}`}
             onClick={(e) => { e.stopPropagation(); onAdd(c, "sell"); }}
-            className="rounded bg-neg px-2 py-1 text-[12px] font-bold leading-none text-base opacity-0 transition-opacity touch-manipulation hover:opacity-90 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+            className={clsx("rounded bg-neg px-2 py-1 text-[12px] font-bold leading-none text-base transition-opacity touch-manipulation hover:opacity-90", reveal)}
           >
             S
           </button>

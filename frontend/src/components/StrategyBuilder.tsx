@@ -55,7 +55,7 @@ function QtyInput({ value, onChange }: { value: number; onChange: (n: number) =>
   );
 }
 
-export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
+export default function StrategyBuilder({ onClose, page = false }: { onClose: () => void; page?: boolean }) {
   const selected = useStore((s) => s.selected);
   const removeLeg = useStore((s) => s.removeLeg);
   const setLegQty = useStore((s) => s.setLegQty);
@@ -119,7 +119,14 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <aside className="flex max-h-[55vh] w-full shrink-0 flex-col border-t border-line bg-surface lg:max-h-none lg:w-[420px] lg:border-l lg:border-t-0">
+    <aside
+      className={clsx(
+        "flex w-full shrink-0 flex-col bg-surface",
+        page
+          ? "h-full max-h-none" // full-screen mobile builder page (via the chain Done bar)
+          : "max-h-[55vh] border-t border-line lg:max-h-none lg:w-[420px] lg:border-l lg:border-t-0",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
         <div className="flex items-center gap-2">
           <span className="text-[13px] font-semibold">Strategy Builder</span>
@@ -139,7 +146,7 @@ export default function StrategyBuilder({ onClose }: { onClose: () => void }) {
           <Plus size={22} className="text-text-mute" />
           <p className="text-[13px] text-text-dim">Add Contracts from Options Chain</p>
           <p className="text-[11px] text-text-mute">
-            Hover a strike and click <span className="font-bold text-pos">B</span> (buy) or{" "}
+            On a strike in the chain, choose <span className="font-bold text-pos">B</span> (buy) or{" "}
             <span className="font-bold text-neg">S</span> (sell) — selected legs show here
           </p>
         </div>

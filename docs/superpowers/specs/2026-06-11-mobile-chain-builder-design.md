@@ -24,9 +24,13 @@ All changes are gated to `<lg`. Desktop keeps its current side-by-side layout (c
 - **Auto-center the ATM on load** (and on underlying/expiry change): center the **ATM strike cell** both vertically (its row) and horizontally (the STRIKE column) within the scroll container — `atmStrikeCellRef.scrollIntoView({ block: "center", inline: "center" })`. Calls peek to the left, puts to the right; the user scrolls freely from there.
 - The existing `centeredFor` guard (only re-center when underlying/expiry changes, not on every tick) is preserved so live updates don't yank the scroll position.
 
-### 2. Add a leg by tapping the Mark (fixes the can't-build bug)
-- In builder mode, the B/S buttons become **tappable on touch**, not hover-only. Tapping a strike's **Mark cell** reveals/raises the inline **`B | S`** buttons in that row (matches `SS/…click on leg…`). Tapping `B`/`S` calls the existing `selectLeg(contract, side)`.
-- Desktop keeps the hover reveal (`group-hover:visible`). Implementation: show the buttons when `(hover) OR (coarse pointer)`, or on an explicit per-row "active" toggle set by tapping the Mark. Use a coarse-pointer check (`matchMedia('(pointer: coarse)')`) and/or a tapped-row state so desktop behavior is untouched.
+### 2. Clean leg-add — tap a Mark to reveal B/S for THAT cell only (fixes the can't-build bug AND the clutter)
+- **Problem with the current shipped fix:** the surgical touch fix made B/S **permanently visible on every mark cell** in builder mode (`SS/paper trader option chain and strategy builder.png`) — noisy/cluttered. **This is being replaced.**
+- **New behavior (mobile / coarse pointer):** in builder mode the rows look **identical to view mode — price only, no B/S on any cell**. **Tapping a strike's Mark reveals `B | S` inline for ONLY that one cell** (an `activeCell` state in the chain page; tapping another cell or empty space collapses the previous). Tapping `B`/`S` calls `selectLeg(contract, side)` and collapses. Matches Delta's `SS/…when we click on leg…`.
+- The small **B/S badge at the row-end θ cell** remains as the "this leg is selected" indicator (unchanged).
+- **Depth vs build disambiguation:** tap a Mark in **builder mode → reveal B/S**; tap a Mark in **view mode → open the depth sheet (§5)**. One tap target, mode-dependent.
+- **Desktop unchanged:** keeps the existing hover-reveal per row (`group-hover`) — already clean. Gate the new tap-to-reveal to coarse pointers / the `activeCell` state so desktop is untouched.
+- Revealed B/S buttons get ≥44px tap targets + `aria-label` (see Accessibility below).
 
 ### 3. Sticky "Done" action bar in builder mode (mobile)
 - While in builder mode with ≥1 selected leg, a sticky bottom bar shows **`N Contracts Added · Clear All · Done`** (Done = accent/primary), matching `SS/…clear and done at bottom`.
