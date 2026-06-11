@@ -31,7 +31,7 @@ export default function PositionsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-4 border-b border-line px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line px-4 py-2.5">
         <h1 className="text-[13px] font-semibold tracking-tight text-text">Positions</h1>
         <span className="text-[11px] text-text-mute">{open.length} open</span>
         {open.length > 0 && (
@@ -82,7 +82,7 @@ function PositionCard({
   return (
     <div className={clsx("rounded-lg border bg-surface", closed ? "border-line/60 opacity-60" : "border-line")}>
       {/* header */}
-      <div className={clsx("flex items-center gap-3 px-4 py-2.5", open && "border-b border-line/60")}>
+      <div className={clsx("flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5", open && "border-b border-line/60")}>
         <button
           onClick={() => setOpen((o) => !o)}
           className="text-text-mute hover:text-text-dim"

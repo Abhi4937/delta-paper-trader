@@ -87,3 +87,26 @@ body {
   border-radius: 4px;
 }
 ::selection { background: rgba(0, 229, 168, 0.25); }
+
+/* ─────────────────────────────────────────────────────────────
+   Responsive app shell — phones & iPad-portrait (<1024px): stacked with a bottom
+   tab bar + scrollable content. Desktop / tablet-landscape (≥1024px): left icon rail.
+   ───────────────────────────────────────────────────────────── */
+.app-shell {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "header" "main" "nav";
+}
+.app-shell > .a-logo { display: none; }
+.app-shell > .a-header { grid-area: header; }
+.app-shell > .a-nav { grid-area: nav; }
+.app-shell > .a-main { grid-area: main; min-height: 0; }
+@media (min-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 60px 1fr;
+    grid-template-rows: 52px 1fr;
+    grid-template-areas: "logo header" "nav main";
+  }
+  .app-shell > .a-logo { display: flex; grid-area: logo; }
+}

@@ -61,14 +61,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           ⚠ Delta market-data feed is stale{feedAge != null ? ` (${Math.round(feedAge)}s)` : ""} — prices may be frozen. Order placement is blocked until the feed is live again.
         </div>
       )}
-      <div className="grid min-h-0 flex-1 grid-cols-[60px_1fr] grid-rows-[52px_1fr] overflow-hidden">
-      <div className="flex items-center justify-center border-b border-r border-line">
+      <div className="app-shell min-h-0 flex-1 overflow-hidden">
+      <div className="a-logo items-center justify-center border-b border-r border-line">
         <div className="grid h-8 w-8 place-items-center rounded-[5px] bg-accent text-[13px] font-bold text-base">
           Δ
         </div>
       </div>
 
-      <header className="flex items-center gap-3 border-b border-line px-4">
+      <header className="a-header flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-3 py-1.5 lg:px-4 lg:py-0">
         <div className="flex items-center gap-1">
           {(["BTC", "ETH"] as Underlying[]).map((u) => (
             <button
@@ -83,8 +83,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </button>
           ))}
         </div>
-        <div className="h-4 w-px bg-line" />
-        <div className="flex items-center gap-0.5 overflow-x-auto">
+        <div className="hidden h-4 w-px bg-line lg:block" />
+        <div className="hidden items-center gap-0.5 overflow-x-auto lg:flex">
           {expiries.map((e) => (
             <button
               key={e}
@@ -129,7 +129,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className={clsx("flex items-center gap-1.5 rounded-[5px] border px-2 py-1", stale ? "border-warn/50 bg-warn/10" : "border-line bg-surface")} title={stale ? "Delta feed frozen/disconnected — placement blocked" : "Delta feed live"}>
             <span className={clsx("h-1.5 w-1.5 rounded-full", dotColor, !stale && conn === "live" && "live-dot")} />
             <span className={clsx("text-[11px]", stale ? "font-medium text-warn" : "text-text-dim")}>{connLabel}</span>
-            <span className="tnum text-[11px] text-text-mute">·{tickN}</span>
+            <span className="tnum hidden text-[11px] text-text-mute lg:inline">·{tickN}</span>
           </div>
           <div className="border-l border-line pl-3">
             <UserMenu me={me} />
@@ -137,7 +137,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <nav className="flex flex-col items-center gap-1 border-r border-line py-3">
+      <nav className="a-nav flex items-center justify-around gap-1 overflow-x-auto border-t border-line py-1.5 lg:flex-col lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-r lg:py-3">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = path === href;
           return (
@@ -146,18 +146,21 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               href={href}
               title={label}
               className={clsx(
-                "group relative grid h-10 w-10 place-items-center rounded-[6px] transition-colors",
+                "group relative grid h-10 w-10 flex-none place-items-center rounded-[6px] transition-colors",
                 active ? "bg-surface-3 text-accent" : "text-text-mute hover:bg-surface hover:text-text-dim",
               )}
             >
               <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
-              {active && <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r bg-accent" />}
+              {/* active marker: top bar on the mobile tab-bar, left bar on the desktop rail */}
+              {active && (
+                <span className="absolute left-1/2 top-0 h-[2px] w-5 -translate-x-1/2 rounded-b bg-accent lg:left-0 lg:top-1/2 lg:h-5 lg:w-[2px] lg:-translate-x-0 lg:-translate-y-1/2 lg:rounded-r" />
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <main className="overflow-hidden">{children}</main>
+      <main className="a-main overflow-y-auto lg:overflow-hidden">{children}</main>
       </div>
     </div>
   );
