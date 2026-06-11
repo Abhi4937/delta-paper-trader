@@ -73,6 +73,7 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
   const [tab, setTab] = useState<"basket" | "payoff">("basket");
   const [margin, setMargin] = useState<{ value: number; badge: string; localMargin: number | null; divergence: number | null; calibrationFactor: number | null } | null>(null);
   const [loadingM, setLoadingM] = useState(false);
+  const [refreshN, setRefreshN] = useState(0); // bump to force a manual margin refetch
 
   const key = selected.map((l) => `${l.productId}:${l.side}:${l.qty}`).join(",");
 
@@ -97,7 +98,7 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
       cancelled = true;
       clearTimeout(t);
     };
-  }, [key, underlying, selected]);
+  }, [key, underlying, selected, refreshN]);
 
   // net credit/debit on the LIVE would-fill premium (moves in real time until execute)
   const net = selected.reduce(
@@ -221,7 +222,15 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
             <div className="mb-1 flex items-center justify-between text-[12px]">
               <span className="flex items-center gap-1 text-text-dim">
                 Order Margin
-                {loadingM && <RefreshCw size={11} className="animate-spin text-text-mute" />}
+                <button
+                  type="button"
+                  aria-label="Refresh margin"
+                  title="Refetch exact margin"
+                  onClick={() => setRefreshN((n) => n + 1)}
+                  className="text-text-mute hover:text-text-dim"
+                >
+                  <RefreshCw size={11} className={clsx(loadingM && "animate-spin")} />
+                </button>
               </span>
               <span className="tnum font-semibold">
                 {margin ? moneyBoth(margin.value, currency) : loadingM ? "…" : "—"}

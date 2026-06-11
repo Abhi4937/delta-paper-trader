@@ -158,24 +158,25 @@ export default function ChainPage() {
                 const putHl = builderMode && sel.has(ps);
                 const callSel = builderMode ? sel.get(cs) : undefined;
                 const putSel = builderMode ? sel.get(ps) : undefined;
-                // VIEW mode: tapping a cell focuses it and (mobile) opens the depth sheet.
-                // BUILDER mode: tapping the MARK opens the add-popover for that one cell.
+                // Tapping ANYWHERE on a side of the row triggers that side: VIEW mode → focus +
+                // (mobile) open the depth sheet; BUILDER mode → open the add-popover (anchored at
+                // that side's mark cell). Call cells use cs, put cells use ps.
                 const onView = (sym: string) => () => { setFocused(sym); if (!builderMode) setDepthOpen(true); };
                 const onReveal = (sym: string) => () => { setLots(1); setActiveCell((a) => (a === sym ? null : sym)); };
                 const addLeg = (c: Contract, s: Side) => { selectLeg(c, s, lots); setActiveCell(null); };
-                const onCall = onView(cs);
-                const onPut = onView(ps);
+                const onCall = builderMode ? onReveal(cs) : onView(cs);
+                const onPut = builderMode ? onReveal(ps) : onView(ps);
                 return (
                   <Fragment key={row.strike}>
                     <tr className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
                       <Cell n={row.call.greeks.theta.toFixed(1)} hl={callHl} badge={callSel} badgeSide="left" onClick={onCall} />
                       <Cell n={(row.call.iv * 100).toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={row.call.greeks.delta.toFixed(2)} hl={callHl} onClick={onCall} />
-                      <MarkCell c={row.call} label={`${row.strike} CE`} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} active={activeCell === cs} lots={lots} onLots={setLots} onReveal={onReveal(cs)} onView={onCall} onAdd={addLeg} align="right" />
+                      <MarkCell c={row.call} label={`${row.strike} CE`} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} active={activeCell === cs} lots={lots} onLots={setLots} onClick={onCall} onAdd={addLeg} align="right" />
                       <OiCell n={oiC(row.call)} max={maxCallOi} side="left" hl={callHl} onClick={onCall} />
                       <td ref={atm ? atmRef : undefined} className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
                       <OiCell n={oiC(row.put)} max={maxPutOi} side="right" hl={putHl} onClick={onPut} />
-                      <MarkCell c={row.put} label={`${row.strike} PE`} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} active={activeCell === ps} lots={lots} onLots={setLots} onReveal={onReveal(ps)} onView={onPut} onAdd={addLeg} align="left" />
+                      <MarkCell c={row.put} label={`${row.strike} PE`} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} active={activeCell === ps} lots={lots} onLots={setLots} onClick={onPut} onAdd={addLeg} align="left" />
                       <Cell n={row.put.greeks.delta.toFixed(2)} hl={putHl} onClick={onPut} />
                       <Cell n={(row.put.iv * 100).toFixed(1)} hl={putHl} onClick={onPut} />
                       <Cell n={row.put.greeks.theta.toFixed(1)} hl={putHl} badge={putSel} badgeSide="right" onClick={onPut} />
@@ -279,20 +280,48 @@ function OiCell({
   );
 }
 
+// Editable lot count for the add-popover — type the number directly (no +/- steppers).
+// Can be cleared while typing; snaps back to 1 on blur if left empty/invalid.
+function LotInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [v, setV] = useState(String(value));
+  useEffect(() => setV(String(value)), [value]);
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      aria-label="Lots"
+      value={v}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^0-9]/g, "");
+        setV(raw);
+        if (raw) onChange(Math.max(1, parseInt(raw)));
+      }}
+      onBlur={() => {
+        if (!v || parseInt(v) < 1) {
+          setV("1");
+          onChange(1);
+        }
+      }}
+      className="tnum w-16 rounded bg-surface-3 px-2 py-1.5 text-center text-[14px] font-semibold text-text outline-none focus:ring-1 focus:ring-accent"
+    />
+  );
+}
+
 // Mark = tradeable cell. VIEW mode: tap → focus + (mobile) open the depth sheet. BUILDER
 // mode: tap → open the add-popover for THIS cell only (`active`) — a lot stepper + Buy/Sell,
 // so the chain stays clean (no B/S littered on every row) and you choose the lots up front.
 // `pos` shows L/S for an open position.
 function MarkCell({
-  c, label, itm, hl, pos, flash, mode, active, lots, onLots, onReveal, onView, onAdd, align,
+  c, label, itm, hl, pos, flash, mode, active, lots, onLots, onClick, onAdd, align,
 }: {
   c: Contract; label: string; itm: boolean; hl?: boolean; pos?: Side; flash?: "up" | "down";
   mode: boolean; active: boolean; lots: number; onLots: (n: number) => void;
-  onReveal: () => void; onView: () => void; onAdd: (c: Contract, s: Side) => void; align: "left" | "right";
+  onClick: () => void; onAdd: (c: Contract, s: Side) => void; align: "left" | "right";
 }) {
   return (
     <td
-      onClick={mode ? onReveal : onView}
+      onClick={onClick}
       title={mode ? "tap to add" : "view depth"}
       className={clsx(
         "relative cursor-pointer px-2 py-1.5 tnum font-semibold",
@@ -324,9 +353,7 @@ function MarkCell({
         >
           <div className="mb-1.5 text-center text-[11px] font-semibold text-text-dim">{label}</div>
           <div className="mb-2 flex items-center justify-center gap-2">
-            <button aria-label="Fewer lots" onClick={() => onLots(Math.max(1, lots - 1))} className="grid h-8 w-8 touch-manipulation place-items-center rounded bg-surface-3 text-[16px] leading-none text-text-dim hover:text-text">−</button>
-            <span className="tnum w-7 text-center text-[14px] font-semibold text-text">{lots}</span>
-            <button aria-label="More lots" onClick={() => onLots(lots + 1)} className="grid h-8 w-8 touch-manipulation place-items-center rounded bg-surface-3 text-[16px] leading-none text-text-dim hover:text-text">+</button>
+            <LotInput value={lots} onChange={onLots} />
             <span className="text-[9px] text-text-mute">lot{lots > 1 ? "s" : ""}</span>
           </div>
           <div className="flex gap-1.5">
