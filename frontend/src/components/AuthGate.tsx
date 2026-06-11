@@ -16,6 +16,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    // E2E / local-verification bypass — render the terminal with no Supabase session so
+    // headless tests (and a dev-bypass backend) can drive the UI. Compile-time constant:
+    // unset in any normal/prod build, so this branch is dead unless NEXT_PUBLIC_E2E=1.
+    if (process.env.NEXT_PUBLIC_E2E === "1") {
+      setState("ok");
+      return;
+    }
     // never spin forever — if the session/backend check stalls (e.g. the API host is
     // unreachable over the network), surface an error instead of an endless spinner.
     const timer = setTimeout(() => {

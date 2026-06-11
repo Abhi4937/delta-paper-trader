@@ -22,7 +22,7 @@ export default function ChainPage() {
   const positions = useStore((s) => s.positions);
   const selectLeg = useStore((s) => s.selectLeg);
   const prev = useRef<Map<string, number>>(new Map());
-  const atmRef = useRef<HTMLTableRowElement>(null);
+  const atmRef = useRef<HTMLTableCellElement>(null);
   const centeredFor = useRef("");
   const [builderMode, setBuilderMode] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
@@ -34,7 +34,10 @@ export default function ChainPage() {
   useEffect(() => {
     const key = chain ? `${chain.underlying}-${chain.expiry}` : "";
     if (chain && centeredFor.current !== key && atmRef.current) {
-      atmRef.current.scrollIntoView({ block: "center" });
+      // center the ATM STRIKE cell on BOTH axes — vertically (its row) and horizontally
+      // (the strike column), so on a narrow/scrolling viewport the ATM sits dead-center
+      // with calls peeking left and puts right. `inline:"center"` adds the horizontal part.
+      atmRef.current.scrollIntoView({ block: "center", inline: "center" });
       centeredFor.current = key;
     }
   });
@@ -145,13 +148,13 @@ export default function ChainPage() {
                 const onPut = () => setFocused(ps);
                 return (
                   <Fragment key={row.strike}>
-                    <tr ref={atm ? atmRef : undefined} className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
+                    <tr className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
                       <Cell n={row.call.greeks.theta.toFixed(1)} hl={callHl} badge={callSel} badgeSide="left" onClick={onCall} />
                       <Cell n={(row.call.iv * 100).toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={row.call.greeks.delta.toFixed(2)} hl={callHl} onClick={onCall} />
                       <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} onAdd={selectLeg} onClick={onCall} align="right" />
                       <OiCell n={oiC(row.call)} max={maxCallOi} side="left" hl={callHl} onClick={onCall} />
-                      <td className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
+                      <td ref={atm ? atmRef : undefined} className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
                       <OiCell n={oiC(row.put)} max={maxPutOi} side="right" hl={putHl} onClick={onPut} />
                       <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} onAdd={selectLeg} onClick={onPut} align="left" />
                       <Cell n={row.put.greeks.delta.toFixed(2)} hl={putHl} onClick={onPut} />
@@ -254,8 +257,11 @@ function MarkCell({
       <div className="flex items-center justify-center gap-1.5">
         {mode && (
           <button
+            aria-label={`Buy ${c.symbol}`}
             onClick={(e) => { e.stopPropagation(); onAdd(c, "buy"); }}
-            className="invisible rounded bg-pos px-1.5 py-0.5 text-[11px] font-bold leading-none text-base hover:opacity-90 group-hover:visible"
+            // hover-reveal on a mouse, but ALWAYS visible on touch (coarse pointer) — the
+            // old `group-hover:visible` was invisible on phones, so legs couldn't be added.
+            className="rounded bg-pos px-2 py-1 text-[12px] font-bold leading-none text-base opacity-0 transition-opacity touch-manipulation hover:opacity-90 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
           >
             B
           </button>
@@ -263,8 +269,9 @@ function MarkCell({
         <span>{c.mark.toFixed(1)}</span>
         {mode && (
           <button
+            aria-label={`Sell ${c.symbol}`}
             onClick={(e) => { e.stopPropagation(); onAdd(c, "sell"); }}
-            className="invisible rounded bg-neg px-1.5 py-0.5 text-[11px] font-bold leading-none text-base hover:opacity-90 group-hover:visible"
+            className="rounded bg-neg px-2 py-1 text-[12px] font-bold leading-none text-base opacity-0 transition-opacity touch-manipulation hover:opacity-90 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
           >
             S
           </button>
