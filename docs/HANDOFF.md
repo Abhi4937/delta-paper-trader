@@ -1,6 +1,6 @@
 # Session Handoff — Delta Options Paper-Trading Platform
 
-_Last updated: 2026-06-10_
+_Last updated: 2026-06-11_
 
 > **New session: read `docs/ARCHITECTURE.md` first** (system map + API contracts + data model + engines) — it replaces reading the codebase cold. Then this file for run commands & status.
 >
@@ -9,7 +9,35 @@ _Last updated: 2026-06-10_
 ## TL;DR
 Local paper-trading terminal for **Delta Exchange India options** (BTC + ETH), mirroring Delta/Sensibull. **PAPER-ONLY — read-only key, no order ever placed.** v1 core loop (chain → builder → paper order → positions → live MTM) is **functional end-to-end**, plus Analyse Payoff, Analytics/Notes/Logs screens, Excel export, and Analyse-on-position. Money model (fees/slippage/MTM) is **validated against a real Delta account at 10 lots**.
 
-**State today:** the app is now **server-authoritative** — the backend (`uv run uvicorn app.main:app --port 8010`) owns positions/balance/ledger/logs in Postgres+Timescale; the frontend hydrates from `GET /api/state` and live-ticks over `WS /api/ws/state`. localStorage now persists only UI prefs (basket/underlying/expiry/currency). **A stale dockerized backend runs on :8000 (no sim routes) — ignore it; the frontend targets :8010.**
+**State today:** the app is **server-authoritative** (backend `:8010` owns positions/balance/ledger/logs in Postgres+Timescale; frontend hydrates from `GET /api/state` + `WS /api/ws/state`). Plus **real auth, a deploy story, a test/CI safety net, and a responsive UI** — see "LATEST SESSION" below. **A stale dockerized backend may run on :8000 (no sim routes) — ignore it; the frontend targets :8010.**
+
+---
+
+## 🆕 LATEST SESSION (2026-06-11) — read this first
+
+### ⚠️ Many commits are LOCAL & UNPUSHED — push them at session start
+`git log origin/main..HEAD` shows the stack. Latest local commit ≈ the chart re-hydrate/Net-Legs fix. **Run `git push origin main` early.**
+
+### Done this session
+- **Auth + vault (sub-project A) — DONE.** Supabase identity (Google OAuth, asymmetric **ES256 verified via JWKS** — `app/auth/jwt.py`), invite **allowlist** (`allowed_emails`), per-user **AES-GCM secret vault** (`app/auth/vault.py`, `user_secrets`), admin role. `ensure_stub_user` → `current_user`/`require_admin`/`require_mfa` across `api/sim.py`. **2FA is OPTIONAL for paper; FORCED at every login once a user holds live trade keys** (`/api/me` → `hasLiveKeys`; `AuthGate` enforces aal2). Frontend: `/login`, `/enroll-2fa`, `UserMenu`, gated `settings/keys` (set up 2FA → add keys; "Remove 2FA" once keys cleared), `/admin`, `/live` (onboarding → "coming soon"). Cross-device **draft basket** in `accounts.draft_basket`. Dev bypass = `is_dev && allow_dev_no_auth` (default OFF).
+- **Margin self-calibration — DONE.** `margin_calibration` table; `MarginService` EWMA-learns `factor ≈ exact/local` per underlying, applies `local*factor` on fallback when the token is down. Builder shows **exact AND local estimate** + `calibration_factor`. (Slippage can't be calibrated in paper — no real fills.)
+- **Per-user tick loop — DONE (was a real bug).** `ticker.py` now ticks **ALL users'** open positions (was stub-only → real users got no MTM history / auto-exit). Durable series write is now **10s** (was 60s); in-memory 1s ring cap **24h**; closed positions' rings are evicted.
+- **Deploy artifacts — DONE.** `Dockerfile`s (backend single-worker), `docker-compose.prod.yml` (Timescale + backend + frontend + **Caddy auto-HTTPS**), `Caddyfile`, `.env.prod.example`s, **`docs/DEPLOY.md`** (Oracle Cloud Always-Free + free **DuckDNS** hostname runbook). Redis dropped (unused).
+- **Test safety net + CI — DONE.** Backend **84 pytest** (+ `test_exit_engine`, one-sided-book slippage, `test_build_sample` contract, **placement now rejects on stale feed**). Frontend **17 vitest** (chart data-prep extracted to `lib/chartData.ts`). **`.github/workflows/ci.yml`** gates pytest+tsc+vitest+build; ruff/mypy/eslint run **non-blocking** (pre-existing repo debt — see `docs/pre-commit-checklist.md`).
+- **Responsive UI (monitoring-first) — DONE.** Shell: left rail ↔ **bottom tab bar** at `<1024px` (pure Tailwind — *custom CSS in globals.css did NOT apply under Tailwind v4*, key gotcha). Positions/Analytics/Chain reflow; dense tables scroll-x. `AuthGate` now **times out to an error screen** instead of spinning forever.
+- **Chart improvements — DONE.** "Paper balance"→**"Wallet balance"**; **Net/Legs toggle**; **per-leg theta+vega** (LegSample gained them; `build_sample` emits them); hover/legend shows **expiry** (`61600 PE · 13Jun`); **fixed** per-tick fitContent flicker (fit only on create/tf), the lightweight-ring leg/IV regression (reverted to full samples), Net-toggle blank (constant line count), and the **"from entry" trim** via **90s re-hydrate** (`store.ts` `rehydrateTimer`; client `MTM_CAP`=12h).
+
+### Open / next (in priority order)
+1. **Chart "from entry" airtight for >24h positions** — the 90s re-hydrate (Approach B) fixes the common case, but a position open **24h+ with a continuously-running backend** sends a >cap 1s buffer that the client still trims. Fix = server-side bound in `get_state`: return **full 10s history + only a short (~30–60min) 1s tail**, not the whole 24h ring. (User aware; recommended next.)
+2. **Playwright browser E2E (Task 18)** — data-contract is covered (`test_build_sample` + `chartData.test`); the browser place→render→close layer is NOT built (needs a frontend `NEXT_PUBLIC_E2E` auth bypass + dev-bypass backend; flaky vs live data so it's not in the main CI gate).
+3. **Lint/type debt cleanup** to flip CI lint gates to blocking (~21 ruff, 9 mypy, 7 eslint — listed in `docs/pre-commit-checklist.md`).
+4. **Sub-projects B/C/D** (live monitoring read-only / live auto-close / journaling) — `/live` is scaffolded. User approved **full auto-close on Delta** (ring-fenced, close-only) for C — see memory `live-trading-expansion.md`.
+5. **Auth/security ADR + ARCHITECTURE.md refresh** (old Task 13).
+
+### Session gotchas
+- **Backend MUST be single-process** (the tick loop + in-memory ring are per-process — no multiple uvicorn workers without moving the ticker out + ring to Redis).
+- **Don't add custom CSS classes to globals.css for layout** — they didn't apply under Tailwind v4 this session; use Tailwind utilities.
+- For LAN/phone testing: bind both servers `--host 0.0.0.0` / `next dev -H 0.0.0.0`, point `NEXT_PUBLIC_API_BASE` at the LAN IP, add the LAN origin to `CORS_ORIGINS`, and open a **Windows Firewall** inbound rule for 3000+8010 (home Wi-Fi is often "Public" → blocked by default). All of that was **reverted** at session end (back to localhost).
 
 ---
 
