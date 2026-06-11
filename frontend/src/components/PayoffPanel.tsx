@@ -201,7 +201,11 @@ function PayoffChart({
   const winVals = data && idxs.length
     ? [...expCurves.flatMap((c) => idxs.map((i) => c.pnl[i])), ...idxs.map((i) => data.projected[i]), 0]
     : [0];
-  const minP = Math.min(...winVals), maxP = Math.max(...winVals);
+  // pad the value range 15% top & bottom so the curve breathes (Delta-style buffer) instead
+  // of hugging the chart edges — important when the P&L range is small (e.g. a tight spread).
+  const rawMin = Math.min(...winVals), rawMax = Math.max(...winVals);
+  const vBuf = Math.max((rawMax - rawMin) * 0.15, 1e-6);
+  const minP = rawMin - vBuf, maxP = rawMax + vBuf;
   const range = Math.max(maxP - minP, 1e-6);
   const x = (s: number) => (viewHi > viewLo ? ((s - viewLo) / (viewHi - viewLo)) * w : 0);
   const y = (v: number) => hgt - ((v - minP) / range) * hgt;
@@ -211,10 +215,10 @@ function PayoffChart({
   // front expiry solid white; each later expiry fades. Single-expiry → just white.
   const expColor = (i: number) => (multiExp ? `color-mix(in srgb, var(--color-text) ${Math.round(100 - (i * 55) / Math.max(expCurves.length - 1, 1))}%, var(--color-surface-3))` : "var(--color-text)");
 
-  // OI bars (Call/Put notional) hang from the zero P&L line, faint, behind the curve.
+  // OI bars (Call/Put notional) rise UP from the chart bottom, faint, behind the curve.
   const oiRows = (chain?.rows ?? []).filter((r) => r.strike >= viewLo && r.strike <= viewHi);
   const maxOi = Math.max(1, ...oiRows.flatMap((r) => [r.call.oiValueUsd, r.put.oiValueUsd]));
-  const oiH = (v: number) => Math.min((v / maxOi) * hgt * 0.4, Math.max(hgt - y0, 0));
+  const oiH = (v: number) => Math.min((v / maxOi) * hgt * 0.33, hgt * 0.33);
 
   const sdLines = sd > 0 ? [-2, -1, 1, 2].map((m) => ({ m, s: spot + m * sd })).filter((d) => d.s >= viewLo && d.s <= viewHi) : [];
 
@@ -241,8 +245,8 @@ function PayoffChart({
         {/* OI bars hanging from the zero line (calls red, puts green), behind the curve */}
         {oiRows.map((r, i) => (
           <g key={i}>
-            <rect x={x(r.strike) - 2.5} y={y0} width={2.2} height={oiH(r.call.oiValueUsd)} fill="var(--color-neg)" opacity={0.18} />
-            <rect x={x(r.strike) + 0.3} y={y0} width={2.2} height={oiH(r.put.oiValueUsd)} fill="var(--color-pos)" opacity={0.18} />
+            <rect x={x(r.strike) - 2.5} y={hgt - oiH(r.call.oiValueUsd)} width={2.2} height={oiH(r.call.oiValueUsd)} fill="var(--color-neg)" opacity={0.18} />
+            <rect x={x(r.strike) + 0.3} y={hgt - oiH(r.put.oiValueUsd)} width={2.2} height={oiH(r.put.oiValueUsd)} fill="var(--color-pos)" opacity={0.18} />
           </g>
         ))}
         {/* SD bands */}
@@ -266,8 +270,8 @@ function PayoffChart({
         {/* front expiry line: green above the zero line (profit), red below (loss) */}
         <path d={path(front)} fill="none" stroke="var(--color-pos)" strokeWidth={1.8} clipPath={`url(#${above})`} />
         <path d={path(front)} fill="none" stroke="var(--color-neg)" strokeWidth={1.8} clipPath={`url(#${below})`} />
-        {/* projected (target-date / now) */}
-        <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} strokeDasharray="4 3" />
+        {/* projected (target-date / now) — solid accent line */}
+        <path d={path(data?.projected)} fill="none" stroke="var(--color-accent)" strokeWidth={1.5} />
         {bes.filter((b) => b >= viewLo && b <= viewHi).map((b, i) => <circle key={i} cx={x(b)} cy={y0} r={2.5} fill="var(--color-text-dim)" />)}
         {data && <circle cx={tsX} cy={y(tsProj)} r={3.5} fill="var(--color-accent)" />}
       </svg>
@@ -299,7 +303,7 @@ function PayoffChart({
             {multiExp ? `Exp ${expiryLabels[i] ?? ""}` : "On expiry"}
           </span>
         ))}
-        <span className="flex items-center gap-1"><span className="inline-block h-0 w-3 border-t border-dashed border-accent" /> Target date</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-0 w-3 border-t border-accent" /> Target date</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-neg/40" /> Call OI</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-1 bg-pos/40" /> Put OI</span>
       </div>

@@ -27,7 +27,7 @@ import {
 } from "lightweight-charts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import clsx from "clsx";
-import { type Pt, type TF, atmPoints, buckets, legPoints, netPoints, toLine } from "@/lib/chartData";
+import { type Pt, type TF, atmPoints, buckets, capPoints, legPoints, netPoints, toLine } from "@/lib/chartData";
 import { atmColorFor, legColorMap } from "@/lib/legColors";
 import { type Currency, money } from "@/lib/store";
 import type { Leg, SeriesSample } from "@/lib/types";
@@ -246,6 +246,12 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
   const live = useRef({ tf, fmt, netLabel, signColor });
   live.current = { tf, fmt, netLabel, signColor };
   const nLegs = legs.length;
+  // fingerprint of the last render we drew, so we redraw ONLY when something actually
+  // changed (view identity OR the data in net OR any leg). Keyed on net+legs length, last
+  // t AND last value — so the IV panel (data lives only in `legs`, net is empty) advances,
+  // and a same-timestamp value correction still repaints.
+  const sigRef = useRef("");
+  const dataSigRef = useRef("");
 
   // create chart + the (fixed-count) per-leg line series (re-runs on expand)
   useEffect(() => {
@@ -369,10 +375,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
       chart.removeSeries(primaryRef.current);
       primaryRef.current = null;
     }
-    if (net.length === 0) {
-      loadData();
-      return;
-    }
+    if (net.length === 0) return; // IV panel has no single "net" series; unified effect loads the legs
     const auto = zero ? { autoscaleInfoProvider: zeroAutoscale } : {};
     if (kind === "mtm" && candle) {
       primaryRef.current = chart.addSeries(CandlestickSeries, {
@@ -414,40 +417,55 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
         axisLabelVisible: false,
       });
     }
-    loadData();
-    fitView();
+    // data load happens in the unified effect below (also keyed on chartVer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candle, kind, chartVer]);
 
-  // setData on the primary + leg series. Fit the view ONLY on create / timeframe change —
-  // NEVER on a live tick — so the visible range (and any pan/zoom) doesn't reset every second.
+  // setData the primary + leg series, capped to ~1500 points each. These charts are
+  // fixed-view (no zoom; whole trade in a few hundred px) so the cap is visually lossless,
+  // and it keeps per-tick setData cheap — the uncapped full-array setData over a multi-hour
+  // 1s series, every second across 5 panels, was the per-second hang.
   function loadData() {
     if (!chartRef.current) return;
     const s = primaryRef.current;
     if (s) {
       if (kind === "mtm" && candle) {
-        (s as ISeriesApi<"Candlestick">).setData(buckets(net, tf));
+        (s as ISeriesApi<"Candlestick">).setData(capPoints(buckets(net, tf)));
       } else {
-        (s as ISeriesApi<"Baseline">).setData(toLine(net, tf));
+        (s as ISeriesApi<"Baseline">).setData(capPoints(toLine(net, tf)));
       }
     }
-    legRefs.current.forEach((ls, i) => ls.setData(toLine(legs[i]?.pts ?? [], tf)));
+    legRefs.current.forEach((ls, i) => ls.setData(capPoints(toLine(legs[i]?.pts ?? [], tf))));
   }
   function fitView() {
     chartRef.current?.timeScale().fitContent();
   }
+  // Single data effect. setData (never per-tick update() — that corrupts the shared time
+  // scale across the multi-series panels and throws null in paint). Skip ONLY when both the
+  // view identity AND the data fingerprint are unchanged; otherwise reload + fit so the WHOLE
+  // trade (entry→latest) stays in view. The fingerprint covers net AND every leg's count /
+  // last-t / last-value — so the IV panel (net is empty; data lives in legs) keeps advancing,
+  // and a same-timestamp value correction still repaints. The cap above keeps this cheap.
   useEffect(() => {
-    loadData();
-    fitView();
+    if (!chartRef.current) return;
+    const sig = `${tf}|${candle}|${kind}|${chartVer}`;
+    const lastNet = net[net.length - 1];
+    const dataSig =
+      `${net.length}:${lastNet?.t ?? ""}:${lastNet?.v ?? ""}|` +
+      legs
+        .map((l) => {
+          const p = l.pts[l.pts.length - 1];
+          return `${l.pts.length}:${p?.t ?? ""}:${p?.v ?? ""}`;
+        })
+        .join(",");
+    if (sig !== sigRef.current || dataSig !== dataSigRef.current) {
+      loadData();
+      fitView();
+    }
+    sigRef.current = sig;
+    dataSigRef.current = dataSig;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tf]);
-  // re-fit on each update so the WHOLE trade (entry→latest) stays visible as it grows.
-  // (Stable now that leg/IV lines carry full points; the sparse lines were the old flicker.)
-  useEffect(() => {
-    loadData();
-    fitView();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [net, legs]);
+  }, [net, legs, tf, candle, chartVer]);
 
   return (
     <div className="rounded-lg bg-surface-2/40 px-2 pt-1 pb-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.35)] ring-1 ring-line/50">

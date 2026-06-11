@@ -1,7 +1,9 @@
 "use client";
 
 import clsx from "clsx";
+import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useRef, useState } from "react";
+import MarketDepthSheet from "@/components/MarketDepthSheet";
 import OrderBook from "@/components/OrderBook";
 import StrategyBuilder from "@/components/StrategyBuilder";
 import { useStore } from "@/lib/store";
@@ -21,20 +23,37 @@ export default function ChainPage() {
   const selected = useStore((s) => s.selected);
   const positions = useStore((s) => s.positions);
   const selectLeg = useStore((s) => s.selectLeg);
+  const clearLegs = useStore((s) => s.clearLegs);
+  const router = useRouter();
   const prev = useRef<Map<string, number>>(new Map());
-  const atmRef = useRef<HTMLTableRowElement>(null);
+  const atmRef = useRef<HTMLTableCellElement>(null);
   const centeredFor = useRef("");
   const [builderMode, setBuilderMode] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
+  // which mark cell has its add-popover open (ONE at a time) — keeps the chain clean instead
+  // of B/S on every row. Tap a mark in builder mode → popover with a lot stepper + Buy/Sell.
+  const [activeCell, setActiveCell] = useState<string | null>(null);
+  const [lots, setLots] = useState(1); // lot count in the open add-popover (resets per open)
+  // depth opens as an on-demand bottom sheet (tap a mark in view mode)
+  const [depthOpen, setDepthOpen] = useState(false);
 
   useEffect(() => {
     if (selected.length > 0) setBuilderMode(true);
   }, [selected.length]);
 
+  // reset the transient mobile reveal/sheet when switching build⇄view
+  useEffect(() => {
+    setActiveCell(null);
+    setDepthOpen(false);
+  }, [builderMode]);
+
   useEffect(() => {
     const key = chain ? `${chain.underlying}-${chain.expiry}` : "";
     if (chain && centeredFor.current !== key && atmRef.current) {
-      atmRef.current.scrollIntoView({ block: "center" });
+      // center the ATM STRIKE cell on BOTH axes — vertically (its row) and horizontally
+      // (the strike column), so on a narrow/scrolling viewport the ATM sits dead-center
+      // with calls peeking left and puts right. `inline:"center"` adds the horizontal part.
+      atmRef.current.scrollIntoView({ block: "center", inline: "center" });
       centeredFor.current = key;
     }
   });
@@ -139,21 +158,25 @@ export default function ChainPage() {
                 const putHl = builderMode && sel.has(ps);
                 const callSel = builderMode ? sel.get(cs) : undefined;
                 const putSel = builderMode ? sel.get(ps) : undefined;
-                // clicking a cell only focuses its order book; legs are added solely
-                // via the explicit B / S buttons on the mark.
-                const onCall = () => setFocused(cs);
-                const onPut = () => setFocused(ps);
+                // Tapping ANYWHERE on a side of the row triggers that side: VIEW mode → focus +
+                // (mobile) open the depth sheet; BUILDER mode → open the add-popover (anchored at
+                // that side's mark cell). Call cells use cs, put cells use ps.
+                const onView = (sym: string) => () => { setFocused(sym); if (!builderMode) setDepthOpen(true); };
+                const onReveal = (sym: string) => () => { setLots(1); setActiveCell((a) => (a === sym ? null : sym)); };
+                const addLeg = (c: Contract, s: Side) => { selectLeg(c, s, lots); setActiveCell(null); };
+                const onCall = builderMode ? onReveal(cs) : onView(cs);
+                const onPut = builderMode ? onReveal(ps) : onView(ps);
                 return (
                   <Fragment key={row.strike}>
-                    <tr ref={atm ? atmRef : undefined} className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
+                    <tr className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
                       <Cell n={row.call.greeks.theta.toFixed(1)} hl={callHl} badge={callSel} badgeSide="left" onClick={onCall} />
                       <Cell n={(row.call.iv * 100).toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={row.call.greeks.delta.toFixed(2)} hl={callHl} onClick={onCall} />
-                      <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} onAdd={selectLeg} onClick={onCall} align="right" />
+                      <MarkCell c={row.call} label={`${row.strike} CE`} itm={callItm} hl={callHl} pos={posMap.get(cs)} flash={flash.get(cs)} mode={builderMode} active={activeCell === cs} lots={lots} onLots={setLots} onClick={onCall} onAdd={addLeg} align="right" />
                       <OiCell n={oiC(row.call)} max={maxCallOi} side="left" hl={callHl} onClick={onCall} />
-                      <td className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
+                      <td ref={atm ? atmRef : undefined} className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
                       <OiCell n={oiC(row.put)} max={maxPutOi} side="right" hl={putHl} onClick={onPut} />
-                      <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} onAdd={selectLeg} onClick={onPut} align="left" />
+                      <MarkCell c={row.put} label={`${row.strike} PE`} itm={putItm} hl={putHl} pos={posMap.get(ps)} flash={flash.get(ps)} mode={builderMode} active={activeCell === ps} lots={lots} onLots={setLots} onClick={onPut} onAdd={addLeg} align="left" />
                       <Cell n={row.put.greeks.delta.toFixed(2)} hl={putHl} onClick={onPut} />
                       <Cell n={(row.put.iv * 100).toFixed(1)} hl={putHl} onClick={onPut} />
                       <Cell n={row.put.greeks.theta.toFixed(1)} hl={putHl} badge={putSel} badgeSide="right" onClick={onPut} />
@@ -179,11 +202,47 @@ export default function ChainPage() {
         </div>
       </div>
 
-      {builderMode ? (
-        <StrategyBuilder onClose={() => setBuilderMode(false)} />
-      ) : (
-        <OrderBook symbol={focusedSym} mark={focusedMark} ltp={focusedLtp} />
+      {/* Desktop (lg+): persistent side panel — builder XOR order book. */}
+      <div className="hidden lg:flex">
+        {builderMode ? (
+          <StrategyBuilder onClose={() => setBuilderMode(false)} />
+        ) : (
+          <OrderBook symbol={focusedSym} mark={focusedMark} ltp={focusedLtp} />
+        )}
+      </div>
+
+      {/* Mobile: builder mode → sticky "Done" bar → full-screen builder page.
+          The chain keeps the full height; the basket lives on its own page. */}
+      {builderMode && selected.length > 0 && (
+        <div className="sticky bottom-0 z-30 flex items-center gap-3 border-t border-line bg-surface px-3 py-2 lg:hidden">
+          <span className="text-[12px] font-medium text-text-dim">
+            {selected.length} {selected.length === 1 ? "leg" : "legs"} added
+          </span>
+          <button onClick={clearLegs} className="text-[12px] text-text-mute hover:text-text-dim">
+            Clear all
+          </button>
+          <button
+            onClick={() => router.push("/chain/builder")}
+            className="ml-auto rounded-[6px] bg-accent px-5 py-2 text-[13px] font-semibold text-base"
+          >
+            Done
+          </button>
+        </div>
       )}
+
+      {/* tap outside an open add-popover to dismiss it */}
+      {builderMode && activeCell && (
+        <button aria-label="Close add menu" className="fixed inset-0 z-40 cursor-default" onClick={() => setActiveCell(null)} />
+      )}
+
+      {/* Mobile: depth opens on demand as a bottom sheet (view mode, tap a mark). */}
+      <MarketDepthSheet
+        open={depthOpen && !builderMode}
+        symbol={focusedSym}
+        mark={focusedMark}
+        ltp={focusedLtp}
+        onClose={() => setDepthOpen(false)}
+      />
     </div>
   );
 }
@@ -221,22 +280,54 @@ function OiCell({
   );
 }
 
-// Mark = tradeable cell. Click anywhere (incl. this cell) selects the side; in
-// builder mode B sits left of the mark, S right of it. Shows L/S for positions.
+// Editable lot count for the add-popover — type the number directly (no +/- steppers).
+// Can be cleared while typing; snaps back to 1 on blur if left empty/invalid.
+function LotInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [v, setV] = useState(String(value));
+  useEffect(() => setV(String(value)), [value]);
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      aria-label="Lots"
+      value={v}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^0-9]/g, "");
+        setV(raw);
+        if (raw) onChange(Math.max(1, parseInt(raw)));
+      }}
+      onBlur={() => {
+        if (!v || parseInt(v) < 1) {
+          setV("1");
+          onChange(1);
+        }
+      }}
+      className="tnum w-16 rounded bg-surface-3 px-2 py-1.5 text-center text-[14px] font-semibold text-text outline-none focus:ring-1 focus:ring-accent"
+    />
+  );
+}
+
+// Mark = tradeable cell. VIEW mode: tap → focus + (mobile) open the depth sheet. BUILDER
+// mode: tap → open the add-popover for THIS cell only (`active`) — a lot stepper + Buy/Sell,
+// so the chain stays clean (no B/S littered on every row) and you choose the lots up front.
+// `pos` shows L/S for an open position.
 function MarkCell({
-  c, itm, hl, pos, flash, mode, onAdd, onClick, align,
+  c, label, itm, hl, pos, flash, mode, active, lots, onLots, onClick, onAdd, align,
 }: {
-  c: Contract; itm: boolean; hl?: boolean; pos?: Side; flash?: "up" | "down";
-  mode: boolean; onAdd: (c: Contract, s: Side) => void; onClick: () => void; align: "left" | "right";
+  c: Contract; label: string; itm: boolean; hl?: boolean; pos?: Side; flash?: "up" | "down";
+  mode: boolean; active: boolean; lots: number; onLots: (n: number) => void;
+  onClick: () => void; onAdd: (c: Contract, s: Side) => void; align: "left" | "right";
 }) {
   return (
     <td
       onClick={onClick}
-      title={!mode ? "view depth" : undefined}
+      title={mode ? "tap to add" : "view depth"}
       className={clsx(
         "relative cursor-pointer px-2 py-1.5 tnum font-semibold",
         itm ? "text-text" : "text-text-dim",
         !mode && "hover:text-accent",
+        active && "text-accent",
         flash === "up" && "flash-up",
         flash === "down" && "flash-down",
         hl && HL,
@@ -251,25 +342,26 @@ function MarkCell({
           {pos === "buy" ? "L" : "S"}
         </span>
       )}
-      <div className="flex items-center justify-center gap-1.5">
-        {mode && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAdd(c, "buy"); }}
-            className="invisible rounded bg-pos px-1.5 py-0.5 text-[11px] font-bold leading-none text-base hover:opacity-90 group-hover:visible"
-          >
-            B
-          </button>
-        )}
+      <div className="flex items-center justify-center">
         <span>{c.mark.toFixed(1)}</span>
-        {mode && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onAdd(c, "sell"); }}
-            className="invisible rounded bg-neg px-1.5 py-0.5 text-[11px] font-bold leading-none text-base hover:opacity-90 group-hover:visible"
-          >
-            S
-          </button>
-        )}
       </div>
+
+      {mode && active && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute left-1/2 top-full z-50 mt-1 w-[150px] -translate-x-1/2 rounded-lg border border-line bg-surface-2 p-2 shadow-xl"
+        >
+          <div className="mb-1.5 text-center text-[11px] font-semibold text-text-dim">{label}</div>
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <LotInput value={lots} onChange={onLots} />
+            <span className="text-[9px] text-text-mute">lot{lots > 1 ? "s" : ""}</span>
+          </div>
+          <div className="flex gap-1.5">
+            <button aria-label={`Buy ${c.symbol}`} onClick={() => onAdd(c, "buy")} className="flex-1 touch-manipulation rounded bg-pos py-1.5 text-[12px] font-bold text-base hover:opacity-90">Buy</button>
+            <button aria-label={`Sell ${c.symbol}`} onClick={() => onAdd(c, "sell")} className="flex-1 touch-manipulation rounded bg-neg py-1.5 text-[12px] font-bold text-base hover:opacity-90">Sell</button>
+          </div>
+        </div>
+      )}
     </td>
   );
 }

@@ -38,9 +38,13 @@ const uid = () => `${Date.now()}-${counter++}`;
 // Paper account in USD (Delta crypto options settle in USD). 1 lot = 0.001 BTC.
 // Display-only default until the server state hydrates (server seeds the same).
 const START_BALANCE = 5000;
-// Retain the live per-second series the server streams (12h safety ceiling) so
-// the 1m/5m timeframe charts can aggregate the whole life of the trade.
-const MTM_CAP = 12 * 60 * 60;
+// The server is the source of truth for series bounds: GET /api/state returns the
+// full-life 10s DB history + a ~5h 1s tail, and `hydrate` re-pulls it every 90s. So
+// this is NOT a 12h window — it's a pure runaway-guard against unbounded local growth
+// if rehydrate stalls while WS ticks keep arriving. Sized at ~2× the real worst-case
+// server payload (10s life + 5h 1s tail ≈ a few ×10⁴ pts) so it never trims a position's
+// start at entry, but a stalled rehydrate can't balloon memory the way a 7-day cap could.
+const MTM_CAP = 48 * 60 * 60;
 export const USDINR = 85; // Delta uses a fixed 1 USD = 85 INR
 
 export type Currency = "USD" | "INR";
@@ -171,6 +175,7 @@ interface State {
   feedAge: number | null; // seconds since the last Delta message
   tickN: number;
   selected: Leg[];
+  expiredNotice: string | null; // transient warning when settled legs are auto-dropped
   positions: Position[];
   balance: number;
   currency: Currency;
@@ -182,12 +187,14 @@ interface State {
   setExpiry: (e: string) => void;
   setCurrency: (c: Currency) => void;
   addLeg: (c: Contract, side: Side) => void;
-  selectLeg: (c: Contract, side: Side) => void;
+  selectLeg: (c: Contract, side: Side, qty?: number) => void;
   removeLeg: (id: string) => void;
   setLegQty: (id: string, qty: number) => void;
   toggleLegSide: (id: string) => void;
   setLegRisk: (id: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   clearLegs: () => void;
+  pruneExpiredLegs: () => void;
+  dismissExpiredNotice: () => void;
   placeStrategy: (name: string, opts: { target: number | null; stopLossAmount: number | null; stopLossPctOfMargin: number | null; autoExit: boolean; margin?: number; badge?: MarginBadge }) => void;
   closePosition: (id: string, reason?: string) => void;
   closeLeg: (id: string, legId: string, reason?: string) => Promise<void>;
@@ -195,6 +202,12 @@ interface State {
   setPositionLegRisk: (id: string, legId: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   addNote: (id: string, kind: "entry" | "exit", body: string) => void;
 }
+
+// A basket leg whose contract has settled is unpriceable (gone from the live feed +
+// margin). Delta India daily/weekly/monthly options settle at 17:30 IST = 12:00 UTC on
+// their expiry date, so a leg is "expired" once now passes that instant.
+export const isLegExpired = (l: Leg): boolean =>
+  Date.now() >= Date.parse(`${l.expiry}T12:00:00Z`);
 
 // Build an unplaced basket leg. `entry` is a snapshot fallback only — the live
 // builder preview reads legBasketPrice(), and the SERVER sets the real fill at
@@ -240,6 +253,7 @@ export const useStore = create<State>()(
       feedAge: null,
       tickN: 0,
       selected: [],
+      expiredNotice: null,
       positions: [],
       balance: START_BALANCE,
       currency: "USD",
@@ -286,16 +300,29 @@ export const useStore = create<State>()(
       addLeg: (c, side) =>
         set((s) => (s.chain ? { selected: [...s.selected, newLeg(c, side, s.chain, s.underlying)] } : s)),
       // set-or-add: if this contract is already in the basket, set its side; else add
-      selectLeg: (c, side) =>
+      selectLeg: (c, side, qty = 1) =>
         set((s) => {
           if (!s.chain) return s;
           const entry = side === "buy" ? c.ask || c.mark : c.bid || c.mark;
+          const lots = Math.max(1, Math.round(qty));
           if (s.selected.some((l) => l.symbol === c.symbol)) {
-            return { selected: s.selected.map((l) => (l.symbol === c.symbol ? { ...l, side, entry } : l)) };
+            return { selected: s.selected.map((l) => (l.symbol === c.symbol ? { ...l, side, entry, qty: lots } : l)) };
           }
-          return { selected: [...s.selected, newLeg(c, side, s.chain, s.underlying)] };
+          return { selected: [...s.selected, { ...newLeg(c, side, s.chain, s.underlying), qty: lots }] };
         }),
       removeLeg: (id) => set((s) => ({ selected: s.selected.filter((l) => l.id !== id) })),
+      // auto-drop any basket leg whose contract has settled (warn the user once)
+      pruneExpiredLegs: () =>
+        set((s) => {
+          const expired = s.selected.filter(isLegExpired);
+          if (expired.length === 0) return s;
+          const n = expired.length;
+          return {
+            selected: s.selected.filter((l) => !isLegExpired(l)),
+            expiredNotice: `Removed ${n} expired leg${n > 1 ? "s" : ""} — the contract settled at expiry. Re-add on a live expiry.`,
+          };
+        }),
+      dismissExpiredNotice: () => set({ expiredNotice: null }),
       setLegQty: (id, qty) =>
         set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, qty: Math.max(1, qty) } : l)) })),
       toggleLegSide: (id) =>
