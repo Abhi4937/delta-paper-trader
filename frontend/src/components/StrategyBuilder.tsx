@@ -58,6 +58,9 @@ function QtyInput({ value, onChange }: { value: number; onChange: (n: number) =>
 export default function StrategyBuilder({ onClose, page = false }: { onClose: () => void; page?: boolean }) {
   const selected = useStore((s) => s.selected);
   const removeLeg = useStore((s) => s.removeLeg);
+  const pruneExpiredLegs = useStore((s) => s.pruneExpiredLegs);
+  const expiredNotice = useStore((s) => s.expiredNotice);
+  const dismissExpiredNotice = useStore((s) => s.dismissExpiredNotice);
   const setLegQty = useStore((s) => s.setLegQty);
   const toggleLegSide = useStore((s) => s.toggleLegSide);
   const clearLegs = useStore((s) => s.clearLegs);
@@ -69,6 +72,13 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
   const spot = useStore((s) => s.chain?.spot ?? 0);
   useStore((s) => s.tickN); // re-render on each chain tick so the live preview moves
   const router = useRouter();
+
+  // drop any settled legs on open, then re-check every 60s (catches an intraday expiry)
+  useEffect(() => {
+    pruneExpiredLegs();
+    const h = setInterval(pruneExpiredLegs, 60_000);
+    return () => clearInterval(h);
+  }, [pruneExpiredLegs]);
 
   const [tab, setTab] = useState<"basket" | "payoff">("basket");
   const [margin, setMargin] = useState<{ value: number; badge: string; localMargin: number | null; divergence: number | null; calibrationFactor: number | null } | null>(null);
@@ -141,6 +151,15 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
           <X size={15} />
         </button>
       </div>
+
+      {expiredNotice && (
+        <div className="flex items-start gap-2 border-b border-warn/40 bg-warn/10 px-3 py-2 text-[11px] text-warn">
+          <span className="flex-1">{expiredNotice}</span>
+          <button aria-label="Dismiss" onClick={dismissExpiredNotice} className="shrink-0 text-warn/70 hover:text-warn">
+            <X size={13} />
+          </button>
+        </div>
+      )}
 
       {selected.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">

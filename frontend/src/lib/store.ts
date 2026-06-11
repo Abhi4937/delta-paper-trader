@@ -175,6 +175,7 @@ interface State {
   feedAge: number | null; // seconds since the last Delta message
   tickN: number;
   selected: Leg[];
+  expiredNotice: string | null; // transient warning when settled legs are auto-dropped
   positions: Position[];
   balance: number;
   currency: Currency;
@@ -192,6 +193,8 @@ interface State {
   toggleLegSide: (id: string) => void;
   setLegRisk: (id: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   clearLegs: () => void;
+  pruneExpiredLegs: () => void;
+  dismissExpiredNotice: () => void;
   placeStrategy: (name: string, opts: { target: number | null; stopLossAmount: number | null; stopLossPctOfMargin: number | null; autoExit: boolean; margin?: number; badge?: MarginBadge }) => void;
   closePosition: (id: string, reason?: string) => void;
   closeLeg: (id: string, legId: string, reason?: string) => Promise<void>;
@@ -199,6 +202,12 @@ interface State {
   setPositionLegRisk: (id: string, legId: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   addNote: (id: string, kind: "entry" | "exit", body: string) => void;
 }
+
+// A basket leg whose contract has settled is unpriceable (gone from the live feed +
+// margin). Delta India daily/weekly/monthly options settle at 17:30 IST = 12:00 UTC on
+// their expiry date, so a leg is "expired" once now passes that instant.
+export const isLegExpired = (l: Leg): boolean =>
+  Date.now() >= Date.parse(`${l.expiry}T12:00:00Z`);
 
 // Build an unplaced basket leg. `entry` is a snapshot fallback only — the live
 // builder preview reads legBasketPrice(), and the SERVER sets the real fill at
@@ -244,6 +253,7 @@ export const useStore = create<State>()(
       feedAge: null,
       tickN: 0,
       selected: [],
+      expiredNotice: null,
       positions: [],
       balance: START_BALANCE,
       currency: "USD",
@@ -301,6 +311,18 @@ export const useStore = create<State>()(
           return { selected: [...s.selected, { ...newLeg(c, side, s.chain, s.underlying), qty: lots }] };
         }),
       removeLeg: (id) => set((s) => ({ selected: s.selected.filter((l) => l.id !== id) })),
+      // auto-drop any basket leg whose contract has settled (warn the user once)
+      pruneExpiredLegs: () =>
+        set((s) => {
+          const expired = s.selected.filter(isLegExpired);
+          if (expired.length === 0) return s;
+          const n = expired.length;
+          return {
+            selected: s.selected.filter((l) => !isLegExpired(l)),
+            expiredNotice: `Removed ${n} expired leg${n > 1 ? "s" : ""} — the contract settled at expiry. Re-add on a live expiry.`,
+          };
+        }),
+      dismissExpiredNotice: () => set({ expiredNotice: null }),
       setLegQty: (id, qty) =>
         set((s) => ({ selected: s.selected.map((l) => (l.id === id ? { ...l, qty: Math.max(1, qty) } : l)) })),
       toggleLegSide: (id) =>
