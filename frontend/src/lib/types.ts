@@ -80,6 +80,8 @@ export interface LegSample {
   pnl: number; // signed leg PnL (USD)
   iv: number; // leg mark IV (fraction, e.g. 0.45)
   delta: number; // signed leg position delta (BTC)
+  theta: number; // signed leg position theta (USD/day)
+  vega: number; // signed leg position vega (USD per 1 vol-point)
 }
 export interface SeriesSample {
   t: number;

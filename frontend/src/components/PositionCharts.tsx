@@ -48,8 +48,13 @@ const C = {
   surface: "#1e2027",
 };
 
+function expShort(iso: string): string {
+  const d = new Date(iso + "T00:00:00Z");
+  return `${d.getUTCDate()}${d.toLocaleString("en", { month: "short", timeZone: "UTC" })}`;
+}
 function legLabel(l: Leg): string {
-  return `${l.strike} ${l.type === "call" ? "CE" : "PE"}`;
+  // strike + CE/PE + expiry (so multi-expiry strategies disambiguate on hover/legend)
+  return `${l.strike} ${l.type === "call" ? "CE" : "PE"} · ${expShort(l.expiry)}`;
 }
 
 function fmtTime(sec: number, tf: TF): string {
@@ -87,6 +92,7 @@ export default function PositionCharts({
 }) {
   const [tf, setTf] = useState<TF>(1);
   const [mtmType, setMtmType] = useState<ChartType>("line");
+  const [showLegs, setShowLegs] = useState(true); // "Legs" = net + per-leg, "Net" = net only
 
   // shared time-scale sync: every panel registers its chart so their x-axes stay
   // aligned (they move together whether auto-fitting or user-panned).
@@ -125,18 +131,19 @@ export default function PositionCharts({
       color: legColorById[l.id],
       pts: legPoints(series, l.id, pick),
     }));
+  // "Net" hides the per-leg lines; "Legs" shows them.
+  const legsFor = (pick: (ls: SeriesSample["legs"][string] | undefined) => number): LegLine[] =>
+    showLegs ? legLines(pick) : [];
 
-  // IV panel: a bold ATM-IV line for EACH expiry present + each leg's IV (faint, leg color)
-  const ivLines: LegLine[] = [
-    ...expiries.map((e) => ({
-      id: `atm-${e}`,
-      label: `ATM ${e.slice(5)}`,
-      color: atmColorFor(e, expiries),
-      width: 2,
-      pts: atmPoints(series, e),
-    })),
-    ...legLines((x) => (x?.iv ?? 0) * 100),
-  ];
+  // IV panel: bold ATM-IV line per expiry (always) + each leg's IV (only in "Legs" mode)
+  const ivAtm: LegLine[] = expiries.map((e) => ({
+    id: `atm-${e}`,
+    label: `ATM ${e.slice(5)}`,
+    color: atmColorFor(e, expiries),
+    width: 2,
+    pts: atmPoints(series, e),
+  }));
+  const ivLines: LegLine[] = showLegs ? [...ivAtm, ...legLines((x) => (x?.iv ?? 0) * 100)] : ivAtm;
 
   const fMoney = (v: number) => (v < 0 ? "-" : "+") + money(Math.abs(v), currency);
   const fPct = (v: number) => `${v.toFixed(1)}%`;
@@ -171,6 +178,14 @@ export default function PositionCharts({
         </span>
         <div className="flex items-center gap-1.5 normal-case">
           <Seg
+            value={showLegs ? "legs" : "net"}
+            onChange={(v) => setShowLegs(v === "legs")}
+            opts={[
+              { v: "net", label: "Net" },
+              { v: "legs", label: "Legs" },
+            ]}
+          />
+          <Seg
             value={mtmType}
             onChange={setMtmType}
             opts={[
@@ -190,11 +205,11 @@ export default function PositionCharts({
         </div>
       </div>
 
-      <Panel title="MTM" unit="USD" tf={tf} register={register} height={heightOf("MTM")} collapsed={!!collapsed.MTM} onToggle={() => toggle("MTM")} net={netMtm} legs={legLines((x) => x?.pnl ?? 0)} fmt={fMoney} kind="mtm" candle={mtmType === "candle"} zero signColor />
+      <Panel title="MTM" unit="USD" tf={tf} register={register} height={heightOf("MTM")} collapsed={!!collapsed.MTM} onToggle={() => toggle("MTM")} net={netMtm} legs={legsFor((x) => x?.pnl ?? 0)} fmt={fMoney} kind="mtm" candle={mtmType === "candle"} zero signColor />
       <Panel title="IV" unit="%" tf={tf} register={register} height={heightOf("IV")} collapsed={!!collapsed.IV} onToggle={() => toggle("IV")} net={[]} legs={ivLines} fmt={fPct} kind="line" />
-      <Panel title="Delta" unit="BTC" tf={tf} register={register} height={heightOf("Delta")} collapsed={!!collapsed.Delta} onToggle={() => toggle("Delta")} net={netDelta} legs={legLines((x) => x?.delta ?? 0)} fmt={fDelta} kind="line" zero signColor />
-      <Panel title="Theta" unit="$/day" tf={tf} register={register} height={heightOf("Theta")} collapsed={!!collapsed.Theta} onToggle={() => toggle("Theta")} net={netTheta} fmt={fNum} kind="line" zero signColor />
-      <Panel title="Vega" unit="$/vol-pt" tf={tf} register={register} height={heightOf("Vega")} collapsed={!!collapsed.Vega} onToggle={() => toggle("Vega")} net={netVega} fmt={fNum} kind="line" zero signColor />
+      <Panel title="Delta" unit="BTC" tf={tf} register={register} height={heightOf("Delta")} collapsed={!!collapsed.Delta} onToggle={() => toggle("Delta")} net={netDelta} legs={legsFor((x) => x?.delta ?? 0)} fmt={fDelta} kind="line" zero signColor />
+      <Panel title="Theta" unit="$/day" tf={tf} register={register} height={heightOf("Theta")} collapsed={!!collapsed.Theta} onToggle={() => toggle("Theta")} net={netTheta} legs={legsFor((x) => x?.theta ?? 0)} fmt={fNum} kind="line" zero signColor />
+      <Panel title="Vega" unit="$/vol-pt" tf={tf} register={register} height={heightOf("Vega")} collapsed={!!collapsed.Vega} onToggle={() => toggle("Vega")} net={netVega} legs={legsFor((x) => x?.vega ?? 0)} fmt={fNum} kind="line" zero signColor />
     </div>
   );
 }

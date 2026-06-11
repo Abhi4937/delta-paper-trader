@@ -14,7 +14,9 @@ from app.sim.marketview import Quote
 
 class FakeMV:
     def quote(self, symbol: str) -> Quote:
-        return Quote(mark=120.0, bid=118.0, ask=122.0, iv=0.45, delta=0.5, gamma=0.0, theta=-1.2, vega=3.4)
+        return Quote(
+            mark=120.0, bid=118.0, ask=122.0, iv=0.45, delta=0.5, gamma=0.0, theta=-1.2, vega=3.4
+        )
 
     def atm_iv(self, underlying: str, expiry: str) -> float:
         return 0.50
@@ -44,7 +46,7 @@ def test_build_sample_carries_full_leg_and_iv_detail() -> None:
     # one full leg row per open leg (NOT empty — that was the bug)
     assert set(s["legs"].keys()) == {str(lg.id) for lg in legs}
     for row in s["legs"].values():
-        assert set(row.keys()) == {"pnl", "iv", "delta", "bid", "ask"}
+        assert set(row.keys()) == {"pnl", "iv", "delta", "theta", "vega", "bid", "ask"}
         assert row["iv"] == 0.45
         assert row["bid"] == 118.0 and row["ask"] == 122.0
 

@@ -17,8 +17,8 @@ describe("chartData", () => {
   // (The lightweight-ring bug emptied s.legs → these collapsed to flat lines.)
   it("legPoints returns one point per sample carrying the leg's value", () => {
     const s = [
-      sample(1000, { legs: { L1: { pnl: 3, iv: 0.5, delta: 0.2 } } }),
-      sample(2000, { legs: { L1: { pnl: 7, iv: 0.6, delta: 0.25 } } }),
+      sample(1000, { legs: { L1: { pnl: 3, iv: 0.5, delta: 0.2, theta: -1, vega: 2 } } }),
+      sample(2000, { legs: { L1: { pnl: 7, iv: 0.6, delta: 0.25, theta: -1, vega: 2 } } }),
     ];
     expect(legPoints(s, "L1", (x) => x?.pnl ?? 0)).toEqual([{ t: 1000, v: 3 }, { t: 2000, v: 7 }]);
     expect(legPoints(s, "L1", (x) => (x?.iv ?? 0) * 100)).toEqual([{ t: 1000, v: 50 }, { t: 2000, v: 60 }]);

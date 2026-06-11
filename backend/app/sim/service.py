@@ -92,6 +92,8 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
             "pnl": leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, mark),
             "iv": q.iv if q else 0.0,
             "delta": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.delta if q else 0),
+            "theta": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.theta if q else 0),
+            "vega": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.vega if q else 0),
             "bid": q.bid if q else 0.0,
             "ask": q.ask if q else 0.0,
         }

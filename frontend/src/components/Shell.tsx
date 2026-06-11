@@ -123,7 +123,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             ))}
           </div>
           <div className="text-right leading-tight">
-            <div className="text-[10px] uppercase tracking-wider text-text-mute">Paper balance</div>
+            <div className="text-[10px] uppercase tracking-wider text-text-mute">Wallet balance</div>
             <div className="tnum text-[13px] font-semibold text-accent">{money(balance, currency)}</div>
           </div>
           <div className={clsx("flex items-center gap-1.5 rounded-[5px] border px-2 py-1", stale ? "border-warn/50 bg-warn/10" : "border-line bg-surface")} title={stale ? "Delta feed frozen/disconnected — placement blocked" : "Delta feed live"}>
