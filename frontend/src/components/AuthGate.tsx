@@ -12,30 +12,39 @@ import { supabase } from "@/lib/supabase";
 // A logged-in but non-allowlisted user gets a "not authorized" screen, never the app.
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [state, setState] = useState<"checking" | "ok" | "unauthorized">("checking");
+  const [state, setState] = useState<"checking" | "ok" | "unauthorized" | "error">("checking");
 
   useEffect(() => {
     let active = true;
+    // never spin forever — if the session/backend check stalls (e.g. the API host is
+    // unreachable over the network), surface an error instead of an endless spinner.
+    const timer = setTimeout(() => {
+      if (active) setState((s) => (s === "checking" ? "error" : s));
+    }, 9000);
     async function check() {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        router.replace("/login");
-        return;
-      }
-      const me = await fetchMe(); // null if the backend rejects (not allowlisted)
-      if (!me) {
-        if (active) setState("unauthorized");
-        return;
-      }
-      // Live-key holders must clear 2FA every session; paper-only users don't.
-      if (me.hasLiveKeys) {
-        const aal = await getAAL();
-        if (aal.current !== "aal2") {
-          router.replace("/enroll-2fa");
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          router.replace("/login");
           return;
         }
+        const me = await fetchMe(); // null if the backend rejects (not allowlisted)
+        if (!me) {
+          if (active) setState("unauthorized");
+          return;
+        }
+        // Live-key holders must clear 2FA every session; paper-only users don't.
+        if (me.hasLiveKeys) {
+          const aal = await getAAL();
+          if (aal.current !== "aal2") {
+            router.replace("/enroll-2fa");
+            return;
+          }
+        }
+        if (active) setState("ok");
+      } catch {
+        if (active) setState("error");
       }
-      if (active) setState("ok");
     }
     check();
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -43,9 +52,29 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     });
     return () => {
       active = false;
+      clearTimeout(timer);
       sub.subscription.unsubscribe();
     };
   }, [router]);
+
+  if (state === "error")
+    return (
+      <div className="grid h-dvh place-items-center bg-base px-4">
+        <div className="max-w-sm space-y-3 rounded-xl border border-line bg-surface-2 p-6 text-center">
+          <div className="text-[15px] font-semibold text-text">Can&apos;t reach the server</div>
+          <p className="text-[12px] text-text-mute">
+            The app couldn&apos;t reach the API. Check that the backend is running and reachable
+            from this device, then retry.
+          </p>
+          <button
+            onClick={() => location.reload()}
+            className="rounded-[6px] bg-accent px-4 py-2 text-[13px] font-semibold text-base"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
 
   if (state === "unauthorized")
     return (
