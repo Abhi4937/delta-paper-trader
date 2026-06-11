@@ -61,14 +61,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           ⚠ Delta market-data feed is stale{feedAge != null ? ` (${Math.round(feedAge)}s)` : ""} — prices may be frozen. Order placement is blocked until the feed is live again.
         </div>
       )}
-      <div className="app-shell min-h-0 flex-1 overflow-hidden">
-      <div className="a-logo items-center justify-center border-b border-r border-line">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[60px_1fr] lg:grid-rows-[52px_1fr]">
+      <div className="hidden border-b border-r border-line lg:col-start-1 lg:row-start-1 lg:flex lg:items-center lg:justify-center">
         <div className="grid h-8 w-8 place-items-center rounded-[5px] bg-accent text-[13px] font-bold text-base">
           Δ
         </div>
       </div>
 
-      <header className="a-header flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-3 py-1.5 lg:px-4 lg:py-0">
+      <header className="order-1 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-3 py-1.5 lg:order-none lg:col-start-2 lg:row-start-1 lg:px-4 lg:py-0">
         <div className="flex items-center gap-1">
           {(["BTC", "ETH"] as Underlying[]).map((u) => (
             <button
@@ -137,7 +137,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <nav className="a-nav flex items-center justify-around gap-1 overflow-x-auto border-t border-line py-1.5 lg:flex-col lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-r lg:py-3">
+      <nav className="order-3 flex items-center justify-around gap-1 overflow-x-auto border-t border-line py-1.5 lg:order-none lg:col-start-1 lg:row-start-2 lg:flex-col lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-r lg:py-3">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = path === href;
           return (
@@ -160,7 +160,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      <main className="a-main overflow-y-auto lg:overflow-hidden">{children}</main>
+      <main className="order-2 min-h-0 flex-1 overflow-y-auto lg:order-none lg:col-start-2 lg:row-start-2 lg:flex-none lg:overflow-hidden">{children}</main>
       </div>
     </div>
   );
