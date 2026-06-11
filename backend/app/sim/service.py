@@ -33,6 +33,12 @@ from app.sim.margin_helper import quote_margin
 from app.sim.marketview import MarketView, Quote
 
 
+# How much of the live 1s ring to return in GET /api/state. Everything before this
+# tail is served from the durable 10s DB history, so the chart starts at entry with a
+# bounded payload no matter how long the position has been open. 5h = 18,000 samples.
+TAIL_1S = 5 * 60 * 60
+
+
 def _ms(dt: datetime | None) -> int | None:
     return int(dt.timestamp() * 1000) if dt else None
 
@@ -635,6 +641,24 @@ async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str,
     return [series_dict(s) for s in res.scalars().all()]
 
 
+def bounded_series(
+    db_rows: list[dict[str, Any]], ring_full: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Merge durable 10s DB history with a bounded 1s tail for GET /api/state.
+
+    `db_rows` = the full-life 10s rows (ascending `t`); `ring_full` = the in-memory 1s
+    ring. Returns the 10s rows up to where the (<=`TAIL_1S`) tail begins, then the tail —
+    so the chart starts at entry (10s resolution before the tail) with a payload bounded
+    regardless of how long the position has been open. With no ring yet, returns the raw
+    10s history.
+    """
+    ring = ring_full[-TAIL_1S:]
+    if not ring:
+        return db_rows
+    first_t = ring[0]["t"]
+    return [s for s in db_rows if s["t"] < first_t] + ring
+
+
 async def get_state(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -651,16 +675,8 @@ async def get_state(
     positions = list(res.scalars().all())
     pos_dicts = []
     for p in positions:
-        # Merge: durable 1-min DB history (survives restarts) up to where the live 1s
-        # ring begins, then the ring — so the chart starts at entry AND stays 1s for the
-        # live window, with no gap across backend restarts.
-        ring = series_store.get(str(p.id)) or []
-        if ring:
-            first_t = ring[0]["t"]
-            db = await _db_series(session, p.id)
-            series = [s for s in db if s["t"] < first_t] + ring
-        else:
-            series = await _db_series(session, p.id)
+        db = await _db_series(session, p.id)
+        series = bounded_series(db, series_store.get(str(p.id)) or [])
         pos_dicts.append(position_dict(p, mv, series))
     led = (
         (

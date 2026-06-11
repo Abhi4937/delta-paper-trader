@@ -38,9 +38,13 @@ const uid = () => `${Date.now()}-${counter++}`;
 // Paper account in USD (Delta crypto options settle in USD). 1 lot = 0.001 BTC.
 // Display-only default until the server state hydrates (server seeds the same).
 const START_BALANCE = 5000;
-// Retain the live per-second series the server streams (12h safety ceiling) so
-// the 1m/5m timeframe charts can aggregate the whole life of the trade.
-const MTM_CAP = 12 * 60 * 60;
+// The server is the source of truth for series bounds: GET /api/state returns the
+// full-life 10s DB history + a ~5h 1s tail, and `hydrate` re-pulls it every 90s. So
+// this is NOT a 12h window — it's a pure runaway-guard against unbounded local growth
+// if rehydrate stalls while WS ticks keep arriving. Sized at ~2× the real worst-case
+// server payload (10s life + 5h 1s tail ≈ a few ×10⁴ pts) so it never trims a position's
+// start at entry, but a stalled rehydrate can't balloon memory the way a 7-day cap could.
+const MTM_CAP = 48 * 60 * 60;
 export const USDINR = 85; // Delta uses a fixed 1 USD = 85 INR
 
 export type Currency = "USD" | "INR";

@@ -49,3 +49,8 @@ fixtures/captured/*.local.json
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+/qa-*.jpeg
+/mobile-chain-current.jpeg
+/chart-from-entry.jpeg
+backend/_*.json
+backend/_*.py

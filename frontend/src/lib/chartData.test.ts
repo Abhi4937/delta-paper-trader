@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atmPoints, buckets, legPoints, netPoints, toLine } from "./chartData";
+import { atmPoints, buckets, capPoints, legPoints, netPoints, toLine } from "./chartData";
 import type { SeriesSample } from "./types";
 
 function sample(t: number, over: Partial<SeriesSample> = {}): SeriesSample {
@@ -7,6 +7,23 @@ function sample(t: number, over: Partial<SeriesSample> = {}): SeriesSample {
 }
 
 describe("chartData", () => {
+  it("capPoints is a no-op at/under the cap", () => {
+    const arr = Array.from({ length: 100 }, (_, i) => ({ time: i, value: i }));
+    expect(capPoints(arr, 1500)).toBe(arr);
+    expect(capPoints(arr, 100)).toBe(arr);
+  });
+
+  it("capPoints downsamples to <= max, preserving first+last and ascending order", () => {
+    const arr = Array.from({ length: 10000 }, (_, i) => ({ time: i, value: i }));
+    const out = capPoints(arr, 1500);
+    expect(out.length).toBe(1500);
+    expect(out[0]).toEqual({ time: 0, value: 0 }); // entry preserved
+    expect(out[out.length - 1]).toEqual({ time: 9999, value: 9999 }); // latest preserved
+    const times = out.map((p) => p.time);
+    expect(times).toEqual([...times].sort((a, b) => a - b)); // strictly ascending kept
+    expect(new Set(times).size).toBe(times.length); // no dup times (lightweight-charts requires)
+  });
+
   it("netPoints maps the chosen metric per sample", () => {
     const s = [sample(1000, { pnl: 5, delta: 0.3 }), sample(2000, { pnl: -2, delta: -0.1 })];
     expect(netPoints(s, "pnl")).toEqual([{ t: 1000, v: 5 }, { t: 2000, v: -2 }]);

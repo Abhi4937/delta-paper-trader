@@ -35,6 +35,20 @@ export function buckets(pts: Pt[], tf: TF): OHLC[] {
 export const toLine = (pts: Pt[], tf: TF): { time: Time; value: number }[] =>
   buckets(pts, tf).map((b) => ({ time: b.time, value: b.close }));
 
+// Cap a (time-ascending) series to `max` points for display. These charts are fixed-view
+// (no zoom; always the whole trade in a few hundred px), so rendering thousands of points
+// is wasted work — striding to ~1500 is visually identical but makes per-tick setData cheap
+// (that full-array setData every second was the hang). Always keeps the first AND last point
+// so the curve still spans entry→latest. Order-preserving, so times stay strictly ascending.
+export function capPoints<T>(arr: T[], max = 1500): T[] {
+  if (arr.length <= max) return arr;
+  const step = arr.length / max;
+  const out: T[] = [];
+  for (let i = 0; i < max - 1; i++) out.push(arr[Math.floor(i * step)]);
+  out.push(arr[arr.length - 1]);
+  return out;
+}
+
 // net metric line (one point per sample)
 export function netPoints(series: SeriesSample[], key: "pnl" | "delta" | "theta" | "vega"): Pt[] {
   return series.map((s) => ({ t: s.t, v: s[key] }));
