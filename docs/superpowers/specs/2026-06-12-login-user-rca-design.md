@@ -69,6 +69,11 @@ Indexes: `(email, t desc)`, `(category, t desc)`, `(t)`. Plain table (low volume
   success → `login_ok` (info); each failure branch → its classified action/level **before** raising.
   Also stash `request.state.user_email`/`user_id` on success so the middleware/error-handler can attach
   it. WS path (`resolve_ws_user`) passes its handshake context too.
+- **Throttle (volume guard):** the backend is stateless JWT — every request carries the token, so there
+  is no distinct "login" call. To avoid a row per request, an in-memory `AuthThrottle` emits `login_ok`
+  at most **once per email per `auth_login_ok_throttle_s` (default 1800s)** and collapses identical
+  repeated failures to **once per `auth_fail_throttle_s` (default 60s)**. The throttle is a pure,
+  time-injectable unit (unit-tested); it bounds volume without a DB read on the hot path.
 
 ### 6. Admin API (`app/api/admin.py`)
 - `GET /api/admin/events?email=&category=&level=&since=&limit=` (gated by `require_admin`): filtered,
