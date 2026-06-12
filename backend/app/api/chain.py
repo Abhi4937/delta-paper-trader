@@ -27,7 +27,8 @@ async def expiries(
 ) -> dict:
     u = underlying.upper()
     tickers = await chain_svc.fetch_option_tickers(delta, u)
-    return {"underlying": u, "expiries": chain_svc.list_expiries(tickers)}
+    expiries = chain_svc.live_expiries(chain_svc.list_expiries(tickers))
+    return {"underlying": u, "expiries": expiries}
 
 
 @router.get("")

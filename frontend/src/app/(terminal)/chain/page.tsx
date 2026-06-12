@@ -16,10 +16,19 @@ function compactOi(n: number): string {
   return `$${Math.round(n)}`;
 }
 
+// Short expiry label e.g. "13Jun" (UTC so it matches the contract's settlement date).
+function expLabel(iso: string): string {
+  const d = new Date(iso + "T00:00:00Z");
+  return `${d.getUTCDate()}${d.toLocaleString("en", { month: "short", timeZone: "UTC" })}`;
+}
+
 const HL = "bg-neg/[0.12]"; // Delta-style light-red selection tint
 
 export default function ChainPage() {
   const chain = useStore((s) => s.chain);
+  const expiries = useStore((s) => s.expiries);
+  const expiry = useStore((s) => s.expiry);
+  const setExpiry = useStore((s) => s.setExpiry);
   const selected = useStore((s) => s.selected);
   const positions = useStore((s) => s.positions);
   const selectLeg = useStore((s) => s.selectLeg);
@@ -90,7 +99,23 @@ export default function ChainPage() {
           <span className="rounded-[5px] border border-line bg-surface px-2 py-0.5 text-[11px] text-text-dim">
             ATM IV <span className="tnum text-warn">{(chain.atmIv * 100).toFixed(1)}%</span>
           </span>
-          <span className="text-[11px] text-text-mute">{chain.dte}d · {chain.expiry}</span>
+          {/* Desktop: dte + date label (expiry is picked via the header tabs). */}
+          <span className="hidden text-[11px] text-text-mute lg:inline">{chain.dte}d · {chain.expiry}</span>
+          {/* Phone: the expiry chooser lives here beside ATM IV (the header has no room for tabs). */}
+          {expiries.length > 0 && (
+            <select
+              aria-label="Expiry"
+              value={expiry ?? ""}
+              onChange={(e) => setExpiry(e.target.value)}
+              className="tnum rounded-[5px] border border-line bg-surface-3 px-2 py-1 text-[11px] text-text lg:hidden"
+            >
+              {expiries.map((e) => (
+                <option key={e} value={e}>
+                  {expLabel(e)}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => setBuilderMode((v) => !v)}
             className="ml-auto flex items-center gap-2 text-[12px] font-medium text-text-dim"
