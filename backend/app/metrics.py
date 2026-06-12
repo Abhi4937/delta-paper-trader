@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
-    REGISTRY,
+    CollectorRegistry,
     Gauge,
     Histogram,
     generate_latest,
@@ -28,14 +28,17 @@ if TYPE_CHECKING:
     from starlette.requests import Request
     from starlette.responses import Response
 
+REGISTRY = CollectorRegistry(auto_describe=True)
+
 REQUEST_LATENCY = Histogram(
     "http_request_duration_seconds",
     "HTTP request latency by method, matched route template and status code.",
     ["method", "route", "status"],
+    registry=REGISTRY,
 )
-FEED_FRESH = Gauge("app_feed_fresh", "1 if the Delta market-data feed is fresh, else 0.")
-FEED_AGE = Gauge("app_feed_age_seconds", "Seconds since the last Delta feed message (-1 if unknown).")
-OPEN_POSITIONS = Gauge("app_open_positions", "Currently tracked open positions across all users.")
+FEED_FRESH = Gauge("app_feed_fresh", "1 if the Delta market-data feed is fresh, else 0.", registry=REGISTRY)
+FEED_AGE = Gauge("app_feed_age_seconds", "Seconds since the last Delta feed message (-1 if unknown).", registry=REGISTRY)
+OPEN_POSITIONS = Gauge("app_open_positions", "Currently tracked open positions across all users.", registry=REGISTRY)
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
@@ -47,7 +50,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         start = time.perf_counter()
         response = await call_next(request)
         route = request.scope.get("route")
-        template = getattr(route, "path", None) or request.url.path
+        template = getattr(route, "path", None) or "<unmatched>"
         REQUEST_LATENCY.labels(request.method, template, str(response.status_code)).observe(
             time.perf_counter() - start
         )

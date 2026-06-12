@@ -44,3 +44,15 @@ def test_request_histogram_increments_per_request() -> None:
     client.get("/health")
     after = m.REGISTRY.get_sample_value("http_request_duration_seconds_count", labels) or 0.0
     assert after == before + 1.0
+
+
+def test_feed_age_unknown_sets_sentinel() -> None:
+    app.state.market = _FakeMarket(fresh=False, age=None)
+    client.get("/metrics")
+    assert m.REGISTRY.get_sample_value("app_feed_age_seconds") == -1.0
+
+
+def test_open_positions_gauge() -> None:
+    app.state.sim_series = {"pos-1": [], "pos-2": []}
+    client.get("/metrics")
+    assert m.REGISTRY.get_sample_value("app_open_positions") == 2.0
