@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import PayoffPanel from "@/components/PayoffPanel";
 import { fetchMargin } from "@/lib/api";
-import { legBasketPrice, money, moneyBoth, useStore } from "@/lib/store";
+import { legBasketPrice, legMark, money, moneyBoth, useStore } from "@/lib/store";
 import type { Leg } from "@/lib/types";
 
 function legLabel(l: Leg): string {
@@ -210,9 +210,12 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
                       <div className="text-[12px] font-medium">
                         {legLabel(l)} <span className="text-[10px] text-text-mute">{l.expiry.slice(5)}</span>
                       </div>
+                      {/* Est. fill = the would-fill price you'd actually trade at (sell→bid,
+                          buy→ask); the chain shows the mark, so we surface both so the spread
+                          cost is visible and the two views never look "wrong" against each other. */}
                       <div className="flex items-center gap-1 text-[10px] text-text-mute">
-                        <span className="rounded bg-surface-3 px-1 text-[9px] font-semibold text-text-dim">M</span>
-                        Market Price <span className="tnum">· ${legBasketPrice(l).toFixed(1)}</span>
+                        Est. fill <span className="tnum text-text-dim">${legBasketPrice(l).toFixed(1)}</span>
+                        <span className="tnum">· mark {legMark(l).toFixed(1)}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">

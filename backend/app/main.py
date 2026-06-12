@@ -194,19 +194,24 @@ async def ws_chain(websocket: WebSocket) -> None:
         params = await websocket.receive_json()
         underlying = str(params.get("underlying", "BTC")).upper()
         expiry_str = params.get("expiry")
+        requested = date.fromisoformat(expiry_str) if expiry_str else None
         while True:
-            expiries = market.expiries(underlying)
-            exp = (
-                date.fromisoformat(expiry_str)
-                if expiry_str
-                else chain_svc.default_expiry(expiries)
-            )
+            # Only expose live expiries; honor the client's pick while it is still
+            # trading, else auto-jump to the nearest live one. A settled expiry can
+            # never be served — its symbols stop updating (the "price stuck" bug).
+            live = chain_svc.live_expiries(market.expiries(underlying))
+            if requested in live:
+                exp = requested
+            elif live:
+                exp = live[0]
+            else:  # degenerate: nothing live -> one coherent expiry, not a merged blob
+                exp = chain_svc.default_expiry(market.expiries(underlying))
             chain = market.chain(underlying, exp)
             await websocket.send_json(
                 {
                     "type": "chain",
                     "chain": chain.model_dump(mode="json"),
-                    "expiries": [e.isoformat() for e in expiries],
+                    "expiries": [e.isoformat() for e in live],
                 }
             )
             await asyncio.sleep(0.3)
