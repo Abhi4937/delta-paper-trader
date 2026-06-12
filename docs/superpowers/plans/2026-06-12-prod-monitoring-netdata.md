@@ -619,6 +619,129 @@ Expected: PR created against `main`.
 
 ---
 
+## Task 9: Postgres deep monitoring (DB bottlenecks)
+
+**Files:**
+- Create: `deploy/netdata/go.d/postgres.conf`
+- Create: `deploy/netdata/postgres-monitor-role.sql`
+- Create: `deploy/netdata/health.d/postgres.conf`
+- Modify: `docker-compose.prod.yml` (netdata env: `NETDATA_PG_PASSWORD`)
+- Modify: `.env.prod.example`
+- Modify: `docs/MONITORING.md`
+
+Goal: monitor the database itself (not just its container) for bottlenecks — connection-pool
+saturation, deadlocks, lock waits, cache-hit ratio, transaction/query durations — via Netdata's
+Postgres collector using a least-privilege read-only role. Query-level RCA (`pg_stat_statements`)
+is documented as an opt-in (needs a DB restart).
+
+- [ ] **Step 1: Collector job** — create `deploy/netdata/go.d/postgres.conf`:
+
+```yaml
+# Deep Postgres/TimescaleDB metrics: connections, locks, deadlocks, cache-hit ratio,
+# transaction & query durations, table/index stats, and (when pg_stat_statements is
+# enabled) top queries. Connects with a least-privilege pg_monitor role. The password
+# is injected from the NETDATA_PG_PASSWORD container env (go.d expands ${VAR}).
+jobs:
+  - name: paper_db
+    dsn: 'postgres://netdata:${NETDATA_PG_PASSWORD}@db:5432/paper_trader'
+    timeout: 5
+```
+
+- [ ] **Step 2: Least-privilege role** — create `deploy/netdata/postgres-monitor-role.sql`:
+
+```sql
+-- Read-only monitoring role for Netdata's postgres collector (least privilege:
+-- pg_monitor grants read access to pg_stat_* views/functions only, NOT app table data).
+-- Run ONCE on the VM, password matching NETDATA_PG_PASSWORD in the VM .env:
+--   docker exec -i delta-paper-trader-db-1 \
+--     psql -U paper -d paper_trader -v pw="'YOUR_PASSWORD'" \
+--     -f - < deploy/netdata/postgres-monitor-role.sql
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'netdata') THEN
+    CREATE ROLE netdata LOGIN;
+  END IF;
+END $$;
+ALTER ROLE netdata PASSWORD :pw;
+GRANT pg_monitor TO netdata;
+```
+
+- [ ] **Step 3: DB alarms** — create `deploy/netdata/health.d/postgres.conf` (chart ids verified at
+deploy, like the other alarms):
+
+```ini
+# Connection-pool saturation — running out of connections is a classic bottleneck.
+ template: paper_pg_connections
+       on: postgres.connections_utilization
+   lookup: average -1m unaligned
+    units: %
+    every: 30s
+     warn: $this > 80
+     crit: $this > 90
+    delay: up 60s down 120s
+     info: Postgres connection utilization high — possible pool exhaustion
+       to: sysadmin
+
+# Deadlocks indicate lock contention / a bug.
+ template: paper_pg_deadlocks
+       on: postgres.deadlocks_rate
+   lookup: sum -5m unaligned
+    units: deadlocks
+    every: 1m
+     warn: $this > 0
+    delay: up 0s down 300s
+     info: Postgres deadlocks in the last 5 minutes
+       to: sysadmin
+
+# A long-running transaction blocks vacuum and can hold locks.
+ template: paper_pg_long_txn
+       on: postgres.query_duration
+   lookup: max -1m unaligned
+    units: seconds
+    every: 30s
+     warn: $this > 300
+    delay: up 60s down 60s
+     info: A Postgres transaction/query has been running > 5 minutes
+       to: sysadmin
+```
+
+- [ ] **Step 4: Wire the env var** — in `docker-compose.prod.yml`, add to the `netdata` service
+`environment:` block (next to `SLACK_WEBHOOK_URL`):
+
+```yaml
+      NETDATA_PG_PASSWORD: ${NETDATA_PG_PASSWORD:?set NETDATA_PG_PASSWORD in .env}
+```
+
+And append to `.env.prod.example`:
+
+```sh
+
+# Password for the least-privilege `netdata` Postgres monitoring role (server-side only).
+NETDATA_PG_PASSWORD=change-me-monitoring-password
+```
+
+- [ ] **Step 5: Document** — add a "Database monitoring" section to `docs/MONITORING.md`: what's
+collected (connections/locks/deadlocks/cache-hit/durations), the one-time role-setup command (Step 2
+header), the alarm list, and an **opt-in** note that `pg_stat_statements` (top-query RCA) requires
+adding it to the db's `shared_preload_libraries` + `CREATE EXTENSION pg_stat_statements;` + a **DB
+restart**, so it's left off by default.
+
+- [ ] **Step 6: Validate + commit**
+
+```bash
+# YAML well-formed:
+python -c "import yaml; yaml.safe_load(open('deploy/netdata/go.d/postgres.conf'))"
+git add deploy/netdata/go.d/postgres.conf deploy/netdata/postgres-monitor-role.sql \
+        deploy/netdata/health.d/postgres.conf docker-compose.prod.yml .env.prod.example docs/MONITORING.md
+git commit -m "feat(monitoring): Postgres deep metrics (connections/locks/deadlocks/durations) + least-priv role"
+```
+
+- [ ] **Step 7: Deploy-time verification** (folds into Task 6): after creating the role on the VM and
+redeploying, confirm a `postgres paper_db` section appears on the dashboard with connections/locks/
+cache-hit charts, then reconcile the three alarm `on:` chart ids and `netdatacli reload-health`.
+
+---
+
 ## Self-review notes (author)
 - **Spec coverage:** Netdata service (Task 5) · backend APM `/metrics` (Task 2) · Caddy web_log/latency (Task 3) · httpcheck probes + feed-fresh + 5xx + resource alarms (Task 4) · Slack delivery (Tasks 4/6) · mem cap + on-box + internal-only `/metrics` (Tasks 2/5/6) · docs/runbook (Task 7). All spec sections map to a task.
 - **Deferred-by-design (flagged, not placeholders):** exact Netdata chart ids for custom alarms and the web_log JSON field mapping are verified against the live agent in Task 6 (Steps 4–5) — they cannot be known without the running collector; the configs ship a best-effort value plus an explicit reconcile-and-redeploy step. Latency p95 alarm intentionally omitted until a baseline exists (per spec).
