@@ -30,8 +30,11 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
   const atmIv = chain?.atmIv ?? 0;
   // The FRONT (earliest) expiry drives the date slider + the "on expiry" reference.
   const frontLeg = selected.reduce<Leg | undefined>((a, l) => (!a || l.dte < a.dte ? l : a), undefined);
-  const baseDte = frontLeg?.dte ?? 7;
+  // Delta India options settle 17:30 IST = 12:00 UTC on the expiry date.
   const expiryMs = frontLeg?.expiry ? new Date(`${frontLeg.expiry}T12:00:00Z`).getTime() : 0;
+  // remaining time to expiry measured from NOW (live) — so the scenario defaults to the
+  // current time and the Date/DTE slider scrubs from now → expiry (the real window left).
+  const baseDte = expiryMs ? Math.max((expiryMs - Date.now()) / 86_400_000, 0) : (frontLeg?.dte ?? 7);
   // distinct expiry dates, nearest first — aligns 1:1 with the API's per-expiry curves
   const expiryDates = [...new Set(selected.map((l) => l.expiry))].sort();
   const fmtExpiry = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
@@ -98,8 +101,10 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
   const tsExpiry = data?.expiry[nearest(ts)] ?? 0;
   const tsProj = data?.projected[nearest(ts)] ?? 0;
 
-  // datetime picker value (local-ish ISO without seconds)
-  const dtInput = expiryMs ? new Date(expiryMs - dte * 86_400_000).toISOString().slice(0, 16) : "";
+  // datetime-local shows LOCAL (IST) wall-clock, not UTC — shift by the tz offset so the
+  // native picker displays e.g. 17:30 IST instead of 12:00 UTC.
+  const toLocalInput = (ms: number) => new Date(ms - new Date(ms).getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const dtInput = expiryMs ? toLocalInput(expiryMs - dte * 86_400_000) : "";
   const onPickDate = (v: string) => {
     if (!v || !expiryMs) return;
     const ms = new Date(v).getTime();
@@ -148,7 +153,7 @@ export default function PayoffPanel({ legs }: { legs?: Leg[] } = {}) {
               stepper={<Step text={ts.toFixed(0)} onStep={(d) => setTargetSpot(clampN(ts + d * spotStep, lo, hi))} />}
               slider={<input type="range" min={lo} max={hi || 1} step={(hi - lo) / 600 || 1} value={ts} onChange={(e) => setTargetSpot(Number(e.target.value))} className={SLIDER} />} />
             <Ctl label="Date / DTE" sub={`${dteDisplay} · ${dtLabel} IST`} onReset={dteOverride !== null ? () => setDteOverride(null) : undefined}
-              stepper={<input type="datetime-local" value={dtInput} max={expiryMs ? new Date(expiryMs).toISOString().slice(0, 16) : undefined} onChange={(e) => onPickDate(e.target.value)} className="rounded-[4px] border border-line bg-surface px-1 py-0.5 text-[10px] text-text" />}
+              stepper={<input type="datetime-local" value={dtInput} min={toLocalInput(Date.now())} max={expiryMs ? toLocalInput(expiryMs) : undefined} onChange={(e) => onPickDate(e.target.value)} className="rounded-[4px] border border-line bg-surface px-1 py-0.5 text-[10px] text-text" />}
               slider={<input type="range" min={0} max={Math.max(baseDte, 0.01)} step={Math.max(baseDte / 400, 0.005)} value={dte} onChange={(e) => setDteOverride(Number(e.target.value))} className={SLIDER} />} />
             <Ctl label="IV shift (all)" sub="vol pts" onReset={ivShift !== 0 ? () => setIvShift(0) : undefined}
               stepper={<Step text={`${ivShift >= 0 ? "+" : ""}${ivShift.toFixed(1)}`} onStep={(d) => setIvShift(clampN(ivShift + d * 0.5, -50, 50))} />}

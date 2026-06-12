@@ -113,21 +113,34 @@ export function connectChain(
   onState?: (s: "live" | "down") => void,
 ): () => void {
   let closed = false;
-  const ws = new WebSocket(`${WS}/ws/chain`);
-  ws.onopen = () => {
-    onState?.("live");
-    ws.send(JSON.stringify({ underlying: u, expiry }));
+  let ws: WebSocket | null = null;
+  let retry: ReturnType<typeof setTimeout> | null = null;
+  let backoff = 1000;
+  const schedule = () => {
+    if (closed || retry) return;
+    retry = setTimeout(() => { retry = null; connect(); }, backoff);
+    backoff = Math.min(backoff * 2, 15000); // 1s → 2s → … → 15s cap
   };
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    if (m.type === "chain")
-      onMsg({ chain: mapChain(m.chain), expiries: m.expiries });
+  const connect = () => {
+    ws = new WebSocket(`${WS}/ws/chain`);
+    ws.onopen = () => {
+      backoff = 1000; // reset on a healthy connection
+      onState?.("live");
+      ws?.send(JSON.stringify({ underlying: u, expiry }));
+    };
+    ws.onmessage = (e) => {
+      const m = JSON.parse(e.data);
+      if (m.type === "chain") onMsg({ chain: mapChain(m.chain), expiries: m.expiries });
+    };
+    // a dropped socket (network blip, tab backgrounded) must auto-reconnect, not stay "down"
+    ws.onclose = () => { if (closed) return; onState?.("down"); schedule(); };
+    ws.onerror = () => { try { ws?.close(); } catch { /* onclose will fire → reconnect */ } };
   };
-  ws.onclose = () => !closed && onState?.("down");
-  ws.onerror = () => onState?.("down");
+  connect();
   return () => {
     closed = true;
-    ws.close();
+    if (retry) clearTimeout(retry);
+    ws?.close();
   };
 }
 
@@ -408,22 +421,34 @@ export function connectState(
 ): () => void {
   let closed = false;
   let ws: WebSocket | null = null;
-  // token rides in the Sec-WebSocket-Protocol handshake (not the URL → not logged)
-  getAccessToken().then((token) => {
-    if (closed) return;
-    ws = token
-      ? new WebSocket(`${WS}/api/ws/state`, ["jwt", token])
-      : new WebSocket(`${WS}/api/ws/state`);
-    ws.onopen = () => onState?.("live");
-    ws.onmessage = (e) => {
-      const m = JSON.parse(e.data);
-      if (m.type === "tick") onTick(m as StateTick);
-    };
-    ws.onclose = () => !closed && onState?.("down");
-    ws.onerror = () => onState?.("down");
-  });
+  let retry: ReturnType<typeof setTimeout> | null = null;
+  let backoff = 1000;
+  const schedule = () => {
+    if (closed || retry) return;
+    retry = setTimeout(() => { retry = null; connect(); }, backoff);
+    backoff = Math.min(backoff * 2, 15000);
+  };
+  const connect = () => {
+    // token rides in the Sec-WebSocket-Protocol handshake (not the URL → not logged);
+    // re-fetched on each (re)connect so an expired token is refreshed on reconnect.
+    getAccessToken().then((token) => {
+      if (closed) return;
+      ws = token
+        ? new WebSocket(`${WS}/api/ws/state`, ["jwt", token])
+        : new WebSocket(`${WS}/api/ws/state`);
+      ws.onopen = () => { backoff = 1000; onState?.("live"); };
+      ws.onmessage = (e) => {
+        const m = JSON.parse(e.data);
+        if (m.type === "tick") onTick(m as StateTick);
+      };
+      ws.onclose = () => { if (closed) return; onState?.("down"); schedule(); };
+      ws.onerror = () => { try { ws?.close(); } catch { /* onclose reconnects */ } };
+    }).catch(() => schedule());
+  };
+  connect();
   return () => {
     closed = true;
+    if (retry) clearTimeout(retry);
     ws?.close();
   };
 }
