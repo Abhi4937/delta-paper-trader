@@ -1,6 +1,6 @@
 # Session Handoff — Delta Options Paper-Trading Platform
 
-_Last updated: 2026-06-12 — **app is DEPLOYED LIVE at https://trader-abhi.duckdns.org** (Oracle Always-Free VM)_
+_Last updated: 2026-06-12 — app DEPLOYED LIVE + a **monitoring / RCA / scaling-roadmap session** on branch `feat/prod-monitoring` (NOT yet merged or deployed — see the section directly below)_
 
 > **New session: read `docs/ARCHITECTURE.md` first** (system map + API contracts + data model + engines) — it replaces reading the codebase cold. Then this file for run commands & status.
 >
@@ -13,7 +13,38 @@ Local paper-trading terminal for **Delta Exchange India options** (BTC + ETH), m
 
 ---
 
-## 🆕 LATEST SESSION (2026-06-12) — read this first
+## 🆕 THIS SESSION (2026-06-12 · part 2 — Observability + RCA + Roadmap) — read FIRST
+
+**All work this session is on branch `feat/prod-monitoring` (14 commits, NOT pushed, NOT deployed, NO PR yet).** `main` is unchanged. The live VM is still running the previously-deployed `228dd87` (verified this session: blob-hashes of the changed files match the VM exactly; all 4 containers Up; `/health`, `/api/feed`, dashboard endpoints green; ~377 MiB RAM free).
+
+This session was **Phase 0 (observability)** of a new "make it sellable to multiple users" direction. Three threads were agreed (DB monitoring done; RCA specced+planned; feedback widget not started) plus a scaling roadmap.
+
+### ✅ DONE & COMMITTED — Production monitoring (Tasks 1–5, 7, 9 of the monitoring plan)
+On-box **Netdata + Slack alerts + backend `/metrics` APM**, built TDD/subagent-driven. Plan: `docs/superpowers/plans/2026-06-12-prod-monitoring-netdata.md`; spec: `docs/superpowers/specs/2026-06-12-prod-monitoring-netdata-design.md`; runbook: **`docs/MONITORING.md`**.
+- **Backend `/metrics`** (`backend/app/metrics.py`, private `CollectorRegistry`): `app_feed_fresh` / `app_feed_age_seconds` / `app_open_positions` gauges + `http_request_duration_seconds` histogram (labelled by **route template**, unmatched→`<unmatched>` to bound cardinality). 5 tests; full suite **92 passed**, mypy clean. **`/metrics` is deliberately NOT in the Caddy route map → never public; Netdata scrapes it internally.**
+- **Caddy JSON access log** → shared `caddy_logs` volume (`Caddyfile` + compose), tailed by Netdata `web_log`.
+- **Netdata** = one mem-capped (`mem_limit: 250m`) container, dashboard bound to `127.0.0.1:19999` (SSH-tunnel only), ML disabled. Config under `deploy/netdata/`: `netdata.conf`, `go.d/{prometheus,httpcheck,web_log,postgres}.conf`, `health.d/{paper_trader,postgres}.conf`, `health_alarm_notify.conf` (Slack via `${SLACK_WEBHOOK_URL}`).
+- **DB deep monitoring** (Task 9): Netdata Postgres collector + a **least-privilege `netdata` role** (`pg_monitor`; SQL at `deploy/netdata/postgres-monitor-role.sql`) → connections/locks/deadlocks/cache-hit/durations + alarms. `pg_stat_statements` documented as opt-in (needs DB restart).
+- **Alarms → Slack** (fire-once + recover): backend down, **feed-stale = critical** (core trading risk), 5xx spike, disk/RAM/swap, PG connections/deadlocks/long-txn.
+
+### ⏳ PENDING to finish monitoring (needs YOU + the VM)
+- **Task 6 — deploy + verify on the VM.** Blocked on TWO secrets you must add to the VM's root `~/delta-paper-trader/.env`: **`SLACK_WEBHOOK_URL`** (create a Slack incoming webhook) and **`NETDATA_PG_PASSWORD`** (then run `deploy/netdata/postgres-monitor-role.sql` on the VM with that password). Deploy via the usual `git archive | scp | docker compose -f docker-compose.prod.yml up -d --build`. On first run, reconcile against the live agent: (1) Netdata `web_log` JSON field mapping vs Caddy's real fields, (2) the exact chart-ids in the custom alarms' `on:` lines (verify on the dashboard → `netdatacli reload-health`), then send a test Slack alert (`docker exec …netdata-1 bash /usr/libexec/netdata/plugins.d/alarm-notify.sh test`).
+- **Task 8 — open the PR** once verified.
+
+### 📋 Scaling & commercialization roadmap — `docs/scaling-commercialization-roadmap.md`
+Phased plan from 2 trusted users → sellable SaaS. **Key insight:** the app is already multi-tenant *architected* (per-user isolation, auth, vault); the hard scaling gate is the **single-process `SimTicker` + in-memory per-second rings** (CPU+RAM grow with total open positions; blocks horizontal scale) — a Phase-2 fix (externalize ticker + Redis rings), not urgent at 2 users. Phase 0 = this monitoring work. 5 business decisions (pricing/scale/signup/budget/compliance) are listed and **await the user**.
+
+### ▶️ NEXT — RCA implementation (specced + planned, NOT built)
+**Thread 2 — Login/User RCA.** Spec `docs/superpowers/specs/2026-06-12-login-user-rca-design.md`; plan `docs/superpowers/plans/2026-06-12-login-user-rca.md` (10 tasks). New `app_events` table (auth/error/perf, NOT user-FK-bound) + independent-session emit layer (`app/obs/`) so audit rows survive request aborts; throttled auth events at the `_user_from_token` choke point; `X-Request-ID` + slow/error capture; admin `GET /api/admin/events` + `/admin` RCA panel; 90-day prune. Captures all 4 (auth fail/success + 5xx + slow), retention 90d. **Testing boundary:** repo has NO DB test harness → pure logic (`classify_auth`/`is_slow`/`AuthThrottle`) is unit-tested, persistence/query integration-verified vs the dockerized dev DB.
+- **OPEN DECISION (asked, unanswered):** should RCA go on its **own branch `feat/login-rca` off `main`** (recommended — clean PR; only `docs/MONITORING.md` overlaps) or continue on `feat/prod-monitoring`? Resolve before implementing.
+- **Thread 3 — UI feedback widget:** approved by user, **not yet specced** (in-app Feedback button → modal → backend endpoint → `feedback` table → admin view). Do after RCA.
+
+### Agreed sequence
+Finish DB monitoring (✅) → write roadmap (✅) → **implement RCA (Thread 2)** → **feedback widget (Thread 3)**. Deploy/verify monitoring (Task 6) whenever the Slack webhook is ready.
+
+---
+
+## LATEST SESSION (2026-06-12 · part 1 — deploy + UI) — earlier work
 
 ### ✅ DEPLOYED LIVE & VERIFIED — `https://trader-abhi.duckdns.org`
 The app is **hosted online (free) on an Oracle Cloud Always-Free VM** and verified live this session:
