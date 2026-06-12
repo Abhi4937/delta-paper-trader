@@ -64,6 +64,59 @@ Configuration: `deploy/netdata/go.d/prometheus.conf`
 
 ---
 
+## Database Monitoring
+
+Deep Postgres/TimescaleDB metrics are collected by Netdata's built-in **Postgres go.d collector** (`deploy/netdata/go.d/postgres.conf`), which connects to the `db` service on the internal Docker network using a **least-privilege `netdata` role** (`pg_monitor` grant — read access to `pg_stat_*` views/functions only; no access to application table data).
+
+### What's Collected
+
+| Category | Metrics |
+|----------|---------|
+| Connections | Active/idle/waiting connections, **connection-pool saturation %** (connections used vs. `max_connections`) |
+| Transactions | Commits/s, rollbacks/s |
+| Cache | **Cache-hit ratio** (shared buffer hit rate; target > 99%) |
+| Locks & contention | **Deadlocks** (rate), **lock waits** |
+| Query/transaction age | **Longest-running query and transaction** (seconds) |
+| Temp files | Temp-file spills (bytes/count — indicates memory pressure during sorts/hash joins) |
+| Table/index sizes | Heap and index sizes per table |
+| Scan types | Sequential scans vs. index scans per table (high seq-scan rate on large tables flags a missing index) |
+
+### One-Time Role Setup (Run on the VM)
+
+Create the `netdata` monitoring role before or after first deploy — Netdata will retry the connection on failure:
+
+```bash
+docker exec -i delta-paper-trader-db-1 \
+  psql -U paper -d paper_trader -v pw="'YOUR_PASSWORD'" \
+  -f - < deploy/netdata/postgres-monitor-role.sql
+```
+
+The password must match `NETDATA_PG_PASSWORD` in the VM's root `.env` file. The SQL script (`deploy/netdata/postgres-monitor-role.sql`) is idempotent — it skips `CREATE ROLE` if `netdata` already exists.
+
+### DB Alarms
+
+Defined in `deploy/netdata/health.d/postgres.conf`:
+
+| Alarm | Chart | Condition | Severity |
+|-------|-------|-----------|----------|
+| `paper_pg_connections` | `postgres.connections_utilization` | avg over 1 min > **80%** | Warning |
+| `paper_pg_connections` | `postgres.connections_utilization` | avg over 1 min > **90%** | Critical |
+| `paper_pg_deadlocks` | `postgres.deadlocks_rate` | sum over 5 min > **0** | Warning |
+| `paper_pg_long_txn` | `postgres.query_duration` | max over 1 min > **300 s** (5 min) | Warning |
+
+### Optional: Query-Level RCA via `pg_stat_statements`
+
+When enabled, Netdata's collector also surfaces per-query execution counts, mean/max durations, rows, and cache-hit ratios — useful for identifying slow queries.
+
+**This is OFF by default** because it requires a DB restart. To enable:
+
+1. Edit the TimescaleDB container's PostgreSQL config to add `pg_stat_statements` to `shared_preload_libraries` (e.g. via a custom `postgresql.conf` or `command:` override in `docker-compose.prod.yml`).
+2. Connect to the DB and run: `CREATE EXTENSION IF NOT EXISTS pg_stat_statements;`
+3. **Restart the `db` container** (`docker compose -f docker-compose.prod.yml restart db`).
+4. No change to `deploy/netdata/go.d/postgres.conf` is needed — the collector auto-detects the extension.
+
+---
+
 ## Security Invariants
 
 These must not be changed without a deliberate security review:

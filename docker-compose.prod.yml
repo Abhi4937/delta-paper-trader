@@ -76,6 +76,7 @@ services:
       - "127.0.0.1:19999:19999"   # dashboard — localhost only, reach via SSH tunnel
     environment:
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:?set SLACK_WEBHOOK_URL in .env}
+      NETDATA_PG_PASSWORD: ${NETDATA_PG_PASSWORD:?set NETDATA_PG_PASSWORD in .env}
     volumes:
       - netdatalib:/var/lib/netdata
       - netdatacache:/var/cache/netdata
