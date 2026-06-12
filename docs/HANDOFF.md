@@ -1,6 +1,6 @@
 # Session Handoff — Delta Options Paper-Trading Platform
 
-_Last updated: 2026-06-11_
+_Last updated: 2026-06-12 — **app is DEPLOYED LIVE at https://trader-abhi.duckdns.org** (Oracle Always-Free VM)_
 
 > **New session: read `docs/ARCHITECTURE.md` first** (system map + API contracts + data model + engines) — it replaces reading the codebase cold. Then this file for run commands & status.
 >
@@ -13,7 +13,54 @@ Local paper-trading terminal for **Delta Exchange India options** (BTC + ETH), m
 
 ---
 
-## 🆕 LATEST SESSION (2026-06-11) — read this first
+## 🆕 LATEST SESSION (2026-06-12) — read this first
+
+### ✅ DEPLOYED LIVE & VERIFIED — `https://trader-abhi.duckdns.org`
+The app is **hosted online (free) on an Oracle Cloud Always-Free VM** and verified live this session:
+- Homepage `307→/login` over **valid HTTPS** (Caddy auto-cert, Let's Encrypt).
+- `/api/feed` → `{"connected":true,"fresh":true}` (backend on the live Delta feed).
+- `/health` → `{"status":"ok","env":"production"}`. WS handshake `/ws/chain` → **101**.
+- All 4 containers `Up` (db/backend/frontend/caddy); frontend on the freshly-built image.
+
+**VM access & topology**
+- SSH: `ssh -i C:\Users\Abhis\.ssh\oracle_paper ubuntu@80.225.219.86` (key `oracle_paper`, `IdentitiesOnly=yes`).
+- App dir on VM: `~/delta-paper-trader`. Stack: `docker compose -f docker-compose.prod.yml` → **db (TimescaleDB) + backend(:8010) + frontend(:3000) + Caddy(:80/:443)**, all `restart: unless-stopped`. Caddy routes `/api/* /ws /ws/* /health` → backend, else → frontend.
+- Shape: **VM.Standard.E2.1.Micro** (1 GB AMD/x86, always-available free tier) + **2 GB swap** (needed for the Next build — build runs ~6 min, "Compiled successfully in 5.3min" then TS-check; zero downtime, old container serves during build).
+- DNS: **DuckDNS** `trader-abhi.duckdns.org` → VM public IP `80.225.219.86`.
+- Prod hardening confirmed: `APP_ENV=production`, `ALLOW_DEV_NO_AUTH=false` (no auth bypass in prod — UI behaviours must be checked **logged-in**), `CORS_ORIGINS=https://trader-abhi.duckdns.org`. Oracle security list opens only 80/443/22.
+
+**How to redeploy code to the VM** (private repo → can't `git clone` on VM):
+```bash
+# from C:\dev\paper_trader  (Git Bash / Bash tool)
+git archive --format=tar.gz -o /tmp/pt.tgz main
+scp -i ~/.ssh/oracle_paper /tmp/pt.tgz ubuntu@80.225.219.86:/tmp/
+ssh -i ~/.ssh/oracle_paper ubuntu@80.225.219.86 \
+  'cd ~/delta-paper-trader && tar xzf /tmp/pt.tgz && \
+   docker compose -f docker-compose.prod.yml up -d --build > ~/deploy.log 2>&1'
+```
+`.env.prod` files live on the VM and are **preserved** by the tar-extract (not in the archive). Watch `~/deploy.log`; frontend container recreates only after the ~6-min build finishes (don't trust an early "Up N hours" — that's the old container still serving).
+*(Open follow-up: a read-only deploy key / private-clone would make this one command instead of archive+scp.)*
+
+### UI fixes shipped this session (commits `43cf11f` + the WS-reconnect commit; pushed to `origin/main`)
+- **WS "down" auto-reconnect** (`lib/api.ts` `connectChain`/`connectState`): exponential backoff (1s→15s) + **foreground-reconnect** on `visibilitychange`. `connectState` re-fetches the access token inside `connect()` so expired tokens refresh on reconnect. **This was the "app goes down after a while" root cause — the server was healthy; the client just never reconnected after a drop (mobile backgrounding / NAT idle / sleep).** Drops are normal and expected; the fix is reconnection, not prevention.
+- **SL is NOT affected by WS drops** — confirmed & explained to the user: `ticker.py` runs MTM + auto-exit (SL/target) server-side 24/7 for ALL users independent of any client connection (suspended only on stale marks). The browser WS is display-only.
+- **Mobile option chain** (`chain/page.tsx`): all columns kept with h+v scroll centered on ATM; **desktop (lg+) keeps the original hover-reveal B/S**; **mobile taps a strike to expand it in place** (Delta-style) into an inline lot editor pinned to the tapped side of the viewport (`sticky left-0`/`right-0 ml-auto` so it's never off-screen); `text-[16px]` inputs (no iOS zoom); price-flicker removed; mobile scroll-box card framing.
+- **Payoff panel** (`PayoffPanel.tsx`): Date/DTE defaults to **current time in IST** with the slider running now→expiry; Y-scale clamp so neither side of zero exceeds 2.5× (fixes tiny green side near expiry); **OI bars rise UP from the 0-line** (were drawn below as huge negatives).
+- **Positions** (`positions/page.tsx`): Excel/Close header buttons wrap instead of overflowing the window; **"Loading your positions…" spinner** (persisted `pt:hadOpenPositions` flag + `store.hydrated`) replaces the misleading "No positions yet" flash on cold load.
+
+### Verify-when-logged-in (prod has no bypass — these need your eyes)
+Log in at `https://trader-abhi.duckdns.org` and confirm: (1) leave a tab idle / background the phone, come back → it **reconnects** (no permanent "down"); (2) mobile: tap a strike → it **expands in place** with the lot editor on-screen; desktop: hover still shows B/S; (3) payoff Date/DTE shows **current IST** and OI bars sit **above** the 0-line; (4) cold-load Positions shows the **spinner**, not "No positions".
+
+### Still open / next
+- **Local dev servers** were left with auth handling as-is for the deploy ("leave it until done deploying") — restore normal local auth flow now that deploy is done, if desired.
+- Quiet the **0-DTE orderbook 404 console spam** (settled contracts).
+- Read-only **deploy key** for one-command VM updates (see above).
+- Prod **monitoring/support tooling** — user deferred ("discuss later").
+- Everything under the 2026-06-11 section below still applies (chart in-browser verification, Playwright E2E, lint debt, sub-projects B/C/D).
+
+---
+
+## LATEST SESSION (2026-06-11)
 
 ### ⚠️ Many commits are LOCAL & UNPUSHED — push them at session start
 `git log origin/main..HEAD` shows the stack. Latest local commit ≈ the chart re-hydrate/Net-Legs fix. **Run `git push origin main` early.**
