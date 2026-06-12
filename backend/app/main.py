@@ -15,7 +15,7 @@ from datetime import UTC, date, datetime
 from typing import Any, cast
 
 import httpx
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -31,6 +31,7 @@ from app.db.models import AllowedEmail
 from app.db.session import SessionLocal
 from app.delta.rest import DeltaRestClient
 from app.ratelimit import RateLimiter
+from app.metrics import PrometheusMiddleware, render_metrics
 from app.services import chain as chain_svc
 from app.services.margin import MarginService
 from app.services.market_data import MarketDataIngestor
@@ -78,6 +79,8 @@ app.include_router(admin_api.router)
 if settings.rate_limit_enabled:
     app.add_middleware(BaseHTTPMiddleware, dispatch=RateLimiter(settings.rate_limit_per_min))
 
+app.add_middleware(PrometheusMiddleware)
+
 # CORS is added last so it stays the OUTERMOST middleware (headers always present).
 # Origins are env-driven (CORS_ORIGINS) — set to your real domain in production, never "*".
 app.add_middleware(
@@ -101,6 +104,13 @@ async def feed() -> dict[str, Any]:
     placement when prices may be frozen). `fresh` is False if the Delta WS is down
     or no message has arrived in >5s."""
     return cast("dict[str, Any]", app.state.market.feed_status())
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    """Prometheus exposition for Netdata. NOT routed by Caddy — internal scrape only."""
+    payload, content_type = render_metrics(app)
+    return Response(content=payload, media_type=content_type)
 
 
 @app.get("/api/marks")
