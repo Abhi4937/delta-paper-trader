@@ -42,6 +42,14 @@ Phased plan from 2 trusted users → sellable SaaS. **Key insight:** the app is 
 ### Agreed sequence
 Finish DB monitoring (✅) → write roadmap (✅) → **implement RCA (Thread 2)** → **feedback widget (Thread 3)**. Deploy/verify monitoring (Task 6) whenever the Slack webhook is ready.
 
+### ✅ ALSO THIS SESSION — Expiry lifecycle fix (settled-expiry / new-expiry / mobile chooser)
+User report: after 17:30 IST the day's expiry settled but stayed selectable, the newly-listed expiry never appeared, BTC price "stuck", and **mobile had no expiry selector at all**. Four root causes, all fixed:
+- **New expiry never appeared:** the WS ingestor seeded the instrument universe **once** at connect. Added a **periodic reseed loop** (`market_data.py`, `RESEED_INTERVAL_S=120`): re-fetches `/v2/tickers`, subscribes newly-listed symbols on the live socket, evicts delisted ones (`symbol_diff`). Factored the chunked subscribe into `_subscribe()`.
+- **Settled expiry lingered:** nothing filtered by settlement time. Added pure, settlement-aware helpers in `chain.py` — `is_expiry_live` / `live_expiries` / `expiry_settlement` (cutoff **12:00 UTC = 17:30 IST**, `SETTLEMENT_UTC_HOUR`, matching the frontend `isLegExpired`); `default_expiry(expiries, now)` now skips settled. `/api/chain/expiries` and `/ws/chain` expose **live-only** expiries.
+- **Price stuck on a dead expiry:** `/ws/chain` now honors the client's pick only while it's still live, else **auto-jumps** to the nearest live expiry (server-side); the store mirrors this (`store.ts`: `sel = s.expiry && expiries.includes(s.expiry) ? s.expiry : chain.expiry`).
+- **Mobile had no chooser:** desktop tabs were `hidden … lg:flex`. Added a `lg:hidden` expiry `<select>` dropdown in `Shell.tsx` (desktop tabs kept).
+- **Tests:** `backend/tests/test_expiry_lifecycle.py` (12 tests: settlement boundary, live filtering, auto-jump default, symbol diff). Full suite **105 passed**, ruff clean, frontend tsc+eslint clean. No frontend unit test (repo has vitest but the store auto-jump is inline; verified via the backend decision check + typecheck).
+
 ---
 
 ## LATEST SESSION (2026-06-12 · part 1 — deploy + UI) — earlier work

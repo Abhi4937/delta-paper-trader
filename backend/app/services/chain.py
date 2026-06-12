@@ -8,11 +8,16 @@ IV (bid/ask/mark), Greeks, and OI. Expiry is parsed from the contract symbol
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 
 from pydantic import BaseModel
 
 from app.delta.rest import DeltaRestClient
+
+# Delta India BTC/ETH options settle at 12:00 UTC (17:30 IST). After this instant
+# on its expiry day a contract is dead — it must drop out of the chooser, never be
+# auto-selected, and never be traded. Mirrors the frontend `isLegExpired` cutoff.
+SETTLEMENT_UTC_HOUR = 12
 
 
 def _f(v: object) -> float | None:
@@ -205,10 +210,30 @@ def list_expiries(tickers: list[dict]) -> list[date]:
     return sorted(seen)
 
 
-def default_expiry(expiries: list[date], today: date | None = None) -> date | None:
-    """Nearest upcoming expiry (fallback: the last one)."""
+def expiry_settlement(e: date) -> datetime:
+    """The UTC instant an expiry settles (12:00 UTC == 17:30 IST)."""
+    return datetime(e.year, e.month, e.day, SETTLEMENT_UTC_HOUR, 0, tzinfo=UTC)
+
+
+def is_expiry_live(e: date, now: datetime) -> bool:
+    """True while the contract is still trading (before its settlement instant)."""
+    return now < expiry_settlement(e)
+
+
+def live_expiries(expiries: list[date], now: datetime | None = None) -> list[date]:
+    """Drop expiries that have already settled; order preserved."""
+    now = now or datetime.now(UTC)
+    return [e for e in expiries if is_expiry_live(e, now)]
+
+
+def default_expiry(expiries: list[date], now: datetime | None = None) -> date | None:
+    """Nearest *live* expiry. Degenerate fallback (all settled): the furthest one."""
     if not expiries:
         return None
-    today = today or date.today()
-    upcoming = [e for e in expiries if e >= today]
-    return upcoming[0] if upcoming else expiries[-1]
+    live = live_expiries(expiries, now)
+    return live[0] if live else expiries[-1]
+
+
+def symbol_diff(current: set[str], fresh: set[str]) -> tuple[set[str], set[str]]:
+    """(newly listed, no-longer listed) between the cached and freshly fetched sets."""
+    return fresh - current, current - fresh

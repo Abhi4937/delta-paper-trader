@@ -288,8 +288,12 @@ export const useStore = create<State>()(
             spots.set(chain.underlying, chain.spot);
             atmIvs.set(`${chain.underlying}|${chain.expiry}`, chain.atmIv);
             const s = get();
+            // Keep the user's pick only while it is still a live expiry; once it
+            // settles (and drops out of `expiries`), auto-jump to the server's
+            // current expiry so the chain/price never freezes on a dead contract.
+            const sel = s.expiry && expiries.includes(s.expiry) ? s.expiry : chain.expiry;
             // bump tickN so the live basket preview (legBasketPrice) re-renders
-            set({ chain, expiries, expiry: s.expiry ?? chain.expiry, conn: "live", tickN: s.tickN + 1 });
+            set({ chain, expiries, expiry: sel, conn: "live", tickN: s.tickN + 1 });
           },
           (st) => set({ conn: st === "live" ? "live" : "down" }),
         );
