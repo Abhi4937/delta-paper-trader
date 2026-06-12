@@ -99,7 +99,13 @@ function applyServerState(st: ServerState): void {
     balance: st.account.balance,
     ledger: st.ledger,
     logs: st.logs,
+    hydrated: true,
   });
+  // remember whether there were open positions, so a returning user sees "Loading…" (not a
+  // misleading "No positions") before the next hydrate completes.
+  try {
+    localStorage.setItem("pt:hadOpenPositions", st.positions.some((p) => p.status === "open") ? "1" : "0");
+  } catch { /* storage unavailable */ }
 }
 
 async function hydrate(): Promise<void> {
@@ -176,6 +182,7 @@ interface State {
   tickN: number;
   selected: Leg[];
   expiredNotice: string | null; // transient warning when settled legs are auto-dropped
+  hydrated: boolean; // true once the first GET /api/state has returned (avoids a "no positions" flash)
   positions: Position[];
   balance: number;
   currency: Currency;
@@ -254,6 +261,7 @@ export const useStore = create<State>()(
       tickN: 0,
       selected: [],
       expiredNotice: null,
+      hydrated: false,
       positions: [],
       balance: START_BALANCE,
       currency: "USD",

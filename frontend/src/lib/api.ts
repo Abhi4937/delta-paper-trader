@@ -137,9 +137,20 @@ export function connectChain(
     ws.onerror = () => { try { ws?.close(); } catch { /* onclose will fire → reconnect */ } };
   };
   connect();
+  // mobile: reconnect immediately when the tab returns to the foreground — phones throttle
+  // the backoff timer while backgrounded, so a plain timer can be slow to fire on resume.
+  const onVis = () => {
+    if (closed || typeof document === "undefined" || document.visibilityState !== "visible") return;
+    if (ws && ws.readyState <= WebSocket.OPEN) return; // still connecting/open → leave it
+    if (retry) { clearTimeout(retry); retry = null; }
+    backoff = 1000;
+    connect();
+  };
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVis);
   return () => {
     closed = true;
     if (retry) clearTimeout(retry);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVis);
     ws?.close();
   };
 }
@@ -446,9 +457,18 @@ export function connectState(
     }).catch(() => schedule());
   };
   connect();
+  const onVis = () => {
+    if (closed || typeof document === "undefined" || document.visibilityState !== "visible") return;
+    if (ws && ws.readyState <= WebSocket.OPEN) return;
+    if (retry) { clearTimeout(retry); retry = null; }
+    backoff = 1000;
+    connect();
+  };
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVis);
   return () => {
     closed = true;
     if (retry) clearTimeout(retry);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVis);
     ws?.close();
   };
 }

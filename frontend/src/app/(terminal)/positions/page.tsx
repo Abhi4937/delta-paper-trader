@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { ChevronDown, ChevronRight, Download, LineChart, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, LineChart, RefreshCw, X } from "lucide-react";
 import PayoffPanel from "@/components/PayoffPanel";
 import PositionCharts from "@/components/PositionCharts";
 import { exportPositionXlsx } from "@/lib/exportXlsx";
@@ -24,6 +24,12 @@ export default function PositionsPage() {
   const currency = useStore((s) => s.currency);
   useStore((s) => s.tickN);
   const closePosition = useStore((s) => s.closePosition);
+  const hydrated = useStore((s) => s.hydrated);
+  // optimistic hint: did this user have open positions last session? → show "Loading…"
+  // (not "No positions") until the first server fetch returns.
+  const [hadPositions] = useState(() => {
+    try { return localStorage.getItem("pt:hadOpenPositions") === "1"; } catch { return false; }
+  });
 
   const open = positions.filter((p) => p.status === "open");
   const totalUpnl = open.reduce((s, p) => s + positionPnl(p), 0);
@@ -50,12 +56,18 @@ export default function PositionsPage() {
       </div>
 
       {positions.length === 0 ? (
-        <div className="grid flex-1 place-items-center text-center text-[13px] text-text-mute">
-          <div>
-            No positions yet.
-            <div className="mt-1 text-[11px]">Build a strategy on the chain and Place Paper Order.</div>
+        !hydrated && hadPositions ? (
+          <div className="grid flex-1 place-items-center text-[13px] text-text-mute">
+            <div className="flex items-center gap-2"><RefreshCw size={13} className="animate-spin" /> Loading your positions…</div>
           </div>
-        </div>
+        ) : (
+          <div className="grid flex-1 place-items-center text-center text-[13px] text-text-mute">
+            <div>
+              No positions yet.
+              <div className="mt-1 text-[11px]">Build a strategy on the chain and Place Paper Order.</div>
+            </div>
+          </div>
+        )
       ) : (
         <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
           {positions.map((p) => (
@@ -117,7 +129,7 @@ function PositionCard({
             {p.closedAt && <span className="ml-1 tnum">· {fmtEntry(p.closedAt)}</span>}
           </span>
         )}
-        <div className="ml-auto flex items-center gap-5 text-[11px]">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-[11px]">
           <span className="text-text-mute">
             Margin <span className="tnum text-text-dim">{money(p.margin, currency)}</span>
           </span>

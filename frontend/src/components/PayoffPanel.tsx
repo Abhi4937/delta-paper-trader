@@ -208,9 +208,17 @@ function PayoffChart({
     : [0];
   // pad the value range 15% top & bottom so the curve breathes (Delta-style buffer) instead
   // of hugging the chart edges — important when the P&L range is small (e.g. a tight spread).
-  const rawMin = Math.min(...winVals), rawMax = Math.max(...winVals);
-  const vBuf = Math.max((rawMax - rawMin) * 0.15, 1e-6);
-  const minP = rawMin - vBuf, maxP = rawMax + vBuf;
+  let loV = Math.min(...winVals), hiV = Math.max(...winVals);
+  // keep BOTH sides of the zero line readable: don't let the loss (or profit) leg take more
+  // than ~2.5× the other, so a huge loss can't squash the green/profit side to a sliver. The
+  // true Max P / Max L still show in the stats above; the deep tail just clips off-chart.
+  if (hiV > 0 && loV < 0) {
+    const RATIO = 2.5;
+    if (-loV > hiV * RATIO) loV = -hiV * RATIO;
+    if (hiV > -loV * RATIO) hiV = -loV * RATIO;
+  }
+  const vBuf = Math.max((hiV - loV) * 0.12, 1e-6);
+  const minP = loV - vBuf, maxP = hiV + vBuf;
   const range = Math.max(maxP - minP, 1e-6);
   const x = (s: number) => (viewHi > viewLo ? ((s - viewLo) / (viewHi - viewLo)) * w : 0);
   const y = (v: number) => hgt - ((v - minP) / range) * hgt;
@@ -223,7 +231,8 @@ function PayoffChart({
   // OI bars (Call/Put notional) rise UP from the chart bottom, faint, behind the curve.
   const oiRows = (chain?.rows ?? []).filter((r) => r.strike >= viewLo && r.strike <= viewHi);
   const maxOi = Math.max(1, ...oiRows.flatMap((r) => [r.call.oiValueUsd, r.put.oiValueUsd]));
-  const oiH = (v: number) => Math.min((v / maxOi) * hgt * 0.33, hgt * 0.33);
+  // OI bars rise UP from the zero P&L line (capped to the space above it), faint, behind the curve.
+  const oiH = (v: number) => Math.min((v / maxOi) * hgt * 0.30, Math.max(y0 - 4, 0));
 
   const sdLines = sd > 0 ? [-2, -1, 1, 2].map((m) => ({ m, s: spot + m * sd })).filter((d) => d.s >= viewLo && d.s <= viewHi) : [];
 
@@ -250,8 +259,8 @@ function PayoffChart({
         {/* OI bars hanging from the zero line (calls red, puts green), behind the curve */}
         {oiRows.map((r, i) => (
           <g key={i}>
-            <rect x={x(r.strike) - 2.5} y={hgt - oiH(r.call.oiValueUsd)} width={2.2} height={oiH(r.call.oiValueUsd)} fill="var(--color-neg)" opacity={0.18} />
-            <rect x={x(r.strike) + 0.3} y={hgt - oiH(r.put.oiValueUsd)} width={2.2} height={oiH(r.put.oiValueUsd)} fill="var(--color-pos)" opacity={0.18} />
+            <rect x={x(r.strike) - 2.5} y={y0 - oiH(r.call.oiValueUsd)} width={2.2} height={oiH(r.call.oiValueUsd)} fill="var(--color-neg)" opacity={0.18} />
+            <rect x={x(r.strike) + 0.3} y={y0 - oiH(r.put.oiValueUsd)} width={2.2} height={oiH(r.put.oiValueUsd)} fill="var(--color-pos)" opacity={0.18} />
           </g>
         ))}
         {/* SD bands */}

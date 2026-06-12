@@ -153,45 +153,57 @@ export default function ChainPage() {
                 // VIEW: tap → focus + (mobile) depth sheet. BUILDER: tap → open the inline editor
                 // for that side, pre-filled with the leg's current lots if it's already in the basket.
                 const onView = (sym: string) => () => { setFocused(sym); if (!builderMode) setDepthOpen(true); };
-                const onReveal = (sym: string) => () => { setLots(selLeg.get(sym)?.qty ?? 1); setActiveCell((a) => (a === sym ? null : sym)); };
+                const onReveal = (sym: string) => () => {
+                  // desktop uses the hover-reveal B/S in the mark cell; the inline lot editor is mobile-only
+                  if (typeof window !== "undefined" && window.matchMedia("(min-width:1024px)").matches) return;
+                  setLots(selLeg.get(sym)?.qty ?? 1);
+                  setActiveCell((a) => (a === sym ? null : sym));
+                };
+                const addOne = (c2: Contract, s: Side) => selectLeg(c2, s, 1); // desktop hover B/S → 1 lot
                 const onCall = builderMode ? onReveal(cs) : onView(cs);
                 const onPut = builderMode ? onReveal(ps) : onView(ps);
-                // inline editor target for this row (call or put), if open
+                // inline editor target for this row (call or put), if open — `side` decides
+                // which half of the row it expands under, so it opens AT the tapped strike.
                 const ed =
-                  activeCell === cs ? { c: row.call, label: `${row.strike} CE` }
-                  : activeCell === ps ? { c: row.put, label: `${row.strike} PE` }
+                  activeCell === cs ? { c: row.call, label: `${row.strike} CE`, side: "call" as const }
+                  : activeCell === ps ? { c: row.put, label: `${row.strike} PE`, side: "put" as const }
                   : null;
                 return (
                   <Fragment key={row.strike}>
-                    <tr className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]")}>
+                    <tr className={clsx("group border-b border-line/40 hover:bg-white/[0.04]", atm && "bg-warn/[0.05]", ed && "!bg-accent/[0.08]")}>
                       <Cell n={row.call.greeks.theta.toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={(row.call.iv * 100).toFixed(1)} hl={callHl} onClick={onCall} />
                       <Cell n={row.call.greeks.delta.toFixed(2)} hl={callHl} onClick={onCall} />
-                      <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} selSide={builderMode ? sel.get(cs) : undefined} qty={selLeg.get(cs)?.qty} mode={builderMode} active={activeCell === cs} onClick={onCall} align="right" />
+                      <MarkCell c={row.call} itm={callItm} hl={callHl} pos={posMap.get(cs)} selSide={builderMode ? sel.get(cs) : undefined} qty={selLeg.get(cs)?.qty} mode={builderMode} active={activeCell === cs} onClick={onCall} onAddOne={addOne} align="right" />
                       <OiCell n={oiC(row.call)} max={maxCallOi} side="left" hl={callHl} onClick={onCall} />
                       <td ref={atm ? atmRef : undefined} className={clsx("px-3 text-center tnum font-semibold", atm ? "text-warn" : "text-text-dim")}>{row.strike}</td>
                       <OiCell n={oiC(row.put)} max={maxPutOi} side="right" hl={putHl} onClick={onPut} />
-                      <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} selSide={builderMode ? sel.get(ps) : undefined} qty={selLeg.get(ps)?.qty} mode={builderMode} active={activeCell === ps} onClick={onPut} align="left" />
+                      <MarkCell c={row.put} itm={putItm} hl={putHl} pos={posMap.get(ps)} selSide={builderMode ? sel.get(ps) : undefined} qty={selLeg.get(ps)?.qty} mode={builderMode} active={activeCell === ps} onClick={onPut} onAddOne={addOne} align="left" />
                       <Cell n={row.put.greeks.delta.toFixed(2)} hl={putHl} onClick={onPut} />
                       <Cell n={(row.put.iv * 100).toFixed(1)} hl={putHl} onClick={onPut} />
                       <Cell n={row.put.greeks.theta.toFixed(1)} hl={putHl} onClick={onPut} />
                     </tr>
 
-                    {/* Inline lot editor — expands IN FLOW under the tapped strike (Delta-style),
-                        so it never floats off-screen and never causes horizontal overflow. The
-                        inner panel is sticky-left so it stays visible if the table is scrolled. */}
+                    {/* Inline lot editor (MOBILE ONLY — desktop uses hover B/S). Shares the tapped
+                        strike row's accent tint with no gap line above + a closing border below, so
+                        it reads as that strike's box EXPANDING, not a separate inserted row. */}
                     {ed && (
-                      <tr className="bg-surface-2">
-                        <td colSpan={11} className="border-y border-accent/50 p-0">
-                          <div className="sticky left-0 flex w-fit max-w-[100vw] items-center gap-2 px-3 py-2">
-                            <span className="text-[12px] font-semibold text-text-dim">
-                              {ed.label} {selLeg.has(activeCell!) && <span className="text-[10px] font-normal text-text-mute">(editing)</span>}
+                      <tr className="bg-accent/[0.08] lg:hidden">
+                        <td colSpan={11} className="border-b-2 border-accent/60 p-0">
+                          {/* The editor is pinned to the tapped side of the VISIBLE viewport
+                              (sticky), so on the horizontally-scrolling chain it's always fully
+                              on-screen — at the right edge for puts, left edge for calls. */}
+                          <div className={clsx(
+                            "sticky z-20 flex w-fit items-center gap-2 bg-surface-2 px-3 py-2",
+                            ed.side === "put" ? "right-0 ml-auto" : "left-0",
+                          )}>
+                            <span className="whitespace-nowrap text-[12px] font-semibold text-text-dim">
+                              {ed.label}{selLeg.has(activeCell!) && <span className="ml-1 text-[10px] font-normal text-text-mute">edit</span>}
                             </span>
                             <LotInput value={lots} onChange={setLots} />
-                            <span className="text-[10px] text-text-mute">lot{lots > 1 ? "s" : ""}</span>
-                            <button aria-label={`Buy ${ed.c.symbol}`} onClick={() => addLeg(ed.c, "buy")} className="min-w-[44px] touch-manipulation rounded bg-pos px-3 py-1.5 text-[13px] font-bold text-base hover:opacity-90">B</button>
-                            <button aria-label={`Sell ${ed.c.symbol}`} onClick={() => addLeg(ed.c, "sell")} className="min-w-[44px] touch-manipulation rounded bg-neg px-3 py-1.5 text-[13px] font-bold text-base hover:opacity-90">S</button>
-                            <button aria-label="Close" onClick={() => setActiveCell(null)} className="ml-1 px-1 text-[16px] leading-none text-text-mute hover:text-text-dim">×</button>
+                            <button aria-label={`Buy ${ed.c.symbol}`} onClick={() => addLeg(ed.c, "buy")} className="touch-manipulation rounded bg-pos px-3 py-1.5 text-[13px] font-bold leading-none text-base hover:opacity-90">B</button>
+                            <button aria-label={`Sell ${ed.c.symbol}`} onClick={() => addLeg(ed.c, "sell")} className="touch-manipulation rounded bg-neg px-3 py-1.5 text-[13px] font-bold leading-none text-base hover:opacity-90">S</button>
+                            <button aria-label="Close" onClick={() => setActiveCell(null)} className="px-1 text-[16px] leading-none text-text-mute hover:text-text-dim">×</button>
                           </div>
                         </td>
                       </tr>
@@ -310,10 +322,10 @@ function LotInput({ value, onChange }: { value: number; onChange: (n: number) =>
 // inline editor (handled by the parent row). Shows the mark, the open-position L/S badge, and
 // — when the strike is in the builder basket — a lot-count badge (Delta-style). No price flash.
 function MarkCell({
-  c, itm, hl, pos, selSide, qty, mode, active, onClick, align,
+  c, itm, hl, pos, selSide, qty, mode, active, onClick, onAddOne, align,
 }: {
   c: Contract; itm: boolean; hl?: boolean; pos?: Side; selSide?: Side; qty?: number;
-  mode: boolean; active: boolean; onClick: () => void; align: "left" | "right";
+  mode: boolean; active: boolean; onClick: () => void; onAddOne: (c: Contract, s: Side) => void; align: "left" | "right";
 }) {
   // builder basket badge takes precedence over the open-position badge while building
   const badge = mode && selSide ? { side: selSide, text: String(qty ?? 1) } : pos ? { side: pos, text: pos === "buy" ? "L" : "S" } : null;
@@ -338,8 +350,28 @@ function MarkCell({
           {badge.text}
         </span>
       )}
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center gap-1.5">
+        {/* DESKTOP ONLY: original hover-reveal B/S (adds 1 lot; adjust in the basket). Mobile
+            uses the inline lot editor instead. */}
+        {mode && (
+          <button
+            aria-label={`Buy ${c.symbol}`}
+            onClick={(e) => { e.stopPropagation(); onAddOne(c, "buy"); }}
+            className="hidden rounded bg-pos px-1.5 py-0.5 text-[11px] font-bold leading-none text-base opacity-0 transition-opacity hover:opacity-90 group-hover:opacity-100 lg:inline-flex"
+          >
+            B
+          </button>
+        )}
         <span>{c.mark.toFixed(1)}</span>
+        {mode && (
+          <button
+            aria-label={`Sell ${c.symbol}`}
+            onClick={(e) => { e.stopPropagation(); onAddOne(c, "sell"); }}
+            className="hidden rounded bg-neg px-1.5 py-0.5 text-[11px] font-bold leading-none text-base opacity-0 transition-opacity hover:opacity-90 group-hover:opacity-100 lg:inline-flex"
+          >
+            S
+          </button>
+        )}
       </div>
     </td>
   );
