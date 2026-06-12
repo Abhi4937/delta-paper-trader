@@ -99,24 +99,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           ))}
         </div>
 
-        {/* Mobile: no room for the tab row — expose every live expiry as a dropdown.
-            Live-only + auto-jump are enforced server-side, so this list never holds a
-            settled expiry. */}
-        {expiries.length > 0 && (
-          <select
-            aria-label="Expiry"
-            value={expiry ?? ""}
-            onChange={(e) => setE(e.target.value)}
-            className="tnum rounded-[5px] border border-line bg-surface-3 px-2 py-1 text-[11px] text-text lg:hidden"
-          >
-            {expiries.map((e) => (
-              <option key={e} value={e}>
-                {expLabel(e)}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div className="ml-2 flex items-baseline gap-2">
           <span className="text-[10px] uppercase tracking-wider text-text-mute">{underlying}</span>
           <span className="tnum text-[15px] font-semibold text-text">
