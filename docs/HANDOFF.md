@@ -55,7 +55,8 @@ Log in at `https://trader-abhi.duckdns.org` and confirm: (1) leave a tab idle / 
 - **Local dev servers** were left with auth handling as-is for the deploy ("leave it until done deploying") — restore normal local auth flow now that deploy is done, if desired.
 - Quiet the **0-DTE orderbook 404 console spam** (settled contracts).
 - Read-only **deploy key** for one-command VM updates (see above).
-- Prod **monitoring/support tooling** — user deferred ("discuss later").
+- **Prod monitoring (new):** on-box Netdata + Slack alerts + backend `/metrics` APM — system/containers/Caddy-web_log/httpcheck + feed-stale critical alarm. Runbook: `docs/MONITORING.md`. Still needs a Slack webhook in the VM `.env` + first-deploy verification (Task 6 of the plan).
+- Prod **monitoring/support tooling** — user deferred ("discuss later") — now implemented; see bullet above.
 - Everything under the 2026-06-11 section below still applies (chart in-browser verification, Playwright E2E, lint debt, sub-projects B/C/D).
 
 ---
