@@ -54,20 +54,30 @@ def evaluate_exit(
     combined_stop: CombinedStop | None,
     combined_auto_exit: bool,
     stale: bool,
+    stale_hard_stop: bool = False,
+    stale_grace_elapsed: bool = False,
 ) -> ExitDecision:
     open_legs = [lg for lg in legs if lg.status == "open"]
     if not open_legs:
         return ExitDecision("none")
 
-    # 1) stale feed → suspend ALL auto-exit
-    if stale:
+    # 1) Stale feed. DEFAULT = suspend (never act on bad data). BUT if this strategy
+    # opted into the stale hard-stop AND the feed has been stale past the grace window,
+    # keep enforcing the LOSS stops against the last-known marks — so a feed outage can't
+    # leave a losing position unprotected. Stops ONLY (never take-profit: don't bank a
+    # winner on a frozen price). "Fire on recovery" is automatic: the next fresh tick
+    # re-evaluates normally. A momentary glitch (no grace) still just suspends.
+    hard = stale and stale_hard_stop and stale_grace_elapsed
+    if stale and not hard:
         return ExitDecision("suspended")
+    tag = " (stale hard-stop)" if hard else ""
+    check_targets = not hard  # hard mode: stops only, no take-profit
 
     # 2) combined net-capital stop → close the whole strategy
     if combined_auto_exit:
         floor = combined_floor(combined_stop, margin)
         if floor is not None and net_pnl <= floor:
-            return ExitDecision("close-strategy", reason="combined SL")
+            return ExitDecision("close-strategy", reason="combined SL" + tag)
 
     # 3) per-leg TP/SL (on leg PnL)
     triggered = [
@@ -75,12 +85,14 @@ def evaluate_exit(
         for lg in open_legs
         if lg.auto_exit
         and (
-            (lg.target_pnl is not None and lg.pnl >= lg.target_pnl)
+            (check_targets and lg.target_pnl is not None and lg.pnl >= lg.target_pnl)
             or (lg.stop_pnl is not None and lg.pnl <= lg.stop_pnl)
         )
     ]
     if not triggered:
         return ExitDecision("none")
     if any(lg.close_scope == "strategy" for lg in triggered):
-        return ExitDecision("close-strategy", reason="leg TP/SL")
-    return ExitDecision("close-legs", reason="leg TP/SL", leg_ids=tuple(lg.id for lg in triggered))
+        return ExitDecision("close-strategy", reason="leg TP/SL" + tag)
+    return ExitDecision(
+        "close-legs", reason="leg TP/SL" + tag, leg_ids=tuple(lg.id for lg in triggered)
+    )
