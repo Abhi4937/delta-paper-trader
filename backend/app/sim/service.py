@@ -447,6 +447,8 @@ async def set_position_risk(
         pos.stop_loss_pct_of_margin = patch.stop_loss_pct_of_margin
     if patch.auto_exit is not None:
         pos.auto_exit = patch.auto_exit
+    if "stale_hard_stop" in patch.model_fields_set and patch.stale_hard_stop is not None:
+        pos.stale_hard_stop = patch.stale_hard_stop
     return True
 
 
@@ -608,6 +610,7 @@ def position_dict(pos: Position, mv: MarketView, series: list[dict[str, Any]]) -
         "stopLossPctOfMargin": pos.stop_loss_pct_of_margin,
         "autoExit": pos.auto_exit,
         "autoExitSuspended": pos.auto_exit_suspended,
+        "staleHardStop": pos.stale_hard_stop,
         "closedAt": _ms(pos.closed_at),
         "closeReason": pos.close_reason,
         "series": series,

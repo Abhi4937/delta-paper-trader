@@ -39,6 +39,7 @@ class PositionRiskPatch(BaseModel):
     stop_loss_amount: float | None = None
     stop_loss_pct_of_margin: float | None = None
     auto_exit: bool | None = None
+    stale_hard_stop: bool | None = None
 
 
 class LegRiskPatch(BaseModel):
