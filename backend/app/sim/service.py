@@ -6,6 +6,7 @@ validated client engine (engines/money.py). Every query is filtered by user_id.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -31,7 +32,6 @@ from app.engines.money import (
 from app.sim.exit_engine import CombinedStop, ExitLeg, evaluate_exit
 from app.sim.margin_helper import quote_margin
 from app.sim.marketview import MarketView, Quote
-
 
 # How much of the live 1s ring to return in GET /api/state. Everything before this
 # tail is served from the durable 10s DB history, so the chart starts at entry with a
@@ -642,17 +642,20 @@ async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str,
 
 
 def bounded_series(
-    db_rows: list[dict[str, Any]], ring_full: list[dict[str, Any]]
+    db_rows: list[dict[str, Any]], ring_full: Iterable[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     """Merge durable 10s DB history with a bounded 1s tail for GET /api/state.
 
     `db_rows` = the full-life 10s rows (ascending `t`); `ring_full` = the in-memory 1s
-    ring. Returns the 10s rows up to where the (<=`TAIL_1S`) tail begins, then the tail —
-    so the chart starts at entry (10s resolution before the tail) with a payload bounded
-    regardless of how long the position has been open. With no ring yet, returns the raw
-    10s history.
+    ring (a count-bounded ``collections.deque``). Returns the 10s rows up to where the
+    (<=`TAIL_1S`) tail begins, then the tail — so the chart starts at entry (10s resolution
+    before the tail) with a payload bounded regardless of how long the position has been
+    open. With no ring yet, returns the raw 10s history.
+
+    `ring_full` is materialized to a list first: the ring is a deque (no slicing), and the
+    ``[-TAIL_1S:]`` keeps the contract that an oversized ring is still trimmed to the tail.
     """
-    ring = ring_full[-TAIL_1S:]
+    ring = list(ring_full)[-TAIL_1S:]
     if not ring:
         return db_rows
     first_t = ring[0]["t"]

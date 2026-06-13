@@ -7,6 +7,8 @@ it from the durable 10s DB history. These tests prove the merge keeps the positi
 start at entry with a bounded payload no matter how long the ring grows.
 """
 
+from collections import deque
+
 from app.sim import service
 from app.sim.service import TAIL_1S
 
@@ -35,6 +37,20 @@ def test_short_ring_appends_after_db_no_overlap() -> None:
     assert ts == sorted(ts) and len(ts) == len(set(ts))
     # starts at entry (t=0)
     assert out[0]["t"] == 0
+
+
+def test_ring_as_deque_is_accepted() -> None:
+    # The in-memory ring is now a count-bounded collections.deque (RAM stays flat),
+    # not an unbounded list. bounded_series must accept it — deques don't support slicing,
+    # so the merge has to materialize the tail before indexing it.
+    db = _rows(0, 360, 10)
+    ring = deque((_rows(3540, 60, 1)), maxlen=900)
+    out = service.bounded_series(db, ring)
+    first_ring_t = ring[0]["t"]
+    assert out == [s for s in db if s["t"] < first_ring_t] + list(ring)
+    ts = [s["t"] for s in out]
+    assert ts == sorted(ts) and len(ts) == len(set(ts))
+    assert out[0]["t"] == 0  # still starts at entry
 
 
 def test_ring_longer_than_tail_keeps_entry_history() -> None:

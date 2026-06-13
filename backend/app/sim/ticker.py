@@ -13,6 +13,7 @@ import contextlib
 import logging
 import time
 import uuid
+from collections import deque
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,7 +29,10 @@ from app.sim.marketview import MarketView
 
 log = logging.getLogger("sim_ticker")
 
-SERIES_CAP = 24 * 60 * 60  # 24h of 1s samples per position (in-memory ring)
+# In-memory 1s ring per position: a COUNT-bounded deque (RAM stays flat, no time-based
+# growth). 15 min of recent 1s detail is the chart tail served by GET /api/state; older
+# history comes from the durable 10s DB rows. ~1 MB/position, stable (was unbounded 24h).
+RING_MAXLEN = 15 * 60  # 900 samples = 15 min @ 1s
 DB_WRITE_EVERY = 10.0  # 10s durable downsample → Timescale hypertable (full life of the position)
 MARGIN_REFRESH_EVERY = 30.0
 
@@ -37,7 +41,7 @@ class SimTicker:
     def __init__(self, app: Any) -> None:
         self.app = app
         self._task: asyncio.Task[None] | None = None
-        self.series: dict[str, list[dict[str, Any]]] = {}
+        self.series: dict[str, deque[dict[str, Any]]] = {}
         app.state.sim_series = self.series  # read by get_state / WS
         self._last_db = 0.0
         self._last_margin = 0.0
@@ -96,10 +100,9 @@ class SimTicker:
                     continue
 
                 sample = service.build_sample(p, mv, now)
-                ring = self.series.setdefault(str(p.id), [])
+                # deque(maxlen) auto-evicts the oldest — O(1), constant RAM, no manual trim
+                ring = self.series.setdefault(str(p.id), deque(maxlen=RING_MAXLEN))
                 ring.append(sample)  # full sample — per-leg + IV detail kept for the charts
-                if len(ring) > SERIES_CAP:
-                    del ring[: len(ring) - SERIES_CAP]
                 if write_db:
                     session.add(
                         StrategySeries(
