@@ -70,6 +70,37 @@ def implied_vol(
     return 0.5 * (lo + hi)
 
 
+def _npdf(x: float) -> float:
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
+def bs_greeks(
+    option_type: OptionType, S: float, K: float, T: float, sigma: float, r: float = 0.0
+) -> dict[str, float]:
+    """Black-Scholes greeks — a LOCAL FALLBACK for when Delta's feed greeks are
+    missing/stale (so risk panels don't freeze). Conventions match how the feed's
+    greeks are consumed: delta dimensionless; gamma per 1.0 of spot; **vega per 1%
+    vol (x0.01)**; **theta per calendar DAY (/365)**. Degenerate inputs (no time
+    value) → all zeros. These are an approximation flagged `est` at the call site,
+    not a replacement for Delta's published greeks."""
+    if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+        return {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0}
+    sqrt_t = math.sqrt(T)
+    d1 = (math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrt_t)
+    d2 = d1 - sigma * sqrt_t
+    pdf = _npdf(d1)
+    disc = math.exp(-r * T)
+    delta = _ncdf(d1) if option_type == "call" else _ncdf(d1) - 1.0
+    gamma = pdf / (S * sigma * sqrt_t)
+    vega = S * pdf * sqrt_t * 0.01  # per 1% vol
+    theta_year = -(S * pdf * sigma) / (2.0 * sqrt_t)
+    if option_type == "call":
+        theta_year -= r * K * disc * _ncdf(d2)
+    else:
+        theta_year += r * K * disc * _ncdf(-d2)
+    return {"delta": delta, "gamma": gamma, "theta": theta_year / 365.0, "vega": vega}
+
+
 # --------------------------------------------------------------------------- #
 # Parameters (Delta BTC published values — calibratable)
 # --------------------------------------------------------------------------- #
