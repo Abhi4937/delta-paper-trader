@@ -25,7 +25,9 @@ log = logging.getLogger("market_data")
 UNDERLYINGS = ("BTC", "ETH")
 # How often to re-fetch the instrument universe so newly-listed expiries appear
 # and settled ones drop out (the seed is otherwise frozen at WS-connect time).
-RESEED_INTERVAL_S = 120
+# 5 min keeps the periodic re-fetch spike small on the 1 GB box; new expiries
+# still surface within ~5 min of listing.
+RESEED_INTERVAL_S = 300
 
 
 class MarketDataIngestor:
