@@ -13,15 +13,30 @@ describe("chartData", () => {
     expect(capPoints(arr, 100)).toBe(arr);
   });
 
-  it("capPoints downsamples to <= max, preserving first+last and ascending order", () => {
+  it("capPoints downsamples to ~max, preserving first+last and ascending order", () => {
     const arr = Array.from({ length: 10000 }, (_, i) => ({ time: i, value: i }));
     const out = capPoints(arr, 1500);
-    expect(out.length).toBe(1500);
+    expect(out.length).toBeLessThanOrEqual(1501);
+    expect(out.length).toBeGreaterThan(1400);
     expect(out[0]).toEqual({ time: 0, value: 0 }); // entry preserved
     expect(out[out.length - 1]).toEqual({ time: 9999, value: 9999 }); // latest preserved
     const times = out.map((p) => p.time);
     expect(times).toEqual([...times].sort((a, b) => a - b)); // strictly ascending kept
     expect(new Set(times).size).toBe(times.length); // no dup times (lightweight-charts requires)
+  });
+
+  it("capPoints keeps the sparse early region (time-aware, not index striding)", () => {
+    // THE 1C bug: a mixed-resolution series (sparse 10s-old + dense 1s-recent). Index
+    // striding starved the old region (~a handful of points); time-bucketing keeps it.
+    const old10s = Array.from({ length: 600 }, (_, i) => ({ time: i * 10, value: i })); // 0..5990s @10s
+    const recent1s = Array.from({ length: 6000 }, (_, i) => ({ time: 6000 + i, value: i })); // 6000..11999s @1s
+    const arr = [...old10s, ...recent1s]; // 6600 pts, over the cap
+    const out = capPoints(arr, 1500);
+    expect(out.length).toBeLessThanOrEqual(1501);
+    const oldKept = out.filter((p) => p.time < 6000).length; // old half of the TIME span
+    expect(oldKept).toBeGreaterThan(400); // time-aware keeps it; index striding gave ~136
+    expect(out[0].time).toBe(0); // entry preserved
+    expect(out[out.length - 1].time).toBe(11999); // latest preserved
   });
 
   it("netPoints maps the chosen metric per sample", () => {
