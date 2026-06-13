@@ -148,16 +148,29 @@ async def atm_iv(underlying: str, expiries: str) -> dict[str, float | None]:
     return out
 
 
-@app.get("/api/orderbook")
-async def orderbook(symbol: str) -> dict[str, Any]:
-    """Live L2 order book (depth) for a contract — Delta /v2/l2orderbook."""
-    data = await app.state.delta.get(f"/v2/l2orderbook/{symbol}")
+async def _orderbook(delta: Any, symbol: str) -> dict[str, Any]:
+    """L2 book for a contract. Delta returns 400 for a settled/delisted symbol —
+    treat that as an empty book (`available: False`) rather than a 500. Other HTTP
+    errors (5xx/timeouts) are real and still propagate."""
+    try:
+        data = await delta.get(f"/v2/l2orderbook/{symbol}")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 400:
+            return {"symbol": symbol, "buy": [], "sell": [], "available": False}
+        raise
     res = data.get("result", data) if isinstance(data, dict) else {}
     return {
         "symbol": symbol,
         "buy": res.get("buy", []),
         "sell": res.get("sell", []),
+        "available": True,
     }
+
+
+@app.get("/api/orderbook")
+async def orderbook(symbol: str) -> dict[str, Any]:
+    """Live L2 order book (depth) for a contract — Delta /v2/l2orderbook."""
+    return await _orderbook(app.state.delta, symbol)
 
 
 @app.websocket("/ws")

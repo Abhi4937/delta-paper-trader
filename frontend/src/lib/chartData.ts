@@ -35,17 +35,29 @@ export function buckets(pts: Pt[], tf: TF): OHLC[] {
 export const toLine = (pts: Pt[], tf: TF): { time: Time; value: number }[] =>
   buckets(pts, tf).map((b) => ({ time: b.time, value: b.close }));
 
-// Cap a (time-ascending) series to `max` points for display. These charts are fixed-view
-// (no zoom; always the whole trade in a few hundred px), so rendering thousands of points
-// is wasted work — striding to ~1500 is visually identical but makes per-tick setData cheap
-// (that full-array setData every second was the hang). Always keeps the first AND last point
-// so the curve still spans entry→latest. Order-preserving, so times stay strictly ascending.
+// Cap a (time-ascending) series to ~`max` points for display, by EVEN TIME COVERAGE
+// (not index striding). These charts are fixed-view (no zoom; the whole trade in a few
+// hundred px), so ~max points is visually identical and keeps per-tick setData cheap.
+// Time-bucketing (vs the old index stride) is what fixes the "1s view drops the first
+// hour" bug: a mixed-resolution series (sparse 10s/1m old + dense 1s recent) kept its
+// early region represented instead of being starved. Buckets the span into `max` time
+// slots, keeps the first point per slot + the last point. Order-preserving (times stay
+// strictly ascending); no duplicate times (lightweight-charts requires that).
 export function capPoints<T>(arr: T[], max = 1500): T[] {
   if (arr.length <= max) return arr;
-  const step = arr.length / max;
+  const timeOf = (p: T): number => (p as unknown as { time: number }).time;
+  const t0 = timeOf(arr[0]);
+  const slot = (timeOf(arr[arr.length - 1]) - t0 || 1) / max;
   const out: T[] = [];
-  for (let i = 0; i < max - 1; i++) out.push(arr[Math.floor(i * step)]);
-  out.push(arr[arr.length - 1]);
+  let lastSlot = -1;
+  for (const p of arr) {
+    const s = Math.floor((timeOf(p) - t0) / slot);
+    if (s !== lastSlot) {
+      out.push(p);
+      lastSlot = s;
+    }
+  }
+  if (out[out.length - 1] !== arr[arr.length - 1]) out.push(arr[arr.length - 1]);
   return out;
 }
 

@@ -447,6 +447,8 @@ async def set_position_risk(
         pos.stop_loss_pct_of_margin = patch.stop_loss_pct_of_margin
     if patch.auto_exit is not None:
         pos.auto_exit = patch.auto_exit
+    if "stale_hard_stop" in patch.model_fields_set and patch.stale_hard_stop is not None:
+        pos.stale_hard_stop = patch.stale_hard_stop
     return True
 
 
@@ -496,7 +498,14 @@ def exit_legs_of(pos: Position, mv: MarketView) -> list[ExitLeg]:
     ]
 
 
+# Feed must be stale at least this long before a stale hard-stop acts — ignores a
+# momentary glitch so we never exit on a 1-tick blip (see exit_engine).
+STALE_HARD_STOP_GRACE_S = 30.0
+
+
 def evaluate_position_exit(pos: Position, mv: MarketView) -> Any:
+    age = mv.m.feed_status().get("age_seconds")
+    grace_elapsed = isinstance(age, (int, float)) and age > STALE_HARD_STOP_GRACE_S
     return evaluate_exit(
         exit_legs_of(pos, mv),
         net_pnl=position_pnl(pos, mv),
@@ -504,6 +513,8 @@ def evaluate_position_exit(pos: Position, mv: MarketView) -> Any:
         combined_stop=CombinedStop(pos.stop_loss_amount, pos.stop_loss_pct_of_margin),
         combined_auto_exit=pos.auto_exit,
         stale=not mv.fresh(),
+        stale_hard_stop=pos.stale_hard_stop,
+        stale_grace_elapsed=grace_elapsed,
     )
 
 
@@ -599,6 +610,7 @@ def position_dict(pos: Position, mv: MarketView, series: list[dict[str, Any]]) -
         "stopLossPctOfMargin": pos.stop_loss_pct_of_margin,
         "autoExit": pos.auto_exit,
         "autoExitSuspended": pos.auto_exit_suspended,
+        "staleHardStop": pos.stale_hard_stop,
         "closedAt": _ms(pos.closed_at),
         "closeReason": pos.close_reason,
         "series": series,
