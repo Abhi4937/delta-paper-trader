@@ -24,6 +24,9 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy import (
+    false as sa_false,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -131,6 +134,11 @@ class Position(Base):
     stop_loss_pct_of_margin: Mapped[float | None] = mapped_column(Float, nullable=True)
     auto_exit: Mapped[bool] = mapped_column(Boolean, default=False)
     auto_exit_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
+    # opt-in: keep enforcing the LOSS stops on the last-known marks during a stale feed
+    # (after a grace window) instead of suspending — see exit_engine stale hard-stop.
+    stale_hard_stop: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa_false()
+    )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     close_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
