@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -653,13 +653,41 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
     }
 
 
+# Keep raw 10s rows for the recent window; older history is served as 1-minute NET
+# rollups (no per-leg/IV detail) so GET /api/state doesn't materialize tens of thousands
+# of rows for a long-open position (the rehydrate memory spike). Net-only old by design.
+DB_RAW_WINDOW_S = 3 * 24 * 60 * 60  # 3 days
+
+
 async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str, Any]]:
-    res = await session.execute(
+    """Full-life series for GET /api/state, payload-bounded: 1-minute net rollups for
+    data older than DB_RAW_WINDOW_S, raw rows for the recent window. The chart still
+    spans entry→now (old portion at 1-min net resolution)."""
+    cutoff = datetime.now(UTC) - timedelta(seconds=DB_RAW_WINDOW_S)
+    rollup_rows = await session.execute(
+        text(
+            "SELECT time_bucket('1 minute', time) AS bucket, "
+            "last(pnl, time) AS pnl, last(delta, time) AS delta, "
+            "last(theta, time) AS theta, last(vega, time) AS vega "
+            "FROM strategy_series WHERE position_id = :pid AND time < :cutoff "
+            "GROUP BY bucket ORDER BY bucket"
+        ),
+        {"pid": pos_id, "cutoff": cutoff},
+    )
+    rollup = [
+        {
+            "t": int(r.bucket.timestamp() * 1000),
+            "pnl": r.pnl, "delta": r.delta, "theta": r.theta, "vega": r.vega,
+            "atmIv": {}, "legs": {},
+        }
+        for r in rollup_rows
+    ]
+    recent = await session.execute(
         select(StrategySeries)
-        .where(StrategySeries.position_id == pos_id)
+        .where(StrategySeries.position_id == pos_id, StrategySeries.time >= cutoff)
         .order_by(StrategySeries.time)
     )
-    return [series_dict(s) for s in res.scalars().all()]
+    return rollup + [series_dict(s) for s in recent.scalars().all()]
 
 
 def bounded_series(
