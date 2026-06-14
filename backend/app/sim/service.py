@@ -759,6 +759,19 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
 # of rows for a long-open position (the rehydrate memory spike). Net-only old by design.
 DB_RAW_WINDOW_S = 3 * 24 * 60 * 60  # 3 days
 
+TAIL_SECONDS = 15 * 60  # last 15 min always served at 1s from the ring (matches RING_MAXLEN)
+
+
+def body_resolution_seconds(span_seconds: float) -> int:
+    """Uniform history-body resolution chosen by the position's span (age, or lifetime if closed)."""
+    if span_seconds <= 15 * 60:
+        return 1
+    if span_seconds <= 12 * 3600:
+        return 10
+    if span_seconds <= 24 * 3600:
+        return 60
+    return 300
+
 
 async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str, Any]]:
     """Full-life series for GET /api/state, payload-bounded: 1-minute net rollups for
