@@ -47,6 +47,7 @@ class SimTicker:
         self._last_db = 0.0
         self._last_margin = 0.0
         self._last_settle = 0.0
+        self._ohlc: dict[str, service.MtmOhlc] = {}  # net-MTM OHLC per position, per 10s window
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._run())
@@ -117,13 +118,22 @@ class SimTicker:
                 # deque(maxlen) auto-evicts the oldest — O(1), constant RAM, no manual trim
                 ring = self.series.setdefault(str(p.id), deque(maxlen=RING_MAXLEN))
                 ring.append(sample)  # full sample — per-leg + IV detail kept for the charts
+
+                # accumulate net-MTM OHLC across this 10s window (captures intra-window spikes)
+                acc = self._ohlc.setdefault(str(p.id), service.MtmOhlc())
+                acc.add(sample["pnl"])
                 if write_db:
+                    o = acc.snapshot()
+                    acc.reset()
                     session.add(
                         StrategySeries(
                             time=now,
                             position_id=p.id,
                             user_id=uid,
-                            pnl=sample["pnl"],
+                            pnl=o["close"],
+                            pnl_open=o["open"],
+                            pnl_high=o["high"],
+                            pnl_low=o["low"],
                             delta=sample["delta"],
                             theta=sample["theta"],
                             vega=sample["vega"],
@@ -148,6 +158,7 @@ class SimTicker:
             live_ids = {str(p.id) for p in positions if p.status == "open"}
             for dead in [k for k in self.series if k not in live_ids]:
                 del self.series[dead]
+                self._ohlc.pop(dead, None)
 
             if write_db:
                 self._last_db = mono

@@ -246,7 +246,10 @@ class StrategySeries(Base):
         UUID(as_uuid=True), ForeignKey("positions.id", ondelete="CASCADE"), primary_key=True
     )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
-    pnl: Mapped[float] = mapped_column(Float)
+    pnl: Mapped[float] = mapped_column(Float)  # net MTM close (back-compatible)
+    pnl_open: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pnl_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    pnl_low: Mapped[float | None] = mapped_column(Float, nullable=True)
     delta: Mapped[float] = mapped_column(Float)
     theta: Mapped[float] = mapped_column(Float)
     vega: Mapped[float] = mapped_column(Float)

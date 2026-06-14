@@ -14,6 +14,7 @@ import {
   fetchDraft,
   fetchExpiries,
   fetchFeed,
+  fetchPositionSeries,
   fetchState,
   placeStrategy as placeStrategyApi,
   saveDraft,
@@ -206,6 +207,7 @@ interface State {
   placeStrategy: (name: string, opts: { target: number | null; stopLossAmount: number | null; stopLossPctOfMargin: number | null; autoExit: boolean; margin?: number; badge?: MarginBadge }) => void;
   closePosition: (id: string, reason?: string) => void;
   closeLeg: (id: string, legId: string, reason?: string) => Promise<void>;
+  loadPositionSeries: (id: string) => Promise<void>;
   setPositionStop: (id: string, patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit" | "staleHardStop">>) => void;
   setPositionLegRisk: (id: string, legId: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   addNote: (id: string, kind: "entry" | "exit", body: string) => void;
@@ -381,6 +383,16 @@ export const useStore = create<State>()(
       closeLeg: async (id, legId, reason) => {
         const st = await closeLegApi(id, legId, reason);
         if (st) applyServerState(st);
+      },
+      // Lazily fetch one position's MTM/IV/greeks history (GET /api/state ships an
+      // empty series) and merge it onto that position. Live WS ticks keep appending
+      // to whatever series is present, so this only seeds the historical body+tail.
+      loadPositionSeries: async (id) => {
+        const series = await fetchPositionSeries(id);
+        if (!series) return;
+        set((s) => ({
+          positions: s.positions.map((p) => (p.id === id ? { ...p, series } : p)),
+        }));
       },
       setPositionStop: async (id, patch) => {
         const st = await setPositionRiskApi(id, posRiskPatch(patch));

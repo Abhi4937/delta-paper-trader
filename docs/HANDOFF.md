@@ -1,6 +1,6 @@
 # Session Handoff — Delta Options Paper-Trading Platform
 
-_Last updated: 2026-06-12 — **app is DEPLOYED LIVE at https://trader-abhi.duckdns.org** (Oracle Always-Free VM)_
+_Last updated: 2026-06-14 — **app is DEPLOYED LIVE at https://trader-abhi.duckdns.org** (Oracle Always-Free VM). Latest session: fixed a recurring production swap-thrash outage, shipped expiry settlement, and designed the position-charts overhaul (spec + plan)._
 
 > **New session: read `docs/ARCHITECTURE.md` first** (system map + API contracts + data model + engines) — it replaces reading the codebase cold. Then this file for run commands & status.
 >
@@ -13,7 +13,64 @@ Local paper-trading terminal for **Delta Exchange India options** (BTC + ETH), m
 
 ---
 
-## 🆕 LATEST SESSION (2026-06-12) — read this first
+## 🆕 LATEST SESSION (2026-06-14) — read this first
+
+This session: **(1)** diagnosed and permanently fixed a recurring production outage ("can't reach server" / stale feed), **(2)** shipped 1D expiry settlement and verified the earlier deferred batch is live, **(3)** stood up uptime monitoring (waiting on one user step), and **(4)** ran a full brainstorm → spec → plan for the position-charts overhaul. Details below; older sessions follow.
+
+### 🔴 PROBLEM 1 (most important) — recurring production outage, ROOT-CAUSED & FIXED
+
+**Symptom:** Repeatedly over the day, the live app showed "can't reach server" / "Delta market feed is stale" on phone and laptop; positions wouldn't load. Restarting the backend fixed it for a few minutes, then it came back. The user (rightly) pushed: *why does this keep happening and why must we always restart?*
+
+**What it was NOT (false leads ruled out, so the next session doesn't chase them):**
+- **Not request volume** — logs showed only ~26 `/api/feed` calls in 3 min (~9/min). No flood.
+- **Not OOM-kill** — all containers stayed `Up`; backend sat at ~340 MB.
+- **Not the Delta network** — outbound REST to `api.india.delta.exchange` tested at ~200 ms; the `httpx.ConnectTimeout` seen once in logs was a transient blip.
+- **Not multiple workers** — single uvicorn worker confirmed (the second PID is just the `uv run` wrapper). Backend listens on **:8010 inside the container** (so `curl localhost:8000` refusing instantly is a red herring — wrong port, not published to host).
+
+**Actual root cause — memory pressure → swap thrash:** The tell was **load average ~2.9 while CPU was only ~34%, with swap in use** = the box was waiting on disk, not computing. TimescaleDB's auto-tuner had sized Postgres `shared_buffers` at **305 MB** (as if Postgres owned the whole machine). On the **954 MB** VM that also runs the backend (~340 MB) + frontend + Caddy + OS, that over-commit forced the kernel into **swap**. The backend's once-per-second async tick loop then **stalled for seconds** paging memory back from disk — and a stalled event loop can't answer `/health` (→ "can't reach server") *and* misses the 20 s Delta WebSocket keepalive ping (→ feed drops → "stale"; 6 WS drops in 10 min in the logs). Restarting only emptied swap; it refilled in minutes. That's why restart was a band-aid.
+
+**The fix (committed + deployed, PR #8):** Cap Postgres memory for a *shared* 1 GB box via `postgres -c` flags in `docker-compose.prod.yml` (these override the auto-tuner): `shared_buffers=96MB`, `maintenance_work_mem=32MB`, `effective_cache_size=256MB`, `work_mem=4MB`, `max_connections=30`. Also added a `mem_limit: 512m` ceiling on the backend (a real leak now OOM-kills + restarts just the backend instead of swapping the whole box). Applied live first via `ALTER SYSTEM` (persists in `postgresql.auto.conf`), then baked into the compose file so a fresh volume gets it too.
+
+**Verified resolved:**
+
+| | During the hang | After the cap |
+|---|---|---|
+| `/health` latency | 2–8 s, frequent timeouts | **0.07–1.3 s, no timeouts** |
+| Delta WS drops | 6 / 10 min | **0 / 3 min** |
+| Feed | flapping stale | **fresh** |
+| Swap used | 624 MB | **~190–290 MB, draining** |
+| RAM available | 178 MB | **418 MB** |
+| Postgres `shared_buffers` | 305 MB | **96 MB** |
+
+**Gotcha for next session:** psql prints `setting||unit` with no separator — `shared_buffers` shows as `122888kB`, which is `12288` (8 KB blocks) + `8kB` = **96 MB**, *not* 122,888 KB. Don't misread it.
+
+### ✅ PROBLEM 2 — 1D expiry settlement shipped (PR #7, merged + deployed + verified)
+Expired legs used to freeze at entry. Now the tick loop settles open legs past 12:00 UTC at Delta's **published settlement price** (read-only `/v2/products?states=expired`), **fee-free** (owner decision; flagged for later fee validation), every 5 min + on boot. Money path validated 3 ways (unit + live Delta fetch + end-to-end DB balance to the cent). The earlier deferred batch (1B delta lot-independence, 1C time-aware chart cap, 1E Timescale 1-min rollup for old history, 1F lighter 300 s reseed, 3A local Black-Scholes greeks fallback, 3B stale-aware hybrid hard-stop) is all **live** on prod.
+
+### 🟡 PROBLEM 3 — uptime monitoring (VM side DONE, needs one user step)
+Set up a dead-man's-switch ping to healthchecks.io so the box going stale pages the user instead of being found by opening the app:
+- On the VM: `/usr/local/bin/hc-ping.sh` (curls `/health`, pings only if `ok`), cron `*/2 * * * *`, secret URL in `/etc/hc-ping.url` (mode 600, currently empty → safely no-ops). Script source also in repo at `deploy/hc-ping.sh`.
+- **USER TODO:** create a check at healthchecks.io (Period 2 min, Grace 5 min, add a notification), then paste its `https://hc-ping.com/<uuid>` ping URL — it gets written to `/etc/hc-ping.url` and the first cron run (≤2 min) activates the alert.
+
+### 📐 PROBLEM 4 — position-charts overhaul (DESIGNED — spec + plan ready, NOT yet built)
+Opening the positions view is slow: `GET /api/state` eagerly builds full per-second history for **all** positions (~50 MB, ~20 s on the 1-vCPU box). Ran a full brainstorm and converged on a design (see below); spec and implementation plan are written and committed on branch **`design/position-live-history-charts`**.
+
+- **Spec:** `docs/superpowers/specs/2026-06-14-position-live-history-charts-design.md`
+- **Plan:** `docs/superpowers/plans/2026-06-14-position-live-history-charts.md` (14 TDD tasks)
+
+**Design in one paragraph:** Split the light table snapshot (`GET /api/state`, **no series**) from a new lazy `GET /api/positions/{id}/series` loaded on click. A position's history is served at **one uniform resolution chosen by its age** (≤15m→1s, 15m–12h→10s, 12–24h→1m, >24h→5m) — *not* a mixed-resolution ladder — plus an **always-1s real-time tail** for the last ~15 min (from the in-memory ring + WebSocket). The 10 s DB write now stores **true net-MTM OHLC** (open/high/low/close from the 1 s ticks), and 1m/5m rollups aggregate that OHLC, so the **candle wicks show the real peak the position hit at every zoom** (the prior `last()`-per-bucket rollup silently dropped spikes). Per-leg detail spans the whole life. The manual 1s/1m/5m resolution buttons are **removed** (resolution is automatic). Deferred: zoom-to-load for drilling old regions, and Greek/per-leg OHLC.
+
+**Why these specific design calls (the discussion that produced them, so they aren't re-litigated):**
+- *Lazy not eager* — the table only needs the live snapshot; full history per position on click drops the payload from ~50 MB to ~1–4 MB for one position.
+- *Uniform-by-age, not a ladder* — the user explicitly did not want mixed resolution within one chart; uniform is simpler, lighter, and the buttons grey naturally.
+- *True OHLC at write time* — the user correctly spotted that 10 s *snapshots* don't roll up to true OHLC (a spike between marks is never recorded); storing OHLC at the 10 s write captures it to 1 s precision, permanently. (This reversed an earlier "YAGNI" call.)
+- *Candles, no envelope* — the existing candle toggle's wick *is* the high/low, so no extra min/max overlay is needed.
+
+**Next step:** execute the plan (subagent-driven recommended) — it was paused at the execution-choice prompt.
+
+---
+
+## LATEST SESSION (2026-06-12)
 
 ### ✅ DEPLOYED LIVE & VERIFIED — `https://trader-abhi.duckdns.org`
 The app is **hosted online (free) on an Oracle Cloud Always-Free VM** and verified live this session:

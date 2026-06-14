@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, ChevronRight, Download, LineChart, RefreshCw, X } from "lucide-react";
 import PayoffPanel from "@/components/PayoffPanel";
@@ -90,6 +90,13 @@ function PositionCard({
   const [analyse, setAnalyse] = useState(false);
   // per-leg chart colors → swatch in the Symbol column maps rows to chart lines
   const legColors = legColorMap(p.legs);
+  // GET /api/state ships positions with an empty series; lazily pull this position's
+  // history (uniform-by-age body + 1s tail) the first time its detail/charts open.
+  // Live WS ticks then keep appending to p.series, so we fetch once per open.
+  const loadPositionSeries = useStore((s) => s.loadPositionSeries);
+  useEffect(() => {
+    if (open) loadPositionSeries(p.id);
+  }, [open, p.id, loadPositionSeries]);
 
   return (
     <div className={clsx("rounded-lg border bg-surface", closed ? "border-line/60 opacity-60" : "border-line")}>
@@ -240,9 +247,18 @@ function PositionCard({
       {/* Risk & exit (SL/TP) — above the analytics charts */}
       {!closed && <RiskPanel p={p} currency={currency} />}
 
-      {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega, shared timeframe */}
+      {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega. Series is lazy-loaded
+          on open — show a small placeholder until the history arrives. */}
       <div className="border-t border-line/60 px-3 py-2">
-        <PositionCharts series={p.series} legs={p.legs} currency={currency} />
+        {p.series.length === 0 ? (
+          <div className="grid h-24 place-items-center text-[11px] text-text-mute">
+            <div className="flex items-center gap-2">
+              <RefreshCw size={12} className="animate-spin" /> loading chart…
+            </div>
+          </div>
+        ) : (
+          <PositionCharts series={p.series} legs={p.legs} currency={currency} />
+        )}
       </div>
         </>
       )}

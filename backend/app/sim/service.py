@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import select, text
@@ -36,10 +36,32 @@ from app.sim.exit_engine import CombinedStop, ExitLeg, evaluate_exit
 from app.sim.margin_helper import quote_margin
 from app.sim.marketview import MarketView, Quote
 
-# How much of the live 1s ring to return in GET /api/state. Everything before this
-# tail is served from the durable 10s DB history, so the chart starts at entry with a
-# bounded payload no matter how long the position has been open. 5h = 18,000 samples.
-TAIL_1S = 5 * 60 * 60
+
+class MtmOhlc:
+    """Running open/high/low/close of net MTM across one 10s DB-write window."""
+
+    __slots__ = ("open", "high", "low", "close", "_started")
+
+    def __init__(self) -> None:
+        self._started = False
+
+    def add(self, v: float) -> None:
+        if not self._started:
+            self.open = self.high = self.low = self.close = v
+            self._started = True
+        else:
+            self.high = max(self.high, v)
+            self.low = min(self.low, v)
+            self.close = v
+
+    def started(self) -> bool:
+        return self._started
+
+    def snapshot(self) -> dict[str, float]:
+        return {"open": self.open, "high": self.high, "low": self.low, "close": self.close}
+
+    def reset(self) -> None:
+        self._started = False
 
 
 def _ms(dt: datetime | None) -> int | None:
@@ -116,11 +138,15 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
         }
     ng = net_greeks(greeks)
     atm_iv = {e: mv.atm_iv(pos.underlying, e) for e in {lg.expiry for lg in legs}}
+    net = net_pnl(
+        [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in legs]
+    )
     return {
         "t": _ms(now),
-        "pnl": net_pnl(
-            [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in legs]
-        ),
+        "pnl": net,
+        "pnlOpen": net,
+        "pnlHigh": net,
+        "pnlLow": net,
         "delta": ng["delta"],
         "theta": ng["theta"],
         "vega": ng["vega"],
@@ -645,12 +671,90 @@ def series_dict(s: StrategySeries) -> dict[str, Any]:
     return {
         "t": _ms(s.time),
         "pnl": s.pnl,
+        "pnlOpen": s.pnl_open if s.pnl_open is not None else s.pnl,
+        "pnlHigh": s.pnl_high if s.pnl_high is not None else s.pnl,
+        "pnlLow": s.pnl_low if s.pnl_low is not None else s.pnl,
         "delta": s.delta,
         "theta": s.theta,
         "vega": s.vega,
         "atmIv": s.atm_iv,
         "legs": s.legs,
     }
+
+
+async def _rollup_series(
+    session: AsyncSession,
+    pos_id: uuid.UUID,
+    bucket_seconds: int,
+    start: datetime,
+    end: datetime,
+) -> list[dict[str, Any]]:
+    """One uniform OHLC rollup of net MTM (per-leg + Greeks = last-in-bucket) for [start, end)."""
+    rows = await session.execute(
+        text(
+            f"SELECT time_bucket(make_interval(secs => {int(bucket_seconds)}), time) AS bucket, "
+            "first(pnl_open, time) AS o, max(pnl_high) AS h, min(pnl_low) AS l, "
+            "last(pnl, time) AS c, "
+            "last(delta, time) AS delta, last(theta, time) AS theta, last(vega, time) AS vega, "
+            "last(atm_iv, time) AS atm_iv, last(legs, time) AS legs "
+            "FROM strategy_series WHERE position_id = :pid AND time >= :start AND time < :end "
+            "GROUP BY bucket ORDER BY bucket"
+        ),
+        {"pid": pos_id, "start": start, "end": end},
+    )
+    return [
+        {
+            "t": int(r.bucket.timestamp() * 1000),
+            "pnl": r.c, "pnlOpen": r.o, "pnlHigh": r.h, "pnlLow": r.l,
+            "delta": r.delta, "theta": r.theta, "vega": r.vega,
+            "atmIv": r.atm_iv or {}, "legs": r.legs or {},
+        }
+        for r in rows
+    ]
+
+
+def _assemble_series(
+    body: list[dict[str, Any]], tail: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Body up to where the 1s tail begins, then the tail (mirrors the old bounded_series seam)."""
+    if not tail:
+        return body
+    first_t = tail[0]["t"]
+    return [p for p in body if p["t"] < first_t] + list(tail)
+
+
+async def build_position_series(
+    session: AsyncSession,
+    pos: Position,
+    ring_full: Iterable[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Uniform-by-age history body + always-1s live tail (open) for one position."""
+    tail = [
+        {k: s[k] for k in ("t", "pnl", "pnlOpen", "pnlHigh", "pnlLow",
+                           "delta", "theta", "vega", "atmIv", "legs")}
+        for s in (list(ring_full) if ring_full else [])
+    ]
+    # span = lifetime for closed, age for open
+    end = pos.closed_at if (pos.status != "open" and pos.closed_at) else datetime.now(UTC)
+    span = (end - pos.opened_at).total_seconds()
+    res = body_resolution_seconds(span)
+    # body covers entry → where the tail starts (or → end when there's no tail)
+    body_end = datetime.fromtimestamp(tail[0]["t"] / 1000, UTC) if tail else end
+    if res == 1:
+        body: list[dict[str, Any]] = []  # whole thing is in the ring / ≤15 min
+    elif res == 10:
+        rows = await session.execute(
+            select(StrategySeries)
+            .where(
+                StrategySeries.position_id == pos.id,
+                StrategySeries.time < body_end,
+            )
+            .order_by(StrategySeries.time)
+        )
+        body = [series_dict(r) for r in rows.scalars().all()]
+    else:
+        body = await _rollup_series(session, pos.id, res, pos.opened_at, body_end)
+    return _assemble_series(body, tail)
 
 
 def _net_greeks(pos: Position, mv: MarketView) -> dict[str, float]:
@@ -723,69 +827,24 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
     }
 
 
-# Keep raw 10s rows for the recent window; older history is served as 1-minute NET
-# rollups (no per-leg/IV detail) so GET /api/state doesn't materialize tens of thousands
-# of rows for a long-open position (the rehydrate memory spike). Net-only old by design.
-DB_RAW_WINDOW_S = 3 * 24 * 60 * 60  # 3 days
+def body_resolution_seconds(span_seconds: float) -> int:
+    """Uniform history-body resolution chosen by the position's span.
 
-
-async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str, Any]]:
-    """Full-life series for GET /api/state, payload-bounded: 1-minute net rollups for
-    data older than DB_RAW_WINDOW_S, raw rows for the recent window. The chart still
-    spans entry→now (old portion at 1-min net resolution)."""
-    cutoff = datetime.now(UTC) - timedelta(seconds=DB_RAW_WINDOW_S)
-    rollup_rows = await session.execute(
-        text(
-            "SELECT time_bucket('1 minute', time) AS bucket, "
-            "last(pnl, time) AS pnl, last(delta, time) AS delta, "
-            "last(theta, time) AS theta, last(vega, time) AS vega "
-            "FROM strategy_series WHERE position_id = :pid AND time < :cutoff "
-            "GROUP BY bucket ORDER BY bucket"
-        ),
-        {"pid": pos_id, "cutoff": cutoff},
-    )
-    rollup = [
-        {
-            "t": int(r.bucket.timestamp() * 1000),
-            "pnl": r.pnl, "delta": r.delta, "theta": r.theta, "vega": r.vega,
-            "atmIv": {}, "legs": {},
-        }
-        for r in rollup_rows
-    ]
-    recent = await session.execute(
-        select(StrategySeries)
-        .where(StrategySeries.position_id == pos_id, StrategySeries.time >= cutoff)
-        .order_by(StrategySeries.time)
-    )
-    return rollup + [series_dict(s) for s in recent.scalars().all()]
-
-
-def bounded_series(
-    db_rows: list[dict[str, Any]], ring_full: Iterable[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Merge durable 10s DB history with a bounded 1s tail for GET /api/state.
-
-    `db_rows` = the full-life 10s rows (ascending `t`); `ring_full` = the in-memory 1s
-    ring (a count-bounded ``collections.deque``). Returns the 10s rows up to where the
-    (<=`TAIL_1S`) tail begins, then the tail — so the chart starts at entry (10s resolution
-    before the tail) with a payload bounded regardless of how long the position has been
-    open. With no ring yet, returns the raw 10s history.
-
-    `ring_full` is materialized to a list first: the ring is a deque (no slicing), and the
-    ``[-TAIL_1S:]`` keeps the contract that an oversized ring is still trimmed to the tail.
+    Span is the position's age (open) or its lifetime (closed).
     """
-    ring = list(ring_full)[-TAIL_1S:]
-    if not ring:
-        return db_rows
-    first_t = ring[0]["t"]
-    return [s for s in db_rows if s["t"] < first_t] + ring
+    if span_seconds <= 15 * 60:
+        return 1
+    if span_seconds <= 12 * 3600:
+        return 10
+    if span_seconds <= 24 * 3600:
+        return 60
+    return 300
 
 
 async def get_state(
     session: AsyncSession,
     user_id: uuid.UUID,
     mv: MarketView,
-    series_store: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
     account = await _account(session, user_id)
     res = await session.execute(
@@ -795,11 +854,9 @@ async def get_state(
         .order_by(Position.opened_at.desc())
     )
     positions = list(res.scalars().all())
-    pos_dicts = []
-    for p in positions:
-        db = await _db_series(session, p.id)
-        series = bounded_series(db, series_store.get(str(p.id)) or [])
-        pos_dicts.append(position_dict(p, mv, series))
+    # Light table snapshot: no history. Each position's series is loaded lazily
+    # via GET /api/positions/{id}/series (see the per-position series builder).
+    pos_dicts = [position_dict(p, mv, []) for p in positions]
     led = (
         (
             await session.execute(
