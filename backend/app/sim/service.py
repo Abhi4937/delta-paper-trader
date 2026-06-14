@@ -687,6 +687,36 @@ def series_dict(s: StrategySeries) -> dict[str, Any]:
     }
 
 
+async def _rollup_series(
+    session: AsyncSession,
+    pos_id: uuid.UUID,
+    bucket_seconds: int,
+    start: datetime,
+    end: datetime,
+) -> list[dict[str, Any]]:
+    """One uniform OHLC rollup of net MTM (per-leg + Greeks = last-in-bucket) for [start, end)."""
+    rows = await session.execute(
+        text(
+            f"SELECT time_bucket(make_interval(secs => {int(bucket_seconds)}), time) AS bucket, "
+            "first(pnl_open, time) AS o, max(pnl_high) AS h, min(pnl_low) AS l, last(pnl, time) AS c, "
+            "last(delta, time) AS delta, last(theta, time) AS theta, last(vega, time) AS vega, "
+            "last(atm_iv, time) AS atm_iv, last(legs, time) AS legs "
+            "FROM strategy_series WHERE position_id = :pid AND time >= :start AND time < :end "
+            "GROUP BY bucket ORDER BY bucket"
+        ),
+        {"pid": pos_id, "start": start, "end": end},
+    )
+    return [
+        {
+            "t": int(r.bucket.timestamp() * 1000),
+            "pnl": r.c, "pnlOpen": r.o, "pnlHigh": r.h, "pnlLow": r.l,
+            "delta": r.delta, "theta": r.theta, "vega": r.vega,
+            "atmIv": r.atm_iv or {}, "legs": r.legs or {},
+        }
+        for r in rows
+    ]
+
+
 def _net_greeks(pos: Position, mv: MarketView) -> dict[str, float]:
     rows = []
     for lg in _open(pos):
