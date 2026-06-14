@@ -137,12 +137,15 @@ function PositionCard({
             auto-exit paused · stale
           </span>
         )}
-        {closed && (p.closeReason === "settlement" ? (
+        {closed && (p.closeReason === "settlement" || p.closeReason === "expiry-close" ? (
           <span
             className="rounded-[3px] bg-accent/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-accent"
-            title="Legs were settled at Delta's published expiry settlement price (fee-free). This is the final settled state."
+            title={p.closeReason === "settlement"
+              ? "All legs settled at Delta's published expiry settlement price (fee-free). Final settled state."
+              : "Nearest expiry settled (fee-free); the remaining later-expiry legs were closed at market with exit fees."}
           >
-            settled at expiry{p.closedAt && <span className="ml-1 tnum normal-case">· {fmtEntry(p.closedAt)}</span>}
+            {p.closeReason === "settlement" ? "settled at expiry" : "closed at expiry"}
+            {p.closedAt && <span className="ml-1 tnum normal-case">· {fmtEntry(p.closedAt)}</span>}
           </span>
         ) : (
           <span className="text-[10px] text-text-mute">
@@ -168,15 +171,13 @@ function PositionCard({
               {pnl >= 0 ? "+" : ""}{money(pnl, currency)}
             </span>
           </span>
-          {!closed && (
-            <button
-              onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
-              className={clsx("flex items-center gap-1 rounded-[5px] border px-2 py-1 text-[11px]", analyse ? "border-accent text-accent" : "border-line text-text-mute hover:text-text")}
-              title="Payoff what-if for this strategy (spot / date / IV scenarios)"
-            >
-              <LineChart size={12} /> Payoff
-            </button>
-          )}
+          <button
+            onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
+            className={clsx("flex items-center gap-1 rounded-[5px] border px-2 py-1 text-[11px]", analyse ? "border-accent text-accent" : "border-line text-text-mute hover:text-text")}
+            title={closed ? "Analyse this strategy's MTM / IV / greeks charts over its life (entry → close)" : "Payoff what-if for this strategy (spot / date / IV scenarios)"}
+          >
+            <LineChart size={12} /> {closed ? "Analyse" : "Payoff"}
+          </button>
           <button
             onClick={() => exportPositionXlsx(p)}
             className="flex items-center gap-1 rounded-[5px] border border-line px-2 py-1 text-[11px] text-text-mute hover:text-text"
@@ -197,7 +198,8 @@ function PositionCard({
 
       {open && (
         <>
-      {analyse && (
+      {/* open positions: "Payoff" toggles the what-if panel */}
+      {!closed && analyse && (
         <div className="border-b border-line/60 bg-surface-2/40 px-4 py-3">
           <div className="mx-auto max-w-[440px] rounded-lg border border-line bg-surface">
             <PayoffPanel legs={p.legs} />
@@ -264,19 +266,22 @@ function PositionCard({
       {/* Risk & exit (SL/TP) — above the analytics charts */}
       {!closed && <RiskPanel p={p} currency={currency} />}
 
-      {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega. Series is lazy-loaded
-          on open — show a small placeholder until the history arrives. */}
-      <div className="border-t border-line/60 px-3 py-2">
-        {p.series.length === 0 ? (
-          <div className="grid h-24 place-items-center text-[11px] text-text-mute">
-            <div className="flex items-center gap-2">
-              <RefreshCw size={12} className="animate-spin" /> loading chart…
+      {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega. Open positions show them
+          on expand; CLOSED positions show them behind the "Analyse" button (entry→close).
+          Series is lazy-loaded on open — placeholder until the history arrives. */}
+      {(!closed || analyse) && (
+        <div className="border-t border-line/60 px-3 py-2">
+          {p.series.length === 0 ? (
+            <div className="grid h-24 place-items-center text-[11px] text-text-mute">
+              <div className="flex items-center gap-2">
+                <RefreshCw size={12} className="animate-spin" /> loading chart…
+              </div>
             </div>
-          </div>
-        ) : (
-          <PositionCharts series={p.series} legs={p.legs} currency={currency} />
-        )}
-      </div>
+          ) : (
+            <PositionCharts series={p.series} legs={p.legs} currency={currency} />
+          )}
+        </div>
+      )}
         </>
       )}
     </div>

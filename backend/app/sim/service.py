@@ -574,32 +574,44 @@ async def fetch_settlement_prices(client: Any) -> dict[str, float]:
 
 
 async def settle_expired_legs(session: AsyncSession, app_state: Any) -> int:
-    """Settle every open leg past its expiry at Delta's official settlement price
-    (FEE-FREE; see close_leg). Legs whose price Delta hasn't published yet are skipped
-    and retried on the next call. Returns the number of legs settled."""
+    """Settle every open leg past its expiry at Delta's official settlement price (FEE-FREE).
+
+    For a MULTI-EXPIRY strategy, once the nearest expiry's legs have settled, the WHOLE
+    strategy is closed: the surviving later-expiry legs close at the current market mark
+    with normal exit fees (owner decision 2026-06-14, reason "expiry-close"). A single-expiry
+    strategy just settles every leg (the last leg-close closes the position). Legs whose
+    settlement price Delta hasn't published yet defer the whole position to the next cycle
+    (we never close survivors before the expired legs are settled). Returns legs settled."""
     now = datetime.now(UTC)
     res = await session.execute(
         select(Position).where(Position.status == "open").options(selectinload(Position.legs))
     )
-    pending = [
-        (p, lg)
+    affected = [
+        p
         for p in res.scalars().all()
-        for lg in p.legs
-        if lg.status == "open" and leg_is_expired(lg, now)
+        if any(lg.status == "open" and leg_is_expired(lg, now) for lg in p.legs)
     ]
-    if not pending:
+    if not affected:
         return 0
     prices = await fetch_settlement_prices(app_state.delta)
     settled = 0
-    for p, lg in pending:
-        sp = prices.get(lg.symbol)
-        if sp is None:
-            continue  # not published yet → retry next cycle
-        ok = await close_leg(
-            session, p.user_id, app_state, p.id, lg.id, "settlement", settle_price=sp
-        )
-        if ok:
-            settled += 1
+    for p in affected:
+        expired = [lg for lg in p.legs if lg.status == "open" and leg_is_expired(lg, now)]
+        deferred = False
+        for lg in expired:
+            sp = prices.get(lg.symbol)
+            if sp is None:
+                deferred = True  # price not published yet → wait, don't close survivors
+                continue
+            if await close_leg(
+                session, p.user_id, app_state, p.id, lg.id, "settlement", settle_price=sp
+            ):
+                settled += 1
+        if deferred:
+            continue  # retry the rest of this expiry next cycle before closing the strategy
+        # nearest expiry fully settled → force-close the rest of the strategy at market
+        if any(lg.status == "open" for lg in p.legs):
+            await close_position(session, p.user_id, app_state, p.id, "expiry-close")
     return settled
 
 
