@@ -85,7 +85,10 @@ export interface LegSample {
 }
 export interface SeriesSample {
   t: number;
-  pnl: number; // net PnL (USD)
+  pnl: number; // net PnL (USD) — also the close of this point's OHLC
+  pnlOpen: number; // net MTM open of this point's window
+  pnlHigh: number; // net MTM high (true peak — survives downsampling)
+  pnlLow: number; // net MTM low
   delta: number; // net delta (BTC)
   theta: number; // net theta (USD/day)
   vega: number; // net vega (USD per 1 vol-point)

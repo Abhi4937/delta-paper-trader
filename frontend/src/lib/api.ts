@@ -10,6 +10,7 @@ import type {
   LogEntry,
   OptionChain,
   Position,
+  SeriesSample,
   Side,
   Underlying,
 } from "./types";
@@ -388,6 +389,20 @@ export async function fetchState(): Promise<ServerState | null> {
     const r = await fetch(`${API}/api/state`, { headers: await authHeaders() });
     if (!r.ok) return null;
     return (await r.json()) as ServerState;
+  } catch {
+    return null;
+  }
+}
+
+// One position's MTM/IV/greeks history, loaded lazily when its detail/charts open.
+// The server already chose the resolution (uniform-by-age body + 1s live tail) and
+// stamps OHLC per point — so the client renders it directly (no re-bucketing).
+export async function fetchPositionSeries(id: string): Promise<SeriesSample[] | null> {
+  try {
+    const r = await fetch(`${API}/api/positions/${id}/series`, { headers: await authHeaders() });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { series: SeriesSample[] };
+    return j.series;
   } catch {
     return null;
   }
