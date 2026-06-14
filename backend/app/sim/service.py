@@ -716,11 +716,52 @@ async def _rollup_series(
 def _assemble_series(
     body: list[dict[str, Any]], tail: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    """Body up to where the 1s tail begins, then the tail (mirrors the old bounded_series seam)."""
+    """Body up to where the tail begins, then the tail (mirrors the old bounded_series seam)."""
     if not tail:
         return body
     first_t = tail[0]["t"]
     return [p for p in body if p["t"] < first_t] + list(tail)
+
+
+def _downsample_tail(tail: list[dict[str, Any]], bucket_seconds: int) -> list[dict[str, Any]]:
+    """Bucket the 1s live tail into the body's resolution so an OLD chart is UNIFORM.
+
+    The chart library spaces candles by count, not clock time, so a raw 1s tail (≈900
+    points / 15 min) dwarfs a sparse 5m body (a few hundred points / many hours) and
+    squishes the history. Rolling the tail to the same `bucket_seconds` as the body makes
+    the whole series one resolution → index-spacing == time-spacing. Buckets are
+    epoch-aligned (floor to the bucket), matching Timescale `time_bucket`, so tail candles
+    line up on the same grid as the body. OHLC: open/high/low from the window, close + the
+    greeks/iv/legs detail = last-in-bucket. Input is time-ascending → equal buckets are
+    consecutive.
+    """
+    if bucket_seconds <= 1 or not tail:
+        return tail
+    bucket_ms = bucket_seconds * 1000
+    out: list[dict[str, Any]] = []
+    cur: int | None = None
+    for s in tail:
+        b = (int(s["t"]) // bucket_ms) * bucket_ms
+        if b != cur:
+            out.append({**s, "t": b})  # candle starts at the bucket boundary
+            cur = b
+        else:
+            c = out[-1]
+            c["pnlHigh"] = max(c["pnlHigh"], s["pnlHigh"])
+            c["pnlLow"] = min(c["pnlLow"], s["pnlLow"])
+            # close + latest per-leg / iv / greek detail = last sample in the bucket
+            c["pnl"], c["delta"] = s["pnl"], s["delta"]
+            c["theta"], c["vega"] = s["theta"], s["vega"]
+            c["atmIv"], c["legs"] = s["atmIv"], s["legs"]
+    return out
+
+
+def position_resolution_seconds(pos: Position) -> int:
+    """The uniform chart resolution for this position, chosen by its age (open) or
+    lifetime (closed). Shared by build_position_series and the series endpoint so the
+    client can bucket live ticks to the same grid."""
+    end = pos.closed_at if (pos.status != "open" and pos.closed_at) else datetime.now(UTC)
+    return body_resolution_seconds((end - pos.opened_at).total_seconds())
 
 
 async def build_position_series(
@@ -736,8 +777,7 @@ async def build_position_series(
     ]
     # span = lifetime for closed, age for open
     end = pos.closed_at if (pos.status != "open" and pos.closed_at) else datetime.now(UTC)
-    span = (end - pos.opened_at).total_seconds()
-    res = body_resolution_seconds(span)
+    res = position_resolution_seconds(pos)
     # body covers entry → where the tail starts (or → end when there's no tail)
     body_end = datetime.fromtimestamp(tail[0]["t"] / 1000, UTC) if tail else end
     if res == 1:
@@ -754,6 +794,10 @@ async def build_position_series(
         body = [series_dict(r) for r in rows.scalars().all()]
     else:
         body = await _rollup_series(session, pos.id, res, pos.opened_at, body_end)
+    # Roll the raw-1s tail into the body's resolution so an old chart is uniform (a 1s tail
+    # would otherwise dominate the index-spaced chart). Fresh positions (res==1) keep 1s.
+    if res != 1:
+        tail = _downsample_tail(tail, res)
     return _assemble_series(body, tail)
 
 

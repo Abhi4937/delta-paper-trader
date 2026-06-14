@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atmPoints, capPoints, dedupBySecond, legPoints, netMtmCandles, netPoints } from "./chartData";
+import { appendSample, atmPoints, capPoints, dedupBySecond, legPoints, netMtmCandles, netPoints } from "./chartData";
 import type { SeriesSample } from "./types";
 
 function sample(t: number, over: Partial<SeriesSample> = {}): SeriesSample {
@@ -120,5 +120,43 @@ describe("chartData", () => {
       { time: 12, value: 3 },
     ];
     expect(dedupBySecond(arr)).toEqual(arr);
+  });
+});
+
+describe("appendSample (live-edge bucketing)", () => {
+  it("res<=1: appends raw 1s points but throttles bursts within 950ms", () => {
+    const s0: SeriesSample[] = [sample(10_000, { pnl: 1 })];
+    const s1 = appendSample(s0, sample(10_500, { pnl: 2 }), 1); // +500ms → throttled
+    expect(s1).toBe(s0);
+    const s2 = appendSample(s0, sample(11_000, { pnl: 2 }), 1); // +1000ms → appended
+    expect(s2).toHaveLength(2);
+    expect(s2[1].pnl).toBe(2);
+  });
+
+  it("res>1: a tick in the SAME bucket updates the candle's high/low/close, not a new point", () => {
+    const res = 300; // 5-min buckets
+    const start = [sample(300_000, { pnl: 10, pnlOpen: 10, pnlHigh: 10, pnlLow: 10 })]; // bucket 300_000
+    const out = appendSample(start, sample(360_000, { pnl: 14, pnlOpen: 14, pnlHigh: 14, pnlLow: 14 }), res);
+    // 360_000ms = 360s, still within the [300s,600s) 5-min bucket → merge into one candle
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ pnlOpen: 10, pnlHigh: 14, pnlLow: 10, pnl: 14 });
+  });
+
+  it("res>1: a tick in a NEW bucket starts a fresh candle anchored to the bucket boundary", () => {
+    const res = 300;
+    const start = [sample(300_000, { pnl: 10, pnlOpen: 10, pnlHigh: 10, pnlLow: 10 })];
+    const out = appendSample(start, sample(615_000, { pnl: 7, pnlOpen: 7, pnlHigh: 7, pnlLow: 7 }), res);
+    // 615_000ms = 615s → bucket 600s (600_000ms); new candle anchored at the boundary
+    expect(out).toHaveLength(2);
+    expect(out[1].t).toBe(600_000);
+    expect(out[1]).toMatchObject({ pnlOpen: 7, pnlHigh: 7, pnlLow: 7, pnl: 7 });
+  });
+
+  it("undefined sample is a no-op; cap bounds the array", () => {
+    const s0 = [sample(1000)];
+    expect(appendSample(s0, undefined, 1)).toBe(s0);
+    const capped = appendSample([sample(1000), sample(2000)], sample(3000), 1, 2);
+    expect(capped).toHaveLength(2); // cap=2 keeps the last two
+    expect(capped[0].t).toBe(2000);
   });
 });

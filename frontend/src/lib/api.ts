@@ -395,14 +395,17 @@ export async function fetchState(): Promise<ServerState | null> {
 }
 
 // One position's MTM/IV/greeks history, loaded lazily when its detail/charts open.
-// The server already chose the resolution (uniform-by-age body + 1s live tail) and
-// stamps OHLC per point — so the client renders it directly (no re-bucketing).
-export async function fetchPositionSeries(id: string): Promise<SeriesSample[] | null> {
+// The server chose the uniform-by-age resolution and stamps OHLC per point. It also
+// returns resolutionSeconds so the client can bucket live WS ticks onto the SAME grid
+// (keeping the chart uniform as new samples arrive, not just at load time).
+export async function fetchPositionSeries(
+  id: string,
+): Promise<{ series: SeriesSample[]; resolutionSeconds: number } | null> {
   try {
     const r = await fetch(`${API}/api/positions/${id}/series`, { headers: await authHeaders() });
     if (!r.ok) return null;
-    const j = (await r.json()) as { series: SeriesSample[] };
-    return j.series;
+    const j = (await r.json()) as { series: SeriesSample[]; resolutionSeconds?: number };
+    return { series: j.series, resolutionSeconds: j.resolutionSeconds ?? 1 };
   } catch {
     return null;
   }

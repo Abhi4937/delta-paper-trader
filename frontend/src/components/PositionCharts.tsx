@@ -246,6 +246,9 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
   // and a same-timestamp value correction still repaints.
   const sigRef = useRef("");
   const dataSigRef = useRef("");
+  // fit start→latest ONCE per chart instance (first non-empty load); afterwards the
+  // user's pan/zoom is preserved across live ticks instead of being snapped back.
+  const fittedRef = useRef(false);
 
   // create chart + the (fixed-count) per-leg line series (re-runs on expand)
   useEffect(() => {
@@ -282,12 +285,20 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
         priceFormatter: (p: number) => live.current.fmt(p),
         timeFormatter: (t: Time) => fmtTime(t as number),
       },
-      // no manual pan/zoom — the chart always auto-fits start→latest so the whole
-      // trade is visible in one panel; mouse-wheel scrolls the page, not the chart.
-      handleScroll: false,
-      handleScale: false,
+      // TradingView-style pan/zoom: wheel + drag to zoom/pan time, drag the price axis
+      // for vertical zoom. The chart fits start→latest ONCE on load (see fittedRef); after
+      // that the user's zoom/pan is preserved across live ticks. Double-click resets to fit.
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
     });
     chartRef.current = chart;
+    fittedRef.current = false; // fresh chart → fit once when its data loads
+    // double-click anywhere → reset zoom (fit time + re-enable price autoscale)
+    const onDblClick = () => {
+      chart.timeScale().fitContent();
+      chart.priceScale("right").applyOptions({ autoScale: true });
+    };
+    el.addEventListener("dblclick", onDblClick);
     setChartVer((v) => v + 1); // trigger the primary-series effect for this fresh chart
     legMeta.current = legs.map((l) => ({ label: l.label, color: l.color }));
     legRefs.current = Array.from({ length: nLegs }, (_, i) =>
@@ -338,13 +349,18 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
       }
       tip.innerHTML = `<div style="color:${C.textMute};margin-bottom:3px">${fmtDateTime(param.time as number)}</div>${rows.join("")}`;
       tip.style.opacity = "1";
-      const x = Math.min(Math.max(param.point.x + 12, 4), el.clientWidth - 140);
-      tip.style.transform = `translateX(${x}px)`;
+      // place the box on the side AWAY from the cursor so it never covers the point you're
+      // hovering (the old clamp pinned it over the data at the start/end of the chart).
+      const w = tip.offsetWidth || 140;
+      const cx = param.point.x;
+      const x = cx > el.clientWidth / 2 ? cx - w - 16 : cx + 16;
+      tip.style.transform = `translateX(${Math.min(Math.max(x, 4), el.clientWidth - w - 4)}px)`;
     });
 
     return () => {
       unregister();
       ro.disconnect();
+      el.removeEventListener("dblclick", onDblClick);
       chart.remove();
       chartRef.current = null;
       primaryRef.current = null;
@@ -354,10 +370,10 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nLegs, register, collapsed]);
 
-  // resize the chart in place when its height changes (collapse/expand of others)
+  // resize the chart in place when its height changes (collapse/expand of others).
+  // No fitContent here — that would reset the user's pan/zoom on every panel toggle.
   useEffect(() => {
     chartRef.current?.applyOptions({ height });
-    chartRef.current?.timeScale().fitContent();
   }, [height]);
 
   // (re)create the primary (net) series when MTM line/candle toggles. Panels with
@@ -463,7 +479,12 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
         .join(",");
     if (sig !== sigRef.current || dataSig !== dataSigRef.current) {
       loadData();
-      fitView();
+      // fit once on the first load that actually has data; after that keep the user's view
+      const hasData = net.length > 0 || legs.some((l) => l.pts.length > 0);
+      if (!fittedRef.current && hasData) {
+        fitView();
+        fittedRef.current = true;
+      }
     }
     sigRef.current = sig;
     dataSigRef.current = dataSig;
