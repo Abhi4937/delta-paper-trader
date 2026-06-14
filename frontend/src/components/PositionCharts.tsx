@@ -13,7 +13,7 @@
 // reference, and a multi-line crosshair tooltip (date·time + net + each leg).
 // Panels share one synchronized time scale: pan/zoom one and they all move.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BaselineSeries,
   CandlestickSeries,
@@ -22,9 +22,12 @@ import {
   LineSeries,
   LineStyle,
   createChart,
+  createSeriesMarkers,
   type AutoscaleInfo,
   type IChartApi,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
+  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
@@ -69,6 +72,11 @@ function fmtDateTime(sec: number): string {
   const d = new Date(sec * 1000);
   const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   return `${date} ${fmtTime(sec)}`;
+}
+// compact day+HH:MM for the max/min header stat (e.g. "14 14:30")
+function fmtDayHm(sec: number): string {
+  const d = new Date(sec * 1000);
+  return `${d.toLocaleDateString("en-GB", { day: "2-digit" })} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 // stretch a series' autoscale to always include 0 (so the dashed 0-line shows
@@ -249,6 +257,18 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
   // fit start→latest ONCE per chart instance (first non-empty load); afterwards the
   // user's pan/zoom is preserved across live ticks instead of being snapped back.
   const fittedRef = useRef(false);
+  // ▲/▼ max & min markers on the primary series + a header stat (value @ time).
+  const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const ext = useMemo(() => {
+    if (net.length === 0) return null;
+    let hi = net[0];
+    let lo = net[0];
+    for (const p of net) {
+      if (p.v > hi.v) hi = p;
+      if (p.v < lo.v) lo = p;
+    }
+    return { hi, lo };
+  }, [net]);
 
   // create chart + the (fixed-count) per-leg line series (re-runs on expand)
   useEffect(() => {
@@ -384,6 +404,7 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
     if (primaryRef.current) {
       chart.removeSeries(primaryRef.current);
       primaryRef.current = null;
+      markersRef.current = null; // markers plugin was attached to the removed series
     }
     if (net.length === 0) return; // IV panel has no single "net" series; unified effect loads the legs
     const auto = zero ? { autoscaleInfoProvider: zeroAutoscale } : {};
@@ -427,6 +448,7 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
         axisLabelVisible: false,
       });
     }
+    markersRef.current = createSeriesMarkers(primaryRef.current, []); // ▲/▼ extremes, set in loadData
     // data load happens in the unified effect below (also keyed on chartVer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candle, kind, chartVer]);
@@ -455,6 +477,16 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
         ),
       ),
     );
+    // ▲ max / ▼ min markers on the primary series (skip when hi == lo or no data)
+    if (markersRef.current) {
+      const marks: SeriesMarker<Time>[] = [];
+      if (ext && ext.hi.t !== ext.lo.t) {
+        const lo = { time: Math.floor(ext.lo.t / 1000) as UTCTimestamp, position: "belowBar" as const, color: C.neg, shape: "arrowUp" as const, text: fmt(ext.lo.v) };
+        const hi = { time: Math.floor(ext.hi.t / 1000) as UTCTimestamp, position: "aboveBar" as const, color: C.pos, shape: "arrowDown" as const, text: fmt(ext.hi.v) };
+        marks.push(...[lo, hi].sort((a, b) => (a.time as number) - (b.time as number)));
+      }
+      markersRef.current.setMarkers(marks);
+    }
   }
   function fitView() {
     chartRef.current?.timeScale().fitContent();
@@ -502,6 +534,12 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
         <span className="font-semibold uppercase tracking-wider text-text-dim">{title}</span>
         <span className="text-[8px] text-text-mute">{unit}</span>
         {netLabel !== "Net" && <span className="text-[8px] text-text-dim">{netLabel}</span>}
+        {ext && (
+          <span className="ml-auto flex items-center gap-2 normal-case tnum text-[8px]">
+            <span className="text-pos">H {fmt(ext.hi.v)} <span className="text-text-mute">{fmtDayHm(ext.hi.t / 1000)}</span></span>
+            <span className="text-neg">L {fmt(ext.lo.v)} <span className="text-text-mute">{fmtDayHm(ext.lo.t / 1000)}</span></span>
+          </span>
+        )}
       </button>
       {!collapsed && (
         <div ref={wrapRef} className="relative mt-0.5 w-full" style={{ height }}>
