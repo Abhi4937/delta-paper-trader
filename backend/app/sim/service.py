@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import select, text
@@ -698,7 +698,8 @@ async def _rollup_series(
     rows = await session.execute(
         text(
             f"SELECT time_bucket(make_interval(secs => {int(bucket_seconds)}), time) AS bucket, "
-            "first(pnl_open, time) AS o, max(pnl_high) AS h, min(pnl_low) AS l, last(pnl, time) AS c, "
+            "first(pnl_open, time) AS o, max(pnl_high) AS h, min(pnl_low) AS l, "
+            "last(pnl, time) AS c, "
             "last(delta, time) AS delta, last(theta, time) AS theta, last(vega, time) AS vega, "
             "last(atm_iv, time) AS atm_iv, last(legs, time) AS legs "
             "FROM strategy_series WHERE position_id = :pid AND time >= :start AND time < :end "
@@ -840,7 +841,10 @@ TAIL_SECONDS = 15 * 60  # last 15 min always served at 1s from the ring (matches
 
 
 def body_resolution_seconds(span_seconds: float) -> int:
-    """Uniform history-body resolution chosen by the position's span (age, or lifetime if closed)."""
+    """Uniform history-body resolution chosen by the position's span.
+
+    Span is the position's age (open) or its lifetime (closed).
+    """
     if span_seconds <= 15 * 60:
         return 1
     if span_seconds <= 12 * 3600:
@@ -848,58 +852,6 @@ def body_resolution_seconds(span_seconds: float) -> int:
     if span_seconds <= 24 * 3600:
         return 60
     return 300
-
-
-async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str, Any]]:
-    """Full-life series for GET /api/state, payload-bounded: 1-minute net rollups for
-    data older than DB_RAW_WINDOW_S, raw rows for the recent window. The chart still
-    spans entry→now (old portion at 1-min net resolution)."""
-    cutoff = datetime.now(UTC) - timedelta(seconds=DB_RAW_WINDOW_S)
-    rollup_rows = await session.execute(
-        text(
-            "SELECT time_bucket('1 minute', time) AS bucket, "
-            "last(pnl, time) AS pnl, last(delta, time) AS delta, "
-            "last(theta, time) AS theta, last(vega, time) AS vega "
-            "FROM strategy_series WHERE position_id = :pid AND time < :cutoff "
-            "GROUP BY bucket ORDER BY bucket"
-        ),
-        {"pid": pos_id, "cutoff": cutoff},
-    )
-    rollup = [
-        {
-            "t": int(r.bucket.timestamp() * 1000),
-            "pnl": r.pnl, "delta": r.delta, "theta": r.theta, "vega": r.vega,
-            "atmIv": {}, "legs": {},
-        }
-        for r in rollup_rows
-    ]
-    recent = await session.execute(
-        select(StrategySeries)
-        .where(StrategySeries.position_id == pos_id, StrategySeries.time >= cutoff)
-        .order_by(StrategySeries.time)
-    )
-    return rollup + [series_dict(s) for s in recent.scalars().all()]
-
-
-def bounded_series(
-    db_rows: list[dict[str, Any]], ring_full: Iterable[dict[str, Any]]
-) -> list[dict[str, Any]]:
-    """Merge durable 10s DB history with a bounded 1s tail for GET /api/state.
-
-    `db_rows` = the full-life 10s rows (ascending `t`); `ring_full` = the in-memory 1s
-    ring (a count-bounded ``collections.deque``). Returns the 10s rows up to where the
-    (<=`TAIL_1S`) tail begins, then the tail — so the chart starts at entry (10s resolution
-    before the tail) with a payload bounded regardless of how long the position has been
-    open. With no ring yet, returns the raw 10s history.
-
-    `ring_full` is materialized to a list first: the ring is a deque (no slicing), and the
-    ``[-TAIL_1S:]`` keeps the contract that an oversized ring is still trimmed to the tail.
-    """
-    ring = list(ring_full)[-TAIL_1S:]
-    if not ring:
-        return db_rows
-    first_t = ring[0]["t"]
-    return [s for s in db_rows if s["t"] < first_t] + ring
 
 
 async def get_state(
@@ -916,11 +868,9 @@ async def get_state(
         .order_by(Position.opened_at.desc())
     )
     positions = list(res.scalars().all())
-    pos_dicts = []
-    for p in positions:
-        db = await _db_series(session, p.id)
-        series = bounded_series(db, series_store.get(str(p.id)) or [])
-        pos_dicts.append(position_dict(p, mv, series))
+    # Light table snapshot: no history. Each position's series is loaded lazily
+    # via GET /api/positions/{id}/series (see the per-position series builder).
+    pos_dicts = [position_dict(p, mv, []) for p in positions]
     led = (
         (
             await session.execute(

@@ -103,6 +103,26 @@ async def get_state(
     return await _state(request, session, user_id)
 
 
+@router.get("/positions/{pos_id}/series")
+async def get_position_series(
+    pos_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(current_user),
+) -> dict[str, Any]:
+    res = await session.execute(
+        select(Position)
+        .where(Position.id == pos_id, Position.user_id == user_id)
+        .options(selectinload(Position.legs))
+    )
+    pos = res.scalar_one_or_none()
+    if pos is None:
+        raise HTTPException(404, "position not found")
+    ring = _store(request).get(str(pos_id))
+    series = await service.build_position_series(session, pos, ring)
+    return {"id": str(pos_id), "series": series}
+
+
 @router.post("/strategies")
 async def place(
     req: PlaceRequest,
