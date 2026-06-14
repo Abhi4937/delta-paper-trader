@@ -33,18 +33,19 @@ import type {
   Side,
   Underlying,
 } from "./types";
+import { mergePositionsPreservingSeries } from "./serverState";
 
 let counter = 0;
 const uid = () => `${Date.now()}-${counter++}`;
 // Paper account in USD (Delta crypto options settle in USD). 1 lot = 0.001 BTC.
 // Display-only default until the server state hydrates (server seeds the same).
 const START_BALANCE = 5000;
-// The server is the source of truth for series bounds: GET /api/state returns the
-// full-life 10s DB history + a ~5h 1s tail, and `hydrate` re-pulls it every 90s. So
-// this is NOT a 12h window — it's a pure runaway-guard against unbounded local growth
-// if rehydrate stalls while WS ticks keep arriving. Sized at ~2× the real worst-case
-// server payload (10s life + 5h 1s tail ≈ a few ×10⁴ pts) so it never trims a position's
-// start at entry, but a stalled rehydrate can't balloon memory the way a 7-day cap could.
+// The server is the source of truth for series bounds: GET /api/positions/{id}/series
+// returns a uniform-by-age history body + a ~15min 1s tail (loaded lazily per position).
+// MTM_CAP is a pure runaway-guard against unbounded local growth: once a card is expanded,
+// WS ticks keep appending 1s samples to the loaded series. Sized well above the real
+// worst-case payload so it never trims a position's start at entry under normal use, but a
+// card left expanded indefinitely can't balloon memory the way a 7-day cap could.
 const MTM_CAP = 48 * 60 * 60;
 export const USDINR = 85; // Delta uses a fixed 1 USD = 85 INR
 
@@ -95,13 +96,16 @@ async function hydrateDraft(): Promise<void> {
 function applyServerState(st: ServerState): void {
   // Positions/balance/ledger/logs are server-owned. Currency stays a client-only
   // display toggle, so we deliberately do NOT overwrite it from the server here.
-  useStore.setState({
-    positions: st.positions,
+  // PRESERVE each position's lazily-loaded series: GET /api/state ships an empty
+  // series, so a plain overwrite would wipe the loaded entry→now history (the 90s
+  // re-hydrate / mutation refetches caused the "only latest data" regression).
+  useStore.setState((s) => ({
+    positions: mergePositionsPreservingSeries(s.positions, st.positions),
     balance: st.account.balance,
     ledger: st.ledger,
     logs: st.logs,
     hydrated: true,
-  });
+  }));
   // remember whether there were open positions, so a returning user sees "Loading…" (not a
   // misleading "No positions") before the next hydrate completes.
   try {
@@ -448,8 +452,9 @@ export function startStream(): () => void {
     pollFeed();
     feedTimer = setInterval(pollFeed, 2000);
   }
-  // Re-hydrate the full (server-downsampled) state every 90s so the MTM series always spans
-  // entry→now and never trims its start against MTM_CAP from accumulated live 1s samples.
+  // Re-hydrate every 90s to keep balance/ledger/logs fresh and resync if a position was
+  // opened/closed elsewhere. Loaded position series are PRESERVED across this (see
+  // applyServerState / mergePositionsPreservingSeries) — /api/state carries no series.
   if (!rehydrateTimer) rehydrateTimer = setInterval(hydrate, 90_000);
   // persist the builder basket to the server (debounced) whenever it changes
   if (!draftUnsub) {
