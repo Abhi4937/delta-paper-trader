@@ -42,6 +42,33 @@ from app.sim.marketview import MarketView, Quote
 TAIL_1S = 5 * 60 * 60
 
 
+class MtmOhlc:
+    """Running open/high/low/close of net MTM across one 10s DB-write window."""
+
+    __slots__ = ("open", "high", "low", "close", "_started")
+
+    def __init__(self) -> None:
+        self._started = False
+
+    def add(self, v: float) -> None:
+        if not self._started:
+            self.open = self.high = self.low = self.close = v
+            self._started = True
+        else:
+            self.high = max(self.high, v)
+            self.low = min(self.low, v)
+            self.close = v
+
+    def started(self) -> bool:
+        return self._started
+
+    def snapshot(self) -> dict[str, float]:
+        return {"open": self.open, "high": self.high, "low": self.low, "close": self.close}
+
+    def reset(self) -> None:
+        self._started = False
+
+
 def _ms(dt: datetime | None) -> int | None:
     return int(dt.timestamp() * 1000) if dt else None
 
