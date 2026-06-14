@@ -676,6 +676,9 @@ def series_dict(s: StrategySeries) -> dict[str, Any]:
     return {
         "t": _ms(s.time),
         "pnl": s.pnl,
+        "pnlOpen": s.pnl_open if s.pnl_open is not None else s.pnl,
+        "pnlHigh": s.pnl_high if s.pnl_high is not None else s.pnl,
+        "pnlLow": s.pnl_low if s.pnl_low is not None else s.pnl,
         "delta": s.delta,
         "theta": s.theta,
         "vega": s.vega,
