@@ -35,6 +35,7 @@ log = logging.getLogger("sim_ticker")
 RING_MAXLEN = 15 * 60  # 900 samples = 15 min @ 1s
 DB_WRITE_EVERY = 10.0  # 10s durable downsample → Timescale hypertable (full life of the position)
 MARGIN_REFRESH_EVERY = 30.0
+SETTLE_EVERY = 300.0  # settle expired legs at Delta's settlement price every 5 min (and on boot)
 
 
 class SimTicker:
@@ -45,6 +46,7 @@ class SimTicker:
         app.state.sim_series = self.series  # read by get_state / WS
         self._last_db = 0.0
         self._last_margin = 0.0
+        self._last_settle = 0.0
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._run())
@@ -70,6 +72,18 @@ class SimTicker:
         mono = time.monotonic()
         write_db = (mono - self._last_db) >= DB_WRITE_EVERY
         refresh_margin = (mono - self._last_margin) >= MARGIN_REFRESH_EVERY
+
+        # Periodically settle any legs past expiry at Delta's settlement price (own session).
+        if (mono - self._last_settle) >= SETTLE_EVERY:
+            self._last_settle = mono
+            async with SessionLocal() as ssn:
+                try:
+                    n = await service.settle_expired_legs(ssn, self.app.state)
+                    if n:
+                        await ssn.commit()
+                        log.info("settled %d expired leg(s) at Delta settlement price", n)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("settlement error: %s", e)
 
         async with SessionLocal() as session:
             # ALL users' open positions (not just one) — every user's MTM history,

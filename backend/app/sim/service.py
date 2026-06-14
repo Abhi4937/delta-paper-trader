@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select, text
@@ -30,6 +30,8 @@ from app.engines.money import (
     net_pnl,
     spread,
 )
+from app.services.chain import is_expiry_live
+from app.services.market_data import UNDERLYINGS
 from app.sim.exit_engine import CombinedStop, ExitLeg, evaluate_exit
 from app.sim.margin_helper import quote_margin
 from app.sim.marketview import MarketView, Quote
@@ -345,6 +347,7 @@ async def close_leg(
     pos_id: uuid.UUID,
     leg_id: uuid.UUID,
     reason: str | None,
+    settle_price: float | None = None,
 ) -> bool:
     pos = await _get_position(session, user_id, pos_id)
     if pos is None or pos.status == "closed":
@@ -357,13 +360,19 @@ async def close_leg(
     why = reason or "manual"
     remaining = [lg for lg in _open(pos) if lg.id != leg_id]
 
-    q = mv.quote(leg.symbol)
-    ex = exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else leg.entry)
+    if settle_price is not None:
+        # expiry settlement: exit at Delta's official settlement price, FEE-FREE
+        # (auto-settlement isn't a placed trade — flagged for later validation).
+        ex = settle_price
+        fees = 0.0
+    else:
+        q = mv.quote(leg.symbol)
+        ex = exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else leg.entry)
+        spot_now = mv.spot(leg.underlying) or leg.spot_at_entry
+        fees = leg_fee(leg.entry, leg.spot_at_entry, leg.contract_value, leg.qty) + leg_fee(
+            ex, spot_now, leg.contract_value, leg.qty
+        )
     gross = leg_pnl(leg.side, leg.qty, leg.contract_value, leg.entry, ex)
-    spot_now = mv.spot(leg.underlying) or leg.spot_at_entry
-    fees = leg_fee(leg.entry, leg.spot_at_entry, leg.contract_value, leg.qty) + leg_fee(
-        ex, spot_now, leg.contract_value, leg.qty
-    )
 
     new_margin = 0.0
     badge = pos.margin_badge
@@ -505,6 +514,67 @@ def exit_legs_of(pos: Position, mv: MarketView) -> list[ExitLeg]:
         )
         for lg in pos.legs
     ]
+
+
+# --- expiry settlement (1D) ------------------------------------------------- #
+def leg_is_expired(lg: Leg, now: datetime) -> bool:
+    """True once the leg's contract has passed its 12:00 UTC settlement instant."""
+    try:
+        e = date.fromisoformat(lg.expiry)
+    except ValueError:
+        return False
+    return not is_expiry_live(e, now)
+
+
+async def fetch_settlement_prices(client: Any) -> dict[str, float]:
+    """symbol -> Delta official settlement price for recently-expired BTC/ETH options
+    (read-only /v2/products). First page (page_size 1000) covers ~the last week of
+    daily expiries, which is all a promptly-settled leg needs."""
+    data = await client.get(
+        "/v2/products",
+        params={
+            "states": "expired",
+            "contract_types": "call_options,put_options",
+            "underlying_asset_symbols": ",".join(UNDERLYINGS),
+            "page_size": 1000,
+        },
+    )
+    out: dict[str, float] = {}
+    for p in data.get("result", []) if isinstance(data, dict) else []:
+        sym, sp = p.get("symbol"), p.get("settlement_price")
+        if sym and sp is not None:
+            out[sym] = float(sp)
+    return out
+
+
+async def settle_expired_legs(session: AsyncSession, app_state: Any) -> int:
+    """Settle every open leg past its expiry at Delta's official settlement price
+    (FEE-FREE; see close_leg). Legs whose price Delta hasn't published yet are skipped
+    and retried on the next call. Returns the number of legs settled."""
+    now = datetime.now(UTC)
+    res = await session.execute(
+        select(Position).where(Position.status == "open").options(selectinload(Position.legs))
+    )
+    pending = [
+        (p, lg)
+        for p in res.scalars().all()
+        for lg in p.legs
+        if lg.status == "open" and leg_is_expired(lg, now)
+    ]
+    if not pending:
+        return 0
+    prices = await fetch_settlement_prices(app_state.delta)
+    settled = 0
+    for p, lg in pending:
+        sp = prices.get(lg.symbol)
+        if sp is None:
+            continue  # not published yet → retry next cycle
+        ok = await close_leg(
+            session, p.user_id, app_state, p.id, lg.id, "settlement", settle_price=sp
+        )
+        if ok:
+            settled += 1
+    return settled
 
 
 # Feed must be stale at least this long before a stale hard-stop acts — ignores a
