@@ -717,6 +717,50 @@ async def _rollup_series(
     ]
 
 
+def _assemble_series(
+    body: list[dict[str, Any]], tail: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Body up to where the 1s tail begins, then the tail (mirrors the old bounded_series seam)."""
+    if not tail:
+        return body
+    first_t = tail[0]["t"]
+    return [p for p in body if p["t"] < first_t] + list(tail)
+
+
+async def build_position_series(
+    session: AsyncSession,
+    pos: Position,
+    ring_full: Iterable[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Uniform-by-age history body + always-1s live tail (open) for one position."""
+    tail = [
+        {k: s[k] for k in ("t", "pnl", "pnlOpen", "pnlHigh", "pnlLow",
+                           "delta", "theta", "vega", "atmIv", "legs")}
+        for s in (list(ring_full) if ring_full else [])
+    ]
+    # span = lifetime for closed, age for open
+    end = pos.closed_at if (pos.status != "open" and pos.closed_at) else datetime.now(UTC)
+    span = (end - pos.opened_at).total_seconds()
+    res = body_resolution_seconds(span)
+    # body covers entry → where the tail starts (or → end when there's no tail)
+    body_end = datetime.fromtimestamp(tail[0]["t"] / 1000, UTC) if tail else end
+    if res == 1:
+        body: list[dict[str, Any]] = []  # whole thing is in the ring / ≤15 min
+    elif res == 10:
+        rows = await session.execute(
+            select(StrategySeries)
+            .where(
+                StrategySeries.position_id == pos.id,
+                StrategySeries.time < body_end,
+            )
+            .order_by(StrategySeries.time)
+        )
+        body = [series_dict(r) for r in rows.scalars().all()]
+    else:
+        body = await _rollup_series(session, pos.id, res, pos.opened_at, body_end)
+    return _assemble_series(body, tail)
+
+
 def _net_greeks(pos: Position, mv: MarketView) -> dict[str, float]:
     rows = []
     for lg in _open(pos):
