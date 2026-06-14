@@ -15,7 +15,7 @@ Local paper-trading terminal for **Delta Exchange India options** (BTC + ETH), m
 
 ## 🆕 LATEST SESSION (2026-06-14) — read this first
 
-This session: **(1)** diagnosed and permanently fixed a recurring production outage ("can't reach server" / stale feed), **(2)** shipped 1D expiry settlement and verified the earlier deferred batch is live, **(3)** stood up uptime monitoring (waiting on one user step), and **(4)** ran a full brainstorm → spec → plan for the position-charts overhaul. Details below; older sessions follow.
+This session: **(1)** diagnosed and permanently fixed a recurring production outage ("can't reach server" / stale feed), **(2)** shipped 1D expiry settlement and verified the earlier deferred batch is live, **(3)** stood up uptime monitoring (now **LIVE**), and **(4)** brainstormed → spec'd → planned → **built → deployed → verified** the position-charts overhaul. Everything below is **done and on prod** — there are **no open engineering items** from this session. Older sessions follow.
 
 ### 🔴 PROBLEM 1 (most important) — recurring production outage, ROOT-CAUSED & FIXED
 
@@ -47,26 +47,50 @@ This session: **(1)** diagnosed and permanently fixed a recurring production out
 ### ✅ PROBLEM 2 — 1D expiry settlement shipped (PR #7, merged + deployed + verified)
 Expired legs used to freeze at entry. Now the tick loop settles open legs past 12:00 UTC at Delta's **published settlement price** (read-only `/v2/products?states=expired`), **fee-free** (owner decision; flagged for later fee validation), every 5 min + on boot. Money path validated 3 ways (unit + live Delta fetch + end-to-end DB balance to the cent). The earlier deferred batch (1B delta lot-independence, 1C time-aware chart cap, 1E Timescale 1-min rollup for old history, 1F lighter 300 s reseed, 3A local Black-Scholes greeks fallback, 3B stale-aware hybrid hard-stop) is all **live** on prod.
 
-### 🟡 PROBLEM 3 — uptime monitoring (VM side DONE, needs one user step)
-Set up a dead-man's-switch ping to healthchecks.io so the box going stale pages the user instead of being found by opening the app:
-- On the VM: `/usr/local/bin/hc-ping.sh` (curls `/health`, pings only if `ok`), cron `*/2 * * * *`, secret URL in `/etc/hc-ping.url` (mode 600, currently empty → safely no-ops). Script source also in repo at `deploy/hc-ping.sh`.
-- **USER TODO:** create a check at healthchecks.io (Period 2 min, Grace 5 min, add a notification), then paste its `https://hc-ping.com/<uuid>` ping URL — it gets written to `/etc/hc-ping.url` and the first cron run (≤2 min) activates the alert.
+### ✅ PROBLEM 3 — uptime monitoring (LIVE)
+Dead-man's-switch ping to **healthchecks.io** so the box going stale **alerts the user by email** instead of being found by opening the app:
+- On the VM: `/usr/local/bin/hc-ping.sh` (curls `/health`, pings only if `ok`), cron `*/2 * * * *`, secret ping URL in `/etc/hc-ping.url` (mode 600). Script source also in repo at `deploy/hc-ping.sh`.
+- The user created the check (Period 2 min, Grace 5 min, email notification) and the ping URL is installed; the first ping fired and healthchecks returned `OK` — **monitoring is active**. If the box goes silent for ~5 min, the user gets an email.
+- To change/rotate the ping URL later: `echo '<url>' | sudo tee /etc/hc-ping.url` on the VM, then `/usr/local/bin/hc-ping.sh`.
 
-### 📐 PROBLEM 4 — position-charts overhaul (DESIGNED — spec + plan ready, NOT yet built)
-Opening the positions view is slow: `GET /api/state` eagerly builds full per-second history for **all** positions (~50 MB, ~20 s on the 1-vCPU box). Ran a full brainstorm and converged on a design (see below); spec and implementation plan are written and committed on branch **`design/position-live-history-charts`**.
+### ✅ PROBLEM 4 — position-charts overhaul (BUILT, MERGED, DEPLOYED, VERIFIED — PR #9)
+**Why:** Opening the positions view was slow — `GET /api/state` eagerly built full per-second history for **all** positions (~50 MB, ~20 s on the 1-vCPU box). Separately, downsampled charts silently dropped peaks (the prior `last()`-per-bucket rollup discarded the position's true high/low).
 
 - **Spec:** `docs/superpowers/specs/2026-06-14-position-live-history-charts-design.md`
 - **Plan:** `docs/superpowers/plans/2026-06-14-position-live-history-charts.md` (14 TDD tasks)
+- **Shipped:** PR #9 → merged to `main` (`fd25697`) → deployed to prod (additive migration `bf65534914f3` auto-ran).
 
-**Design in one paragraph:** Split the light table snapshot (`GET /api/state`, **no series**) from a new lazy `GET /api/positions/{id}/series` loaded on click. A position's history is served at **one uniform resolution chosen by its age** (≤15m→1s, 15m–12h→10s, 12–24h→1m, >24h→5m) — *not* a mixed-resolution ladder — plus an **always-1s real-time tail** for the last ~15 min (from the in-memory ring + WebSocket). The 10 s DB write now stores **true net-MTM OHLC** (open/high/low/close from the 1 s ticks), and 1m/5m rollups aggregate that OHLC, so the **candle wicks show the real peak the position hit at every zoom** (the prior `last()`-per-bucket rollup silently dropped spikes). Per-leg detail spans the whole life. The manual 1s/1m/5m resolution buttons are **removed** (resolution is automatic). Deferred: zoom-to-load for drilling old regions, and Greek/per-leg OHLC.
+**What it does:** Splits the light table snapshot (`GET /api/state`, now **no series**) from a new lazy `GET /api/positions/{id}/series` loaded when a position card opens. A position's history is served at **one uniform resolution chosen by its age** (≤15m→1s, 15m–12h→10s, 12–24h→1m, >24h→5m) — *not* a mixed-resolution ladder — plus an **always-1s real-time tail** for the last ~15 min (from the in-memory ring + WebSocket; closed positions use lifetime span and have no tail). The 10 s DB write now stores **true net-MTM OHLC** (`pnl_open/high/low`, computed from the 1 s ticks via the `MtmOhlc` accumulator in `service.py`, written in `ticker.py`), and 1m/5m rollups aggregate that OHLC (`max(high)`/`min(low)`), so **candle wicks show the real peak at every zoom**. Per-leg detail spans the whole life. The manual 1s/1m/5m resolution buttons are **removed** (resolution is automatic); the Line/Candle toggle stays. Frontend chart points are **deduped-by-second** to avoid lightweight-charts `setData` duplicate-time throws.
 
-**Why these specific design calls (the discussion that produced them, so they aren't re-litigated):**
-- *Lazy not eager* — the table only needs the live snapshot; full history per position on click drops the payload from ~50 MB to ~1–4 MB for one position.
-- *Uniform-by-age, not a ladder* — the user explicitly did not want mixed resolution within one chart; uniform is simpler, lighter, and the buttons grey naturally.
-- *True OHLC at write time* — the user correctly spotted that 10 s *snapshots* don't roll up to true OHLC (a spike between marks is never recorded); storing OHLC at the 10 s write captures it to 1 s precision, permanently. (This reversed an earlier "YAGNI" call.)
-- *Candles, no envelope* — the existing candle toggle's wick *is* the high/low, so no extra min/max overlay is needed.
+**Key code touch points (for the next session):**
+- Backend: `app/db/models.py` (`StrategySeries` OHLC cols), `app/sim/service.py` (`MtmOhlc`, `body_resolution_seconds`, `_rollup_series`, `build_position_series`, `series_dict`, lightened `get_state`), `app/sim/ticker.py` (OHLC accumulator + 10s write), `app/api/sim.py` (`GET /api/positions/{id}/series`). `_db_series`/`bounded_series` were removed.
+- Frontend: `lib/types.ts` (`SeriesSample` OHLC), `lib/api.ts` (`fetchPositionSeries`), `lib/store.ts` (`loadPositionSeries`), `lib/chartData.ts` (`netMtmCandles`, `dedupBySecond`; `buckets`/`toLine`/`TF` removed), `components/PositionCharts.tsx` (direct-OHLC render, no resolution buttons), `app/(terminal)/positions/page.tsx` (lazy load per `PositionCard` on expand + "loading chart…" placeholder).
 
-**Next step:** execute the plan (subagent-driven recommended) — it was paused at the execution-choice prompt.
+**How it was built:** subagent-driven (15 implementation commits across 5 phases, each with spec + code-quality review, plus a final cross-phase integration review). **Two real bugs caught in review and fixed:** (a) the plan's rollup integration test had an FK-chain bug and placed a spike outside the queried window — fixed so it genuinely proves peak preservation; (b) the frontend needed `dedupBySecond` because removing the old `buckets()` Map dedup let same-second points (seam / 950 ms live-tick throttle) throw on `setData`.
+
+**Verified on prod (2026-06-14):** health ok, feed fresh; migration applied (all three `pnl%` columns); new route returns 401 (auth-gated, not 404/500); **OHLC capture working with real data** — over 8 min, 66/72 rows non-degenerate (high ≠ low), max intra-window spread 1.75; 10s write cadence correct; no errors; backend 128 MiB / 360 MB free. (Authenticated `/api/state` + `/api/positions/{id}/series` UI rendering should be eyeballed logged-in — couldn't be exercised without a Supabase JWT.)
+
+**Design rationale (so it isn't re-litigated):**
+- *Lazy not eager* — full history per position on click drops the payload from ~50 MB to ~1–4 MB for one position.
+- *Uniform-by-age, not a ladder* — the user explicitly did not want mixed resolution within one chart; uniform is simpler, lighter, buttons grey naturally.
+- *True OHLC at write time* — the user spotted that 10 s *snapshots* don't roll up to true OHLC (a spike between marks is never recorded); storing OHLC at the 10 s write captures it to 1 s precision. (Reversed an earlier "YAGNI" call.)
+- *Candles, no envelope* — the existing candle toggle's wick *is* the high/low.
+
+**Deferred (documented in spec):** zoom-to-load for drilling arbitrary old regions at 10s; per-leg/Greek OHLC.
+
+---
+
+### 📋 Session outcome — nothing open
+
+| Item | Status |
+|---|---|
+| Production swap-thrash outage | ✅ fixed (PR #8), deployed, verified |
+| 1D expiry settlement | ✅ shipped (PR #7), deployed, verified |
+| Earlier deferred batch (1B/1C/1E/1F/3A/3B) | ✅ live |
+| Uptime monitoring (healthchecks.io) | ✅ live (alert active) |
+| Position-charts overhaul | ✅ built (PR #9), deployed, verified |
+
+**Only remaining (optional, user-side):** eyeball the position charts logged-in at https://trader-abhi.duckdns.org (expand a position → chart loads → candle wicks → no resolution buttons). Everything server-side is verified.
 
 ---
 
