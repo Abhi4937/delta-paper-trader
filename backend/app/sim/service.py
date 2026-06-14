@@ -36,11 +36,6 @@ from app.sim.exit_engine import CombinedStop, ExitLeg, evaluate_exit
 from app.sim.margin_helper import quote_margin
 from app.sim.marketview import MarketView, Quote
 
-# How much of the live 1s ring to return in GET /api/state. Everything before this
-# tail is served from the durable 10s DB history, so the chart starts at entry with a
-# bounded payload no matter how long the position has been open. 5h = 18,000 samples.
-TAIL_1S = 5 * 60 * 60
-
 
 class MtmOhlc:
     """Running open/high/low/close of net MTM across one 10s DB-write window."""
@@ -832,14 +827,6 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
     }
 
 
-# Keep raw 10s rows for the recent window; older history is served as 1-minute NET
-# rollups (no per-leg/IV detail) so GET /api/state doesn't materialize tens of thousands
-# of rows for a long-open position (the rehydrate memory spike). Net-only old by design.
-DB_RAW_WINDOW_S = 3 * 24 * 60 * 60  # 3 days
-
-TAIL_SECONDS = 15 * 60  # last 15 min always served at 1s from the ring (matches RING_MAXLEN)
-
-
 def body_resolution_seconds(span_seconds: float) -> int:
     """Uniform history-body resolution chosen by the position's span.
 
@@ -858,7 +845,6 @@ async def get_state(
     session: AsyncSession,
     user_id: uuid.UUID,
     mv: MarketView,
-    series_store: dict[str, list[dict[str, Any]]],
 ) -> dict[str, Any]:
     account = await _account(session, user_id)
     res = await session.execute(

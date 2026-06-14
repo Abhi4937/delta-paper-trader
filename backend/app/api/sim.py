@@ -43,7 +43,7 @@ def _store(request: Request) -> dict[str, Any]:
 
 
 async def _state(request: Request, session: AsyncSession, user_id: uuid.UUID) -> dict[str, Any]:
-    return await service.get_state(session, user_id, _mv(request), _store(request))
+    return await service.get_state(session, user_id, _mv(request))
 
 
 @router.get("/me")
