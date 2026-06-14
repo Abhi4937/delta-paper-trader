@@ -1,7 +1,9 @@
 "use client";
 
-// Stacked position-analytics charts (lightweight-charts v5). One shared timeframe
-// (1s / 1m / 5m) + a Line/Candle toggle (MTM only) drive five small panels:
+// Stacked position-analytics charts (lightweight-charts v5). The server chooses the
+// history resolution (uniform-by-age body + 1s live tail) and stamps net-MTM OHLC per
+// point, so there's no client timeframe toggle — a Line/Candle toggle (MTM only) and a
+// Net/Legs toggle drive five small panels:
 //   MTM    — net (baseline green/red, or candle) + each leg (light lines)   [tall]
 //   IV     — ATM IV (bold) + each leg's IV (light)
 //   Delta  — net (bold) + each leg (light), BTC
@@ -24,10 +26,11 @@ import {
   type IChartApi,
   type ISeriesApi,
   type Time,
+  type UTCTimestamp,
 } from "lightweight-charts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import clsx from "clsx";
-import { type Pt, type TF, atmPoints, buckets, capPoints, legPoints, netPoints, toLine } from "@/lib/chartData";
+import { type OHLC, type Pt, atmPoints, capPoints, legPoints, netMtmCandles, netPoints } from "@/lib/chartData";
 import { atmColorFor, legColorMap } from "@/lib/legColors";
 import { type Currency, money } from "@/lib/store";
 import type { Leg, SeriesSample } from "@/lib/types";
@@ -57,17 +60,15 @@ function legLabel(l: Leg): string {
   return `${l.strike} ${l.type === "call" ? "CE" : "PE"} · ${expShort(l.expiry)}`;
 }
 
-function fmtTime(sec: number, tf: TF): string {
+function fmtTime(sec: number): string {
   const d = new Date(sec * 1000);
-  return tf === 1
-    ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-    : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 // date + time for the hover tooltip header (e.g. "09 Jun 14:36:22")
-function fmtDateTime(sec: number, tf: TF): string {
+function fmtDateTime(sec: number): string {
   const d = new Date(sec * 1000);
   const date = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-  return `${date} ${fmtTime(sec, tf)}`;
+  return `${date} ${fmtTime(sec)}`;
 }
 
 // stretch a series' autoscale to always include 0 (so the dashed 0-line shows
@@ -90,7 +91,6 @@ export default function PositionCharts({
   legs: Leg[];
   currency: Currency;
 }) {
-  const [tf, setTf] = useState<TF>(1);
   const [mtmType, setMtmType] = useState<ChartType>("line");
   const [showLegs, setShowLegs] = useState(true); // "Legs" = net + per-leg, "Net" = net only
 
@@ -116,6 +116,9 @@ export default function PositionCharts({
 
   // derive per-metric point arrays from the sampled series
   const netMtm = netPoints(series, "pnl");
+  // net-MTM candles straight from the server's per-point OHLC (resolution is chosen
+  // server-side; no client re-bucketing). Only the MTM panel's candle view uses these.
+  const netCandles = netMtmCandles(series);
   const netDelta = netPoints(series, "delta");
   const netTheta = netPoints(series, "theta");
   const netVega = netPoints(series, "vega");
@@ -175,7 +178,7 @@ export default function PositionCharts({
         <span>
           analytics
           {series.length > 0 && (
-            <span className="text-text-dim"> · from {fmtDateTime(series[0].t / 1000, tf)}</span>
+            <span className="text-text-dim"> · from {fmtDateTime(series[0].t / 1000)}</span>
           )}
           {" · net bold · legs light"}
         </span>
@@ -196,23 +199,14 @@ export default function PositionCharts({
               { v: "candle", label: "Candle" },
             ]}
           />
-          <Seg
-            value={tf}
-            onChange={setTf}
-            opts={[
-              { v: 1, label: "1s" },
-              { v: 60, label: "1m" },
-              { v: 300, label: "5m" },
-            ]}
-          />
         </div>
       </div>
 
-      <Panel title="MTM" unit="USD" tf={tf} register={register} height={heightOf("MTM")} collapsed={!!collapsed.MTM} onToggle={() => toggle("MTM")} net={netMtm} legs={legsFor((x) => x?.pnl ?? 0)} fmt={fMoney} kind="mtm" candle={mtmType === "candle"} zero signColor />
-      <Panel title="IV" unit="%" tf={tf} register={register} height={heightOf("IV")} collapsed={!!collapsed.IV} onToggle={() => toggle("IV")} net={[]} legs={ivLines} fmt={fPct} kind="line" />
-      <Panel title="Delta" unit="BTC" tf={tf} register={register} height={heightOf("Delta")} collapsed={!!collapsed.Delta} onToggle={() => toggle("Delta")} net={netDelta} legs={legsFor((x) => x?.delta ?? 0)} fmt={fDelta} kind="line" zero signColor />
-      <Panel title="Theta" unit="$/day" tf={tf} register={register} height={heightOf("Theta")} collapsed={!!collapsed.Theta} onToggle={() => toggle("Theta")} net={netTheta} legs={legsFor((x) => x?.theta ?? 0)} fmt={fNum} kind="line" zero signColor />
-      <Panel title="Vega" unit="$/vol-pt" tf={tf} register={register} height={heightOf("Vega")} collapsed={!!collapsed.Vega} onToggle={() => toggle("Vega")} net={netVega} legs={legsFor((x) => x?.vega ?? 0)} fmt={fNum} kind="line" zero signColor />
+      <Panel title="MTM" unit="USD" register={register} height={heightOf("MTM")} collapsed={!!collapsed.MTM} onToggle={() => toggle("MTM")} net={netMtm} netCandles={netCandles} legs={legsFor((x) => x?.pnl ?? 0)} fmt={fMoney} kind="mtm" candle={mtmType === "candle"} zero signColor />
+      <Panel title="IV" unit="%" register={register} height={heightOf("IV")} collapsed={!!collapsed.IV} onToggle={() => toggle("IV")} net={[]} netCandles={[]} legs={ivLines} fmt={fPct} kind="line" />
+      <Panel title="Delta" unit="BTC" register={register} height={heightOf("Delta")} collapsed={!!collapsed.Delta} onToggle={() => toggle("Delta")} net={netDelta} netCandles={[]} legs={legsFor((x) => x?.delta ?? 0)} fmt={fDelta} kind="line" zero signColor />
+      <Panel title="Theta" unit="$/day" register={register} height={heightOf("Theta")} collapsed={!!collapsed.Theta} onToggle={() => toggle("Theta")} net={netTheta} netCandles={[]} legs={legsFor((x) => x?.theta ?? 0)} fmt={fNum} kind="line" zero signColor />
+      <Panel title="Vega" unit="$/vol-pt" register={register} height={heightOf("Vega")} collapsed={!!collapsed.Vega} onToggle={() => toggle("Vega")} net={netVega} netCandles={[]} legs={legsFor((x) => x?.vega ?? 0)} fmt={fNum} kind="line" zero signColor />
     </div>
   );
 }
@@ -221,12 +215,12 @@ interface PanelProps {
   title: string;
   unit: string;
   netLabel?: string;
-  tf: TF;
   register: RegisterFn;
   height: number;
   collapsed: boolean;
   onToggle: () => void;
   net: Pt[];
+  netCandles: OHLC[]; // server net-MTM OHLC (MTM panel only; [] elsewhere)
   legs?: LegLine[];
   fmt: (v: number) => string;
   kind: "mtm" | "line";
@@ -235,7 +229,7 @@ interface PanelProps {
   signColor?: boolean; // color the net tooltip value green/red by sign
 }
 
-function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed, onToggle, net, legs = [], fmt, kind, candle, zero, signColor }: PanelProps) {
+function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onToggle, net, netCandles, legs = [], fmt, kind, candle, zero, signColor }: PanelProps) {
   const [chartVer, setChartVer] = useState(0); // bumps each time the chart is (re)created
   const wrapRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -243,8 +237,8 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
   const primaryRef = useRef<ISeriesApi<"Baseline"> | ISeriesApi<"Candlestick"> | ISeriesApi<"Line"> | null>(null);
   const legRefs = useRef<ISeriesApi<"Line">[]>([]);
   const legMeta = useRef<{ label: string; color: string }[]>([]);
-  const live = useRef({ tf, fmt, netLabel, signColor });
-  live.current = { tf, fmt, netLabel, signColor };
+  const live = useRef({ fmt, netLabel, signColor });
+  live.current = { fmt, netLabel, signColor };
   const nLegs = legs.length;
   // fingerprint of the last render we drew, so we redraw ONLY when something actually
   // changed (view identity OR the data in net OR any leg). Keyed on net+legs length, last
@@ -277,7 +271,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
         timeVisible: true,
         secondsVisible: true,
         rightOffset: 3,
-        tickMarkFormatter: (t: Time) => fmtTime(t as number, live.current.tf),
+        tickMarkFormatter: (t: Time) => fmtTime(t as number),
       },
       crosshair: {
         mode: CrosshairMode.Magnet,
@@ -286,7 +280,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
       },
       localization: {
         priceFormatter: (p: number) => live.current.fmt(p),
-        timeFormatter: (t: Time) => fmtTime(t as number, live.current.tf),
+        timeFormatter: (t: Time) => fmtTime(t as number),
       },
       // no manual pan/zoom — the chart always auto-fits start→latest so the whole
       // trade is visible in one panel; mouse-wheel scrolls the page, not the chart.
@@ -317,7 +311,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
         tip.style.opacity = "0";
         return;
       }
-      const { fmt: f, tf: t, netLabel: nl, signColor: sc } = live.current;
+      const { fmt: f, netLabel: nl, signColor: sc } = live.current;
       const rows: string[] = [];
       const ps = primaryRef.current;
       if (ps && param.seriesData.has(ps)) {
@@ -342,7 +336,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
         tip.style.opacity = "0";
         return;
       }
-      tip.innerHTML = `<div style="color:${C.textMute};margin-bottom:3px">${fmtDateTime(param.time as number, t)}</div>${rows.join("")}`;
+      tip.innerHTML = `<div style="color:${C.textMute};margin-bottom:3px">${fmtDateTime(param.time as number)}</div>${rows.join("")}`;
       tip.style.opacity = "1";
       const x = Math.min(Math.max(param.point.x + 12, 4), el.clientWidth - 140);
       tip.style.transform = `translateX(${x}px)`;
@@ -430,12 +424,19 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
     const s = primaryRef.current;
     if (s) {
       if (kind === "mtm" && candle) {
-        (s as ISeriesApi<"Candlestick">).setData(capPoints(buckets(net, tf)));
+        // server already chose the resolution + stamped OHLC → render directly
+        (s as ISeriesApi<"Candlestick">).setData(capPoints(netCandles));
       } else {
-        (s as ISeriesApi<"Baseline">).setData(capPoints(toLine(net, tf)));
+        (s as ISeriesApi<"Baseline">).setData(
+          capPoints(net.map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.v }))),
+        );
       }
     }
-    legRefs.current.forEach((ls, i) => ls.setData(capPoints(toLine(legs[i]?.pts ?? [], tf))));
+    legRefs.current.forEach((ls, i) =>
+      ls.setData(
+        capPoints((legs[i]?.pts ?? []).map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.v }))),
+      ),
+    );
   }
   function fitView() {
     chartRef.current?.timeScale().fitContent();
@@ -448,7 +449,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
   // and a same-timestamp value correction still repaints. The cap above keeps this cheap.
   useEffect(() => {
     if (!chartRef.current) return;
-    const sig = `${tf}|${candle}|${kind}|${chartVer}`;
+    const sig = `${candle}|${kind}|${chartVer}`;
     const lastNet = net[net.length - 1];
     const dataSig =
       `${net.length}:${lastNet?.t ?? ""}:${lastNet?.v ?? ""}|` +
@@ -465,7 +466,7 @@ function Panel({ title, unit, netLabel = "Net", tf, register, height, collapsed,
     sigRef.current = sig;
     dataSigRef.current = dataSig;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [net, legs, tf, candle, chartVer]);
+  }, [net, netCandles, legs, candle, chartVer]);
 
   return (
     <div className="rounded-lg bg-surface-2/40 px-2 pt-1 pb-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.35)] ring-1 ring-line/50">
