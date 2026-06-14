@@ -143,11 +143,15 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
         }
     ng = net_greeks(greeks)
     atm_iv = {e: mv.atm_iv(pos.underlying, e) for e in {lg.expiry for lg in legs}}
+    net = net_pnl(
+        [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in legs]
+    )
     return {
         "t": _ms(now),
-        "pnl": net_pnl(
-            [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in legs]
-        ),
+        "pnl": net,
+        "pnlOpen": net,
+        "pnlHigh": net,
+        "pnlLow": net,
         "delta": ng["delta"],
         "theta": ng["theta"],
         "vega": ng["vega"],
