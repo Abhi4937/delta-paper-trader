@@ -406,7 +406,7 @@ export const closeLegApi = (id: string, legId: string, reason?: string): Promise
 // to distinguish "set to null" from "leave unchanged"); __patch flags the verb.
 export const setPositionRiskApi = (
   id: string,
-  patch: Partial<{ target_pnl: number | null; stop_loss_amount: number | null; stop_loss_pct_of_margin: number | null; auto_exit: boolean }>,
+  patch: Partial<{ target_pnl: number | null; stop_loss_amount: number | null; stop_loss_pct_of_margin: number | null; auto_exit: boolean; stale_hard_stop: boolean }>,
 ): Promise<ServerState | null> => postJson(`/api/strategies/${id}/risk`, { ...patch, __patch: true });
 
 export const setLegRiskApi = (

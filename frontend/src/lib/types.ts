@@ -111,6 +111,7 @@ export interface Position {
   stopLossPctOfMargin: number | null;
   autoExit: boolean; // combined auto-exit on
   autoExitSuspended: boolean; // runtime: stale marks → auto-exit paused
+  staleHardStop: boolean; // opt-in: keep firing loss stops on last-known marks during a stale feed
   closedAt: number | null; // when the whole strategy closed
   closeReason: string | null; // reason the strategy closed (manual / SL / ...)
   series: SeriesSample[]; // per-second net + per-leg MTM/IV/greeks, from open

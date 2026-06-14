@@ -154,12 +154,13 @@ async function pollFeed(): Promise<void> {
 // camelCase risk patches -> the server's snake_case; only keys PRESENT in the
 // patch are forwarded (the server uses model_fields_set to tell "set null" from
 // "leave unchanged").
-function posRiskPatch(patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit">>) {
+function posRiskPatch(patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit" | "staleHardStop">>) {
   const out: Record<string, unknown> = {};
   if ("targetPnl" in patch) out.target_pnl = patch.targetPnl;
   if ("stopLossAmount" in patch) out.stop_loss_amount = patch.stopLossAmount;
   if ("stopLossPctOfMargin" in patch) out.stop_loss_pct_of_margin = patch.stopLossPctOfMargin;
   if ("autoExit" in patch) out.auto_exit = patch.autoExit;
+  if ("staleHardStop" in patch) out.stale_hard_stop = patch.staleHardStop;
   return out;
 }
 function legRiskPatch(patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) {
@@ -205,7 +206,7 @@ interface State {
   placeStrategy: (name: string, opts: { target: number | null; stopLossAmount: number | null; stopLossPctOfMargin: number | null; autoExit: boolean; margin?: number; badge?: MarginBadge }) => void;
   closePosition: (id: string, reason?: string) => void;
   closeLeg: (id: string, legId: string, reason?: string) => Promise<void>;
-  setPositionStop: (id: string, patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit">>) => void;
+  setPositionStop: (id: string, patch: Partial<Pick<Position, "targetPnl" | "stopLossAmount" | "stopLossPctOfMargin" | "autoExit" | "staleHardStop">>) => void;
   setPositionLegRisk: (id: string, legId: string, patch: Partial<Pick<Leg, "targetPnl" | "stopPnl" | "autoExit" | "closeScope">>) => void;
   addNote: (id: string, kind: "entry" | "exit", body: string) => void;
 }

@@ -279,6 +279,13 @@ function RiskPanel({ p, currency }: { p: Position; currency: Currency }) {
           <input type="checkbox" checked={p.autoExit} onChange={(e) => setStop(p.id, { autoExit: e.target.checked })} className="accent-accent" />
           Auto-exit
         </label>
+        <label
+          className="flex cursor-pointer items-center gap-1 text-text-mute"
+          title="Keep firing LOSS stops on the last-known marks during a stale feed (after a 30s grace) instead of pausing. Stops only, never take-profit. Fires-on-recovery automatically."
+        >
+          <input type="checkbox" checked={p.staleHardStop} onChange={(e) => setStop(p.id, { staleHardStop: e.target.checked })} className="accent-warn" />
+          Stale hard-stop
+        </label>
       </div>
 
       {/* per-leg TP/SL + close (open legs only) */}
