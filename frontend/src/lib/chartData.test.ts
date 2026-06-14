@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { atmPoints, buckets, capPoints, legPoints, netMtmCandles, netPoints, toLine } from "./chartData";
+import { atmPoints, capPoints, dedupBySecond, legPoints, netMtmCandles, netPoints } from "./chartData";
 import type { SeriesSample } from "./types";
 
 function sample(t: number, over: Partial<SeriesSample> = {}): SeriesSample {
@@ -65,17 +65,6 @@ describe("chartData", () => {
     expect(atmPoints(s, "2026-06-13")).toEqual([{ t: 1000, v: 45 }, { t: 2000, v: 0 }]);
   });
 
-  it("buckets aggregates into OHLC with open = previous close", () => {
-    const b = buckets([{ t: 1000, v: 10 }, { t: 1500, v: 12 }, { t: 2000, v: 8 }], 1);
-    expect(b.length).toBe(2);
-    expect(b[0]).toMatchObject({ open: 10, high: 12, low: 10, close: 12 });
-    expect(b[1]).toMatchObject({ open: 12, high: 12, low: 8, close: 8 });
-  });
-
-  it("toLine returns the close of each bucket", () => {
-    expect(toLine([{ t: 1000, v: 10 }, { t: 2000, v: 8 }], 1).map((p) => p.value)).toEqual([10, 8]);
-  });
-
   it("netMtmCandles renders server OHLC directly (one candle per sample)", () => {
     const series = [
       sample(60000, { pnl: 12, pnlOpen: 10, pnlHigh: 25, pnlLow: -5 }),
@@ -85,5 +74,51 @@ describe("chartData", () => {
       { time: 60, open: 10, high: 25, low: -5, close: 12 },
       { time: 120, open: 12, high: 14, low: 11, close: 14 },
     ]);
+  });
+
+  // Two samples that floor to the SAME second must collapse into one candle —
+  // lightweight-charts' setData throws on duplicate `time`. Merge OHLC: first open,
+  // max high, min low, last close; never emit a duplicate `time`.
+  it("netMtmCandles collapses same-second samples into one merged candle (no dup time)", () => {
+    const series = [
+      sample(60_100, { pnl: 12, pnlOpen: 10, pnlHigh: 25, pnlLow: -5 }), // t=60s
+      sample(60_950, { pnl: 14, pnlOpen: 13, pnlHigh: 30, pnlLow: -9 }), // also t=60s (live throttle ~950ms)
+      sample(120_000, { pnl: 20, pnlOpen: 18, pnlHigh: 22, pnlLow: 15 }), // t=120s
+    ];
+    const out = netMtmCandles(series);
+    expect(out).toEqual([
+      { time: 60, open: 10, high: 30, low: -9, close: 14 }, // open=first, high=max, low=min, close=last
+      { time: 120, open: 18, high: 22, low: 15, close: 20 },
+    ]);
+    const times = out.map((c) => c.time);
+    expect(new Set(times).size).toBe(times.length); // no duplicate time
+  });
+
+  it("dedupBySecond collapses consecutive equal-second points to the last value, strictly ascending unique times", () => {
+    const out = dedupBySecond([
+      { time: 60, value: 1 },
+      { time: 60, value: 2 }, // same second → keep this (last)
+      { time: 60, value: 3 }, // same second → keep this (last)
+      { time: 61, value: 4 },
+      { time: 62, value: 5 },
+      { time: 62, value: 6 }, // same second → keep this (last)
+    ]);
+    expect(out).toEqual([
+      { time: 60, value: 3 },
+      { time: 61, value: 4 },
+      { time: 62, value: 6 },
+    ]);
+    const times = out.map((p) => p.time);
+    expect(times).toEqual([...times].sort((a, b) => a - b)); // ascending
+    expect(new Set(times).size).toBe(times.length); // unique
+  });
+
+  it("dedupBySecond is a no-op when all times are already unique", () => {
+    const arr = [
+      { time: 10, value: 1 },
+      { time: 11, value: 2 },
+      { time: 12, value: 3 },
+    ];
+    expect(dedupBySecond(arr)).toEqual(arr);
   });
 });

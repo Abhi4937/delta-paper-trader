@@ -30,7 +30,7 @@ import {
 } from "lightweight-charts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import clsx from "clsx";
-import { type OHLC, type Pt, atmPoints, capPoints, legPoints, netMtmCandles, netPoints } from "@/lib/chartData";
+import { type OHLC, type Pt, atmPoints, capPoints, dedupBySecond, legPoints, netMtmCandles, netPoints } from "@/lib/chartData";
 import { atmColorFor, legColorMap } from "@/lib/legColors";
 import { type Currency, money } from "@/lib/store";
 import type { Leg, SeriesSample } from "@/lib/types";
@@ -428,13 +428,15 @@ function Panel({ title, unit, netLabel = "Net", register, height, collapsed, onT
         (s as ISeriesApi<"Candlestick">).setData(capPoints(netCandles));
       } else {
         (s as ISeriesApi<"Baseline">).setData(
-          capPoints(net.map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.v }))),
+          capPoints(dedupBySecond(net.map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.v })))),
         );
       }
     }
     legRefs.current.forEach((ls, i) =>
       ls.setData(
-        capPoints((legs[i]?.pts ?? []).map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.v }))),
+        capPoints(
+          dedupBySecond((legs[i]?.pts ?? []).map((p) => ({ time: Math.floor(p.t / 1000) as UTCTimestamp, value: p.v }))),
+        ),
       ),
     );
   }

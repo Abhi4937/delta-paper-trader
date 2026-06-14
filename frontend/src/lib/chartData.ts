@@ -1,39 +1,11 @@
 // Pure data-prep for the position charts — no React / no lightweight-charts runtime, so
 // it's unit-testable. The chart regression (leg/IV lines losing their points) lived in
 // exactly this layer, so these functions are covered by chartData.test.ts.
-import type { Time, UTCTimestamp } from "lightweight-charts";
+import type { UTCTimestamp } from "lightweight-charts";
 import type { SeriesSample } from "./types";
 
-export type TF = 1 | 60 | 300;
 export type Pt = { t: number; v: number };
 export type OHLC = { time: UTCTimestamp; open: number; high: number; low: number; close: number };
-
-// Aggregate {t(ms), v} samples into `tf`-second OHLC buckets. Open = previous bucket's
-// close (continuous / gap-free) so even 1s candles show direction.
-export function buckets(pts: Pt[], tf: TF): OHLC[] {
-  const map = new Map<number, OHLC>();
-  const order: number[] = [];
-  let prevClose: number | null = null;
-  for (const p of pts) {
-    const bk = Math.floor(p.t / 1000 / tf) * tf;
-    let b = map.get(bk);
-    if (!b) {
-      const o: number = prevClose ?? p.v;
-      b = { time: bk as UTCTimestamp, open: o, high: Math.max(o, p.v), low: Math.min(o, p.v), close: p.v };
-      map.set(bk, b);
-      order.push(bk);
-    } else {
-      b.high = Math.max(b.high, p.v);
-      b.low = Math.min(b.low, p.v);
-      b.close = p.v;
-    }
-    prevClose = b.close;
-  }
-  return order.map((bk) => map.get(bk)!);
-}
-
-export const toLine = (pts: Pt[], tf: TF): { time: Time; value: number }[] =>
-  buckets(pts, tf).map((b) => ({ time: b.time, value: b.close }));
 
 // Cap a (time-ascending) series to ~`max` points for display, by EVEN TIME COVERAGE
 // (not index striding). These charts are fixed-view (no zoom; the whole trade in a few
@@ -62,15 +34,38 @@ export function capPoints<T>(arr: T[], max = 1500): T[] {
 }
 
 // Net MTM candles straight from the server's per-point OHLC (no client re-bucketing —
-// the server already chose the resolution). Time in epoch-seconds for lightweight-charts.
+// the server already chose the resolution). Time in epoch-seconds for lightweight-charts,
+// which REQUIRES strictly-ascending, non-duplicate `time`. Two samples can floor to the
+// same second (body/tail seam, or the ~950ms live throttle), so collapse consecutive
+// same-second samples into ONE candle: open=first, high=max, low=min, close=last.
+// (Input is time-ascending, so equal seconds are always consecutive.)
 export function netMtmCandles(series: SeriesSample[]): OHLC[] {
-  return series.map((s) => ({
-    time: Math.floor(s.t / 1000) as UTCTimestamp,
-    open: s.pnlOpen,
-    high: s.pnlHigh,
-    low: s.pnlLow,
-    close: s.pnl, // `pnl` is the close (back-compatible)
-  }));
+  const out: OHLC[] = [];
+  for (const s of series) {
+    const time = Math.floor(s.t / 1000) as UTCTimestamp;
+    const last = out[out.length - 1];
+    if (last && last.time === time) {
+      last.high = Math.max(last.high, s.pnlHigh);
+      last.low = Math.min(last.low, s.pnlLow);
+      last.close = s.pnl; // last sample's close wins
+    } else {
+      out.push({ time, open: s.pnlOpen, high: s.pnlHigh, low: s.pnlLow, close: s.pnl });
+    }
+  }
+  return out;
+}
+
+// Collapse consecutive equal-`time` line points to the LAST value, yielding strictly-
+// ascending unique times. lightweight-charts' setData throws on duplicate `time`; same-
+// second collisions happen at the body/tail seam and from the ~950ms live-append throttle.
+export function dedupBySecond<T extends { time: number; value: number }>(pts: T[]): T[] {
+  const out: T[] = [];
+  for (const p of pts) {
+    const last = out[out.length - 1];
+    if (last && last.time === p.time) out[out.length - 1] = p; // keep the last value for this second
+    else out.push(p);
+  }
+  return out;
 }
 
 // net metric line (one point per sample)
