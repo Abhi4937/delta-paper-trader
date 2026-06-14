@@ -7,15 +7,16 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.vault import get_secret
 from app.db.models import Account, LedgerEntry, Leg, Log, Note, Position, StrategySeries
+from app.engines.margin import bs_greeks
 from app.engines.money import (
     LegGreeks,
     LegQuote,
@@ -76,30 +77,38 @@ def position_pnl(pos: Position, mv: MarketView) -> float:
     return net_pnl(legs)
 
 
+def leg_greeks(lg: Leg, q: Quote | None, spot: float) -> tuple[float, float, float]:
+    """Per-contract (delta, theta, vega) for a leg: from the feed when it provided
+    greeks, else a local Black-Scholes fallback (so risk panels don't read zeros when
+    the feed omits greeks for a symbol). Falls back only with spot + iv + positive dte."""
+    if q is None:
+        return 0.0, 0.0, 0.0
+    if q.greeks_present:
+        return q.delta, q.theta, q.vega
+    if q.iv > 0 and spot > 0 and lg.dte > 0:
+        g = bs_greeks(lg.type, spot, lg.strike, lg.dte / 365.0, q.iv)
+        return g["delta"], g["theta"], g["vega"]
+    return q.delta, q.theta, q.vega
+
+
 def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]:
     """One MTM/IV/greeks/book sample (camelCase, epoch-ms t) for the WS + hypertable."""
     legs = _open(pos)
+    spot = mv.spot(pos.underlying)
     greeks = []
     leg_rows: dict[str, dict[str, float]] = {}
     for lg in legs:
         q = mv.quote(lg.symbol)
         mark = q.mark if (q and q.mark) else lg.entry
-        greeks.append(
-            LegGreeks(
-                lg.side,
-                lg.qty,
-                lg.contract_value,
-                q.delta if q else 0,
-                q.theta if q else 0,
-                q.vega if q else 0,
-            )
-        )
+        d, th, vg = leg_greeks(lg, q, spot)
+        greeks.append(LegGreeks(lg.side, lg.qty, lg.contract_value, d, th, vg))
+        sgn = leg_sign(lg.side) * lg.qty * lg.contract_value
         leg_rows[str(lg.id)] = {
             "pnl": leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, mark),
             "iv": q.iv if q else 0.0,
-            "delta": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.delta if q else 0),
-            "theta": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.theta if q else 0),
-            "vega": leg_sign(lg.side) * lg.qty * lg.contract_value * (q.vega if q else 0),
+            "delta": sgn * d,
+            "theta": sgn * th,
+            "vega": sgn * vg,
             "bid": q.bid if q else 0.0,
             "ask": q.ask if q else 0.0,
         }
@@ -644,13 +653,41 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
     }
 
 
+# Keep raw 10s rows for the recent window; older history is served as 1-minute NET
+# rollups (no per-leg/IV detail) so GET /api/state doesn't materialize tens of thousands
+# of rows for a long-open position (the rehydrate memory spike). Net-only old by design.
+DB_RAW_WINDOW_S = 3 * 24 * 60 * 60  # 3 days
+
+
 async def _db_series(session: AsyncSession, pos_id: uuid.UUID) -> list[dict[str, Any]]:
-    res = await session.execute(
+    """Full-life series for GET /api/state, payload-bounded: 1-minute net rollups for
+    data older than DB_RAW_WINDOW_S, raw rows for the recent window. The chart still
+    spans entry→now (old portion at 1-min net resolution)."""
+    cutoff = datetime.now(UTC) - timedelta(seconds=DB_RAW_WINDOW_S)
+    rollup_rows = await session.execute(
+        text(
+            "SELECT time_bucket('1 minute', time) AS bucket, "
+            "last(pnl, time) AS pnl, last(delta, time) AS delta, "
+            "last(theta, time) AS theta, last(vega, time) AS vega "
+            "FROM strategy_series WHERE position_id = :pid AND time < :cutoff "
+            "GROUP BY bucket ORDER BY bucket"
+        ),
+        {"pid": pos_id, "cutoff": cutoff},
+    )
+    rollup = [
+        {
+            "t": int(r.bucket.timestamp() * 1000),
+            "pnl": r.pnl, "delta": r.delta, "theta": r.theta, "vega": r.vega,
+            "atmIv": {}, "legs": {},
+        }
+        for r in rollup_rows
+    ]
+    recent = await session.execute(
         select(StrategySeries)
-        .where(StrategySeries.position_id == pos_id)
+        .where(StrategySeries.position_id == pos_id, StrategySeries.time >= cutoff)
         .order_by(StrategySeries.time)
     )
-    return [series_dict(s) for s in res.scalars().all()]
+    return rollup + [series_dict(s) for s in recent.scalars().all()]
 
 
 def bounded_series(

@@ -22,6 +22,7 @@ class Quote:
     gamma: float
     theta: float
     vega: float
+    greeks_present: bool = True  # False when the feed sent no greeks → BS fallback applies
 
 
 class MarketView:
@@ -43,6 +44,7 @@ class MarketView:
             gamma=float(g.get("gamma") or 0),
             theta=float(g.get("theta") or 0),
             vega=float(g.get("vega") or 0),
+            greeks_present=g.get("delta") is not None,
         )
 
     def spot(self, underlying: str) -> float:
