@@ -34,6 +34,14 @@ export default function PositionsPage() {
   const open = positions.filter((p) => p.status === "open");
   const totalUpnl = open.reduce((s, p) => s + positionPnl(p), 0);
   const totalMargin = open.reduce((s, p) => s + p.margin, 0);
+  // open positions first (newest entry on top), then all closed beneath (most recently
+  // closed first) — so the live book stays at the top and history sits below it.
+  const ordered = [...positions].sort((a, b) => {
+    const ao = a.status === "open" ? 0 : 1;
+    const bo = b.status === "open" ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return ao === 0 ? b.openedAt - a.openedAt : (b.closedAt ?? 0) - (a.closedAt ?? 0);
+  });
 
   return (
     <div className="flex h-full flex-col">
@@ -70,7 +78,7 @@ export default function PositionsPage() {
         )
       ) : (
         <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
-          {positions.map((p) => (
+          {ordered.map((p) => (
             <PositionCard key={p.id} p={p} currency={currency} onClose={closePosition} />
           ))}
         </div>
@@ -129,13 +137,20 @@ function PositionCard({
             auto-exit paused · stale
           </span>
         )}
-        {closed && (
+        {closed && (p.closeReason === "settlement" ? (
+          <span
+            className="rounded-[3px] bg-accent/15 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-accent"
+            title="Legs were settled at Delta's published expiry settlement price (fee-free). This is the final settled state."
+          >
+            settled at expiry{p.closedAt && <span className="ml-1 tnum normal-case">· {fmtEntry(p.closedAt)}</span>}
+          </span>
+        ) : (
           <span className="text-[10px] text-text-mute">
-            <span className="uppercase tracking-wider">closed</span>
+            <span className="rounded-[3px] bg-surface-3 px-1.5 py-0.5 uppercase tracking-wider">closed</span>
             {p.closeReason && <span className="ml-1 text-text-dim">· {p.closeReason}</span>}
             {p.closedAt && <span className="ml-1 tnum">· {fmtEntry(p.closedAt)}</span>}
           </span>
-        )}
+        ))}
         <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-[11px]">
           <span className="text-text-mute">
             Margin <span className="tnum text-text-dim">{money(p.margin, currency)}</span>
@@ -153,13 +168,15 @@ function PositionCard({
               {pnl >= 0 ? "+" : ""}{money(pnl, currency)}
             </span>
           </span>
-          <button
-            onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
-            className={clsx("flex items-center gap-1 rounded-[5px] border px-2 py-1 text-[11px]", analyse ? "border-accent text-accent" : "border-line text-text-mute hover:text-text")}
-            title="Analyse this strategy's payoff (what-if spot / date / IV)"
-          >
-            <LineChart size={12} /> Analyse
-          </button>
+          {!closed && (
+            <button
+              onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
+              className={clsx("flex items-center gap-1 rounded-[5px] border px-2 py-1 text-[11px]", analyse ? "border-accent text-accent" : "border-line text-text-mute hover:text-text")}
+              title="Payoff what-if for this strategy (spot / date / IV scenarios)"
+            >
+              <LineChart size={12} /> Payoff
+            </button>
+          )}
           <button
             onClick={() => exportPositionXlsx(p)}
             className="flex items-center gap-1 rounded-[5px] border border-line px-2 py-1 text-[11px] text-text-mute hover:text-text"

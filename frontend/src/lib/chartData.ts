@@ -73,6 +73,44 @@ export function netPoints(series: SeriesSample[], key: "pnl" | "delta" | "theta"
   return series.map((s) => ({ t: s.t, v: s[key] }));
 }
 
+// Append one live server sample to a position's series, bucketed to the position's chart
+// resolution so the live edge stays UNIFORM with the loaded history. For an old position
+// (res = 300s) a 1s tick updates the current 5-min candle's high/low/close instead of
+// adding a new 1s point (which would grow a dominating tail). res <= 1 (fresh positions)
+// keeps the raw 1s append, throttled to ~1/s. Buckets are epoch-aligned to match the
+// server's time_bucket grid. `cap` bounds the array (runaway guard).
+export function appendSample(
+  series: SeriesSample[],
+  sample: SeriesSample | undefined,
+  res = 1,
+  cap = Infinity,
+): SeriesSample[] {
+  if (!sample) return series;
+  if (res <= 1) {
+    const last = series[series.length - 1];
+    if (last && sample.t - last.t < 950) return series;
+    return [...series, sample].slice(-cap);
+  }
+  const bucketMs = res * 1000;
+  const b = Math.floor(sample.t / bucketMs) * bucketMs;
+  const last = series[series.length - 1];
+  if (last && Math.floor(last.t / bucketMs) * bucketMs === b) {
+    const merged: SeriesSample = {
+      ...last,
+      pnl: sample.pnl,
+      pnlHigh: Math.max(last.pnlHigh, sample.pnlHigh),
+      pnlLow: Math.min(last.pnlLow, sample.pnlLow),
+      delta: sample.delta,
+      theta: sample.theta,
+      vega: sample.vega,
+      atmIv: sample.atmIv,
+      legs: sample.legs,
+    };
+    return [...series.slice(0, -1), merged];
+  }
+  return [...series, { ...sample, t: b, pnlOpen: sample.pnl, pnlHigh: sample.pnlHigh, pnlLow: sample.pnlLow }].slice(-cap);
+}
+
 // per-leg line — one point per sample (0 when a sample lacks that leg). The lightweight-ring
 // bug emptied s.legs, collapsing these to flat lines; this is what tests guard.
 export function legPoints(

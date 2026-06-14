@@ -29,11 +29,11 @@ import type {
   MarginBadge,
   OptionChain,
   Position,
-  SeriesSample,
   Side,
   Underlying,
 } from "./types";
 import { mergePositionsPreservingSeries } from "./serverState";
+import { appendSample } from "./chartData";
 
 let counter = 0;
 const uid = () => `${Date.now()}-${counter++}`;
@@ -118,14 +118,7 @@ async function hydrate(): Promise<void> {
   if (st) applyServerState(st);
 }
 
-// Append one server sample to a position's series (~1s; throttle guards races
-// between a refetch and an in-flight tick). Capped at MTM_CAP.
-function appendSample(series: SeriesSample[], sample?: SeriesSample): SeriesSample[] {
-  if (!sample) return series;
-  const last = series[series.length - 1];
-  if (last && sample.t - last.t < 950) return series;
-  return [...series, sample].slice(-MTM_CAP);
-}
+// (appendSample lives in ./chartData — pure + unit-tested — and is bound to MTM_CAP below)
 
 function onStateTick(t: StateTick): void {
   const s = useStore.getState();
@@ -146,7 +139,12 @@ function onStateTick(t: StateTick): void {
     const live = byId.get(p.id);
     if (!live) return p; // closed positions aren't in the tick
     const { sample, ...fields } = live;
-    return { ...p, ...fields, series: appendSample(p.series, sample) };
+    // Only append once the full history has been lazily loaded (seriesRes set); until
+    // then the series stays empty so the card shows "loading chart…" instead of a
+    // partial slice that then "reloads". Bucket the tick to the loaded resolution.
+    const res = s.seriesRes[p.id];
+    const series = res !== undefined ? appendSample(p.series, sample, res, MTM_CAP) : p.series;
+    return { ...p, ...fields, series };
   });
   useStore.setState({ positions, balance: t.balance, tickN: s.tickN + 1 });
 }
@@ -190,6 +188,7 @@ interface State {
   expiredNotice: string | null; // transient warning when settled legs are auto-dropped
   hydrated: boolean; // true once the first GET /api/state has returned (avoids a "no positions" flash)
   positions: Position[];
+  seriesRes: Record<string, number>; // per-position chart resolution (s); set when its series loads
   balance: number;
   currency: Currency;
   ledger: LedgerEntry[];
@@ -270,6 +269,7 @@ export const useStore = create<State>()(
       expiredNotice: null,
       hydrated: false,
       positions: [],
+      seriesRes: {},
       balance: START_BALANCE,
       currency: "USD",
       ledger: [],
@@ -392,10 +392,11 @@ export const useStore = create<State>()(
       // empty series) and merge it onto that position. Live WS ticks keep appending
       // to whatever series is present, so this only seeds the historical body+tail.
       loadPositionSeries: async (id) => {
-        const series = await fetchPositionSeries(id);
-        if (!series) return;
+        const res = await fetchPositionSeries(id);
+        if (!res) return;
         set((s) => ({
-          positions: s.positions.map((p) => (p.id === id ? { ...p, series } : p)),
+          positions: s.positions.map((p) => (p.id === id ? { ...p, series: res.series } : p)),
+          seriesRes: { ...s.seriesRes, [id]: res.resolutionSeconds },
         }));
       },
       setPositionStop: async (id, patch) => {

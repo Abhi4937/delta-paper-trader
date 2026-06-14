@@ -31,10 +31,13 @@ export default function AnalyticsPage() {
   const best = trades.length ? Math.max(...trades.map((t) => t.net)) : 0;
   const worst = trades.length ? Math.min(...trades.map((t) => t.net)) : 0;
 
-  // net OPEN greeks from each position's latest sample
+  // net OPEN greeks from each position's server-stamped live greeks (every position
+  // carries p.delta/theta/vega from the WS tick). Don't read p.series here — it's only
+  // lazily populated when a card is expanded, so it would understate total exposure.
   const g = open.reduce((a, p) => {
-    const last = p.series[p.series.length - 1];
-    if (last) { a.delta += last.delta; a.theta += last.theta; a.vega += last.vega; }
+    a.delta += p.delta ?? 0;
+    a.theta += p.theta ?? 0;
+    a.vega += p.vega ?? 0;
     return a;
   }, { delta: 0, theta: 0, vega: 0 });
 

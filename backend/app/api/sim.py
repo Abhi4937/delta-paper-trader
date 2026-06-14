@@ -120,7 +120,13 @@ async def get_position_series(
         raise HTTPException(404, "position not found")
     ring = _store(request).get(str(pos_id))
     series = await service.build_position_series(session, pos, ring)
-    return {"id": str(pos_id), "series": series}
+    # resolutionSeconds lets the client bucket live WS ticks onto the same grid (so the
+    # chart stays uniform as new samples arrive, not just at load time).
+    return {
+        "id": str(pos_id),
+        "series": series,
+        "resolutionSeconds": service.position_resolution_seconds(pos),
+    }
 
 
 @router.post("/strategies")
