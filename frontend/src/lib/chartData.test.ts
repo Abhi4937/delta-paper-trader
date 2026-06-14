@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { atmPoints, buckets, capPoints, legPoints, netPoints, toLine } from "./chartData";
+import { atmPoints, buckets, capPoints, legPoints, netMtmCandles, netPoints, toLine } from "./chartData";
 import type { SeriesSample } from "./types";
 
 function sample(t: number, over: Partial<SeriesSample> = {}): SeriesSample {
-  return { t, pnl: 0, delta: 0, theta: 0, vega: 0, atmIv: {}, legs: {}, ...over };
+  return { t, pnl: 0, pnlOpen: 0, pnlHigh: 0, pnlLow: 0, delta: 0, theta: 0, vega: 0, atmIv: {}, legs: {}, ...over };
 }
 
 describe("chartData", () => {
@@ -74,5 +74,16 @@ describe("chartData", () => {
 
   it("toLine returns the close of each bucket", () => {
     expect(toLine([{ t: 1000, v: 10 }, { t: 2000, v: 8 }], 1).map((p) => p.value)).toEqual([10, 8]);
+  });
+
+  it("netMtmCandles renders server OHLC directly (one candle per sample)", () => {
+    const series = [
+      sample(60000, { pnl: 12, pnlOpen: 10, pnlHigh: 25, pnlLow: -5 }),
+      sample(120000, { pnl: 14, pnlOpen: 12, pnlHigh: 14, pnlLow: 11 }),
+    ];
+    expect(netMtmCandles(series)).toEqual([
+      { time: 60, open: 10, high: 25, low: -5, close: 12 },
+      { time: 120, open: 12, high: 14, low: 11, close: 14 },
+    ]);
   });
 });

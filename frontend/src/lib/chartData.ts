@@ -61,6 +61,18 @@ export function capPoints<T>(arr: T[], max = 1500): T[] {
   return out;
 }
 
+// Net MTM candles straight from the server's per-point OHLC (no client re-bucketing —
+// the server already chose the resolution). Time in epoch-seconds for lightweight-charts.
+export function netMtmCandles(series: SeriesSample[]): OHLC[] {
+  return series.map((s) => ({
+    time: Math.floor(s.t / 1000) as UTCTimestamp,
+    open: s.pnlOpen,
+    high: s.pnlHigh,
+    low: s.pnlLow,
+    close: s.pnl, // `pnl` is the close (back-compatible)
+  }));
+}
+
 // net metric line (one point per sample)
 export function netPoints(series: SeriesSample[], key: "pnl" | "delta" | "theta" | "vega"): Pt[] {
   return series.map((s) => ({ t: s.t, v: s[key] }));
