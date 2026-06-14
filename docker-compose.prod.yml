@@ -8,6 +8,24 @@
 services:
   db:
     image: timescale/timescaledb:2.17.2-pg16
+    # Pin Postgres memory for a SHARED 1 GB VM. TimescaleDB's auto-tuner otherwise
+    # sizes shared_buffers as if it owned the whole machine (~305 MB), which on a box
+    # that also runs the backend + frontend + Caddy + OS forces the kernel into swap →
+    # the async event loop stalls multi-seconds paging back in → /health times out and
+    # the Delta WS keepalive is missed → "stale / can't reach server". These -c flags
+    # override the auto-tuner (command line wins over postgresql.conf/auto.conf).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=30
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-paper}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
@@ -33,6 +51,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Safety ceiling well above normal (~340 MB): a real leak OOM-kills + restarts just
+    # the backend instead of dragging the whole box into swap. The MTM ring is already
+    # count-bounded, so steady-state stays far below this.
+    mem_limit: 512m
     restart: unless-stopped
 
   frontend:
