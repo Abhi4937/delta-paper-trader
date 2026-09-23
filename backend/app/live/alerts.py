@@ -69,15 +69,37 @@ class AlertBook:
         ]
 
 
-async def send_telegram(http: httpx.AsyncClient, token: str, chat_id: str, text: str) -> bool:
+async def send_telegram(
+    http: httpx.AsyncClient, token: str, chat_id: str, text: str
+) -> tuple[bool, str]:
+    """(sent, reason). `reason` is Telegram's own description on failure, e.g.
+    "Unauthorized" (bad/revoked token) or "Forbidden: bot can't initiate conversation"
+    (Start not pressed)."""
     try:
         r = await http.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
             json={"chat_id": chat_id, "text": text},
             timeout=10.0,
         )
-        return r.status_code == 200
     except httpx.HTTPError as e:
         # never log the URL — it contains the bot token
         log.warning("telegram send failed: %s", type(e).__name__)
-        return False
+        return False, f"couldn't reach Telegram ({type(e).__name__})"
+    if r.status_code == 200:
+        return True, ""
+    try:
+        return False, str(r.json().get("description") or f"HTTP {r.status_code}")
+    except ValueError:
+        return False, f"HTTP {r.status_code}"
+
+
+def explain_telegram(reason: str) -> str:
+    """Telegram's reason plus what to do about it."""
+    low = reason.lower()
+    if "chat not found" in low:
+        return f"{reason} — check the chat id (from @userinfobot) and press Start in the bot"
+    if "unauthorized" in low or "not found" in low:
+        return f"{reason} — the bot token is wrong or revoked; paste the current one"
+    if "initiate" in low or "blocked" in low:
+        return f"{reason} — open the bot in Telegram and press Start"
+    return reason

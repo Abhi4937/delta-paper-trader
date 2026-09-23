@@ -3,6 +3,7 @@
 import { Check, Lock, Radio } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import LiveJournal from "@/components/LiveJournal";
 import PositionCard from "@/components/PositionCard";
 import { type KeyStatus, type LiveStatus, fetchKeys, fetchLiveStatus } from "@/lib/api";
 import { ensureStepUp, hasTotp } from "@/lib/auth";
@@ -136,6 +137,7 @@ function LiveBook() {
           />
         ))
       )}
+      <LiveJournal currency={currency} />
     </div>
   );
 }

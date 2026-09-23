@@ -33,7 +33,7 @@ from app.auth.vault import get_secret
 from app.db.models import Leg, Log, Position, UserSecret
 from app.db.session import SessionLocal
 from app.engines.money import leg_pnl
-from app.live import risk
+from app.live import journal, risk
 from app.live.alerts import AlertBook, send_telegram
 from app.live.client import DeltaError, LiveClient, OrderRefused
 from app.live.executor import ExitTarget, exit_group
@@ -222,6 +222,17 @@ def risk_legs(
         if o.id != group.id and o.underlying == group.underlying:
             out += [rl(lg, False) for lg in o.legs if lg.status == "open"]
     return out
+
+
+def usd_wallet(wallet: list[dict[str, Any]]) -> dict[str, float] | None:
+    """USD (or USDT) wallet: total balance and what's free for new margin."""
+    for asset in ("USD", "USDT"):
+        for w in wallet:
+            if w.get("asset_symbol") == asset:
+                bal = float(w.get("balance") or 0)
+                avail = w.get("available_balance")
+                return {"balance": bal, "available": float(avail) if avail is not None else bal}
+    return None
 
 
 def usd_balance(wallet: list[dict[str, Any]]) -> float | None:
@@ -433,6 +444,18 @@ class LiveSync:
                 pos.status, pos.closed_at = "closed", now
                 pos.close_reason = pos.close_reason or (
                     "SL exit" if pos.exiting else "closed on Delta"
+                )
+                ring = getattr(self.app.state, "sim_series", {}).get(str(pos.id))
+                pos.summary = journal.summarize(pos, await journal.load_samples(s, pos, ring), now)
+                await self._journal(
+                    s,
+                    uid,
+                    "LIVE_CLOSE",
+                    f"{pos.name}: closed · P&L ${pos.summary['pnl']:,.2f} · "
+                    f"max ${pos.summary['maxMtm'] or 0:,.2f} · "
+                    f"min ${pos.summary['minMtm'] or 0:,.2f} · "
+                    f"max DD ${pos.summary['maxDrawdown']:,.2f} · {pos.close_reason}",
+                    "info",
                 )
                 self.liq.get(uid, {}).pop(str(pos.id), None)
                 self.alerts.clear(uid, f"exit:{pos.id}")
@@ -737,7 +760,11 @@ class LiveSync:
         token = await get_secret(s, uid, "telegram_bot_token")
         chat = await get_secret(s, uid, "telegram_chat_id")
         if token and chat:
-            await send_telegram(self.app.state.http, token, chat, f"[{level.upper()}] {msg}")
+            sent, why = await send_telegram(
+                self.app.state.http, token, chat, f"[{level.upper()}] {msg}"
+            )
+            if not sent:
+                log.warning("telegram alert not delivered: %s", why)
 
 
 def _mark(mv: MarketView, lg: Leg) -> float:

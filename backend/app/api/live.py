@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict
-from typing import Any
+from typing import Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -19,18 +19,20 @@ from sqlalchemy.orm import selectinload
 from app.auth.deps import require_mfa
 from app.auth.vault import get_secret
 from app.config import get_settings
-from app.db.models import Position
+from app.db.models import Log, Position
 from app.db.session import get_session
-from app.live import risk
-from app.live.alerts import send_telegram
-from app.live.sync import LiveSync, _mark, basket_floor, risk_legs, usd_balance
+from app.engines.money import entry_fill
+from app.live import journal, risk
+from app.live.alerts import explain_telegram, send_telegram
+from app.live.client import DeltaError
+from app.live.sync import LiveSync, _mark, basket_floor, risk_legs, usd_balance, usd_wallet
 from app.sim.marketview import MarketView
 
 router = APIRouter(prefix="/api/live", tags=["live"])
 
 
 def _sync(request: Request) -> LiveSync:
-    return request.app.state.live
+    return cast(LiveSync, request.app.state.live)
 
 
 class ArmIn(BaseModel):
@@ -125,12 +127,198 @@ async def telegram_test(
     chat = await get_secret(session, user_id, "telegram_chat_id")
     if not token or not chat:
         raise HTTPException(400, "save a Telegram bot token and chat id first")
-    ok = await send_telegram(
+    ok, why = await send_telegram(
         request.app.state.http,
         token,
         chat,
         "Paper Trader: test alert — live alerts will arrive here.",
     )
     if not ok:
-        raise HTTPException(502, "Telegram rejected the message — check the token and chat id")
+        raise HTTPException(502, f"Telegram: {explain_telegram(why)}")
     return {"sent": True}
+
+
+@router.get("/journal")
+async def live_journal(
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    """Every live trade (snapshot frozen at close; running stats while open) + the live log.
+    Separate from the paper Logs page."""
+    rings = getattr(request.app.state, "sim_series", {})
+    res = await session.execute(
+        select(Position)
+        .where(Position.user_id == user_id, Position.source == "live")
+        .options(selectinload(Position.legs))
+        .order_by(Position.opened_at.desc())
+    )
+    trades = [await journal.trade_summary(session, p, rings.get(str(p.id))) for p in res.scalars()]
+    logs = await session.execute(
+        select(Log)
+        .where(Log.user_id == user_id, Log.action.like("LIVE%"))
+        .order_by(Log.t.desc())
+        .limit(5000)
+    )
+    return {
+        "trades": trades,
+        "logs": [
+            {
+                "t": int(lg.t.timestamp() * 1000),
+                "action": lg.action,
+                "detail": lg.detail,
+                "tone": lg.tone,
+            }
+            for lg in logs.scalars()
+        ],
+    }
+
+
+@router.post("/test-key")
+async def test_key(
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    """Read-only check of the saved Delta key: wallet + positions. No order is sent, so this
+    cannot prove Trading permission — only Delta accepting a real order can."""
+    client = await _sync(request).client_for(session, user_id)
+    if client is None:
+        raise HTTPException(400, "save a Delta trade key and secret first")
+    try:
+        wallet = usd_wallet(await client.wallet())
+        positions = await client.positions()
+    except DeltaError as e:
+        raise HTTPException(400, f"Delta refused the key: {e.explain()}") from e
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"couldn't reach Delta ({type(e).__name__})") from e
+    return {
+        "ok": True,
+        "balance": wallet["balance"] if wallet else None,
+        "available": wallet["available"] if wallet else None,
+        "openPositions": sum(1 for p in positions if int(p.get("size") or 0) != 0),
+    }
+
+
+@router.get("/account")
+async def account(
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    """Real Delta USD wallet: total balance and what's free for new margin."""
+    client = await _sync(request).client_for(session, user_id)
+    if client is None:
+        raise HTTPException(400, "no Delta trade key saved")
+    try:
+        wallet = usd_wallet(await client.wallet())
+    except DeltaError as e:
+        raise HTTPException(400, f"Delta refused the key: {e.explain()}") from e
+    if wallet is None:
+        raise HTTPException(502, "no USD balance in the Delta wallet response")
+    return wallet
+
+
+class PrecheckLeg(BaseModel):
+    symbol: str
+    side: Literal["buy", "sell"]
+    qty: float
+
+
+class PrecheckIn(BaseModel):
+    legs: list[PrecheckLeg]
+    basket_sl: float | None = None  # planned basket loss limit, USD (magnitude)
+
+
+@router.post("/precheck")
+async def precheck(
+    body: PrecheckIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    """Before placing a trade on Delta: with the planned basket SL, would the SL fire before
+    liquidation, given the real wallet and the live positions already open?"""
+    sync = _sync(request)
+    client = await sync.client_for(session, user_id)
+    if client is None:
+        raise HTTPException(400, "no Delta trade key saved")
+    try:
+        wallet = usd_wallet(await client.wallet())
+    except DeltaError as e:
+        raise HTTPException(400, f"Delta refused the key: {e.explain()}") from e
+    if wallet is None or not body.legs:
+        raise HTTPException(400, "need legs and a readable Delta wallet")
+    tickers = request.app.state.market.tickers
+    mv = MarketView(request.app.state.market)
+    new: list[risk.RiskLeg] = []
+    underlying = ""
+    for lg in body.legs:
+        t = tickers.get(lg.symbol)
+        q = mv.quote(lg.symbol)
+        if t is None or q is None:
+            raise HTTPException(400, f"no live quote for {lg.symbol}")
+        mark = q.mark if q.mark is not None else 0.0
+        underlying = str(t.get("underlying_asset_symbol") or "")
+        c = journal_contract(t)
+        new.append(
+            risk.RiskLeg(
+                type=c["type"],
+                side=lg.side,
+                qty=lg.qty,
+                strike=c["strike"],
+                dte_days=c["dte_days"],
+                cv=c["cv"],
+                entry=entry_fill(lg.side, q.bid, q.ask, mark),
+                mark=mark,
+            )
+        )
+    res = await session.execute(
+        select(Position)
+        .where(Position.user_id == user_id, Position.source == "live", Position.status == "open")
+        .options(selectinload(Position.legs))
+    )
+    open_groups = [g for g in res.scalars() if g.underlying == underlying]
+    others = [
+        risk.RiskLeg(
+            type=lg.type,
+            side=lg.side,
+            qty=lg.qty,
+            strike=lg.strike,
+            dte_days=max(lg.dte, 1 / 24),
+            cv=lg.contract_value,
+            entry=lg.entry,
+            mark=_mark(mv, lg),
+            in_group=False,
+        )
+        for g in open_groups
+        for lg in g.legs
+        if lg.status == "open"
+    ]
+    chk = risk.check_sl_vs_liquidation(
+        new + others,
+        spot=mv.spot(underlying),
+        balance=wallet["balance"],
+        basket_floor=body.basket_sl,
+    )
+    return {"check": asdict(chk), **wallet}
+
+
+def journal_contract(t: dict[str, Any]) -> dict[str, Any]:
+    """Option fields a risk leg needs, from a /v2/tickers row."""
+    from datetime import UTC, datetime
+
+    from app.services.chain import normalize_contract
+
+    c = normalize_contract(t)
+    if c is None or c.expiry is None:
+        raise HTTPException(400, f"{t.get('symbol')} is not a tracked option")
+    dte = (
+        datetime.combine(c.expiry, datetime.min.time(), UTC).replace(hour=12) - datetime.now(UTC)
+    ).total_seconds() / 86400
+    return {
+        "type": c.option_type,
+        "strike": c.strike,
+        "cv": c.contract_value or 0.001,
+        "dte_days": max(dte, 1 / 24),
+    }

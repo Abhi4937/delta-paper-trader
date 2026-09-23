@@ -933,7 +933,13 @@ async def get_state(
         .all()
     )
     logs = (
-        (await session.execute(select(Log).where(Log.user_id == user_id).order_by(Log.t.desc())))
+        (
+            await session.execute(
+                select(Log)
+                .where(Log.user_id == user_id, Log.action.notlike("LIVE%"))  # live has its own journal
+                .order_by(Log.t.desc())
+            )
+        )
         .scalars()
         .all()
     )

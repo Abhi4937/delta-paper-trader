@@ -606,3 +606,43 @@ export const armLiveGroup = (id: string, armed: boolean) =>
   livePost<{ armed: boolean; check: LiveCheck | null }>(`/api/live/groups/${id}/arm`, { armed });
 export const exitLiveGroup = (id: string) => livePost<{ started: boolean }>(`/api/live/groups/${id}/exit`);
 export const testTelegram = () => livePost<{ sent: boolean }>("/api/live/telegram/test");
+
+// Live trade journal (separate from paper logs): one snapshot per live trade.
+export interface LiveTradeLeg {
+  symbol: string; side: "buy" | "sell"; qty: number; type: string; strike: number; expiry: string;
+  entry: number; exit: number | null; exitAt: number | null; exitReason: string | null;
+  pnl: number | null; fees: number | null; stopLoss: number | null; deltaStopPrice: number | null;
+  status: string;
+}
+export interface LiveTrade {
+  id: string; name: string; underlying: string; expiry: string; status: "open" | "closed";
+  openedAt: number; closedAt: number | null; durationSeconds: number; closeReason: string | null;
+  armed: boolean; basketStopLoss: number | null; basketStopLossPctOfMargin: number | null;
+  pnl: number | null; fees: number; legs: LiveTradeLeg[];
+  maxMtm: number | null; maxMtmAt: number | null; minMtm: number | null; minMtmAt: number | null;
+  maxDrawdown: number; drawdownPeakAt: number | null; drawdownTroughAt: number | null;
+}
+export interface LiveJournal {
+  trades: LiveTrade[];
+  logs: { t: number; action: string; detail: string; tone: string | null }[];
+}
+export const fetchLiveJournal = (): Promise<LiveJournal | null> => authedJson<LiveJournal>("/api/live/journal");
+
+// Read-only key check (wallet + positions); Delta's exact reason on failure.
+export const testDeltaKey = () =>
+  livePost<{ ok: boolean; balance: number | null; available: number | null; openPositions: number }>("/api/live/test-key");
+
+// Real Delta USD wallet: total and free-for-margin. Error text surfaces 2FA/key problems.
+export async function fetchLiveAccount(): Promise<{ ok: true; balance: number; available: number } | { ok: false; status: number; error: string }> {
+  try {
+    const r = await fetch(`${API}/api/live/account`, { headers: await authHeaders() });
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, ...j } : { ok: false, status: r.status, error: String(j.detail ?? `HTTP ${r.status}`) };
+  } catch (e) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
+// Before placing on Delta: would the planned basket SL fire before liquidation?
+export const livePrecheck = (legs: { symbol: string; side: "buy" | "sell"; qty: number }[], basketSlUsd: number | null) =>
+  livePost<{ check: LiveCheck; balance: number; available: number }>("/api/live/precheck", { legs, basket_sl: basketSlUsd });

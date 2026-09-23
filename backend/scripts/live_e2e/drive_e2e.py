@@ -150,8 +150,78 @@ def scenario_native_stop():
     check("[native] exit reasons recorded", "native stop" in reasons, str(reasons))
 
 
+def scenario_journal():
+    j = c.get(f"{API}/api/live/journal").json()
+    closed = [t for t in j["trades"] if t["status"] == "closed"]
+    check("[journal] closed trades have a frozen snapshot", bool(closed), str(len(closed)))
+    t = closed[0]
+    keys = [
+        "openedAt",
+        "closedAt",
+        "durationSeconds",
+        "pnl",
+        "fees",
+        "maxMtm",
+        "minMtm",
+        "maxDrawdown",
+        "closeReason",
+        "legs",
+    ]
+    check(
+        "[journal] snapshot has every field",
+        all(k in t for k in keys),
+        str([k for k in keys if k not in t]),
+    )
+    check(
+        "[journal] legs carry entry + exit",
+        all(lg["exit"] is not None and lg["entry"] for lg in t["legs"]),
+    )
+    check(
+        "[journal] realised P&L = sum of leg P&L",
+        abs(t["pnl"] - sum(lg["pnl"] for lg in t["legs"])) < 1e-9,
+        f"{t['pnl']}",
+    )
+    check("[journal] live log present", any(lg["action"] == "LIVE_CLOSE" for lg in j["logs"]))
+    paper_logs = c.get(f"{API}/api/state").json()["logs"]
+    check(
+        "[journal] paper logs contain no live entries",
+        not any(lg["action"].startswith("LIVE") for lg in paper_logs),
+    )
+
+
+def scenario_account_and_precheck():
+    r = c.post(f"{API}/api/live/test-key")
+    check("[account] Test Delta key passes", r.status_code == 200 and r.json()["ok"], r.text[:160])
+    a = c.get(f"{API}/api/live/account").json()
+    check(
+        "[account] wallet read: balance + available",
+        a == {"balance": 5000.0, "available": 4200.0},
+        str(a),
+    )
+    c.post(f"{FAKE}/fake/reset")
+    g = wait(live_group)
+    legs = [{"symbol": lg["symbol"], "side": "sell", "qty": 10} for lg in g["legs"]]
+    r = c.post(f"{API}/api/live/precheck", json={"legs": legs, "basket_sl": 20})
+    ok = r.status_code == 200 and r.json()["check"]["verdict"] in ("green", "yellow", "red")
+    check("[precheck] small basket with SL gets a verdict", ok, r.text[:200])
+    check(
+        "[precheck] small basket is green",
+        ok and r.json()["check"]["verdict"] == "green",
+        r.json()["check"]["reason"] if ok else "",
+    )
+    big = [{**lg, "qty": 50000} for lg in legs]
+    r = c.post(f"{API}/api/live/precheck", json={"legs": big, "basket_sl": None})
+    check(
+        "[precheck] huge basket with no SL is red",
+        r.status_code == 200 and r.json()["check"]["verdict"] == "red",
+        r.text[:200],
+    )
+
+
 if __name__ == "__main__":
     scenario_server_sl()
     scenario_native_stop()
+    scenario_journal()
+    scenario_account_and_precheck()
     print("FAILURES:", fails)
     sys.exit(1 if fails else 0)

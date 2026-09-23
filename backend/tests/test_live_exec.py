@@ -124,3 +124,32 @@ async def test_exit_stops_when_kill_switch_off():
     )
     assert not res.flat and res.refused
     assert fake.orders == []
+
+
+def test_delta_errors_are_explained():
+    from app.live.client import DeltaError
+
+    def err(code):
+        return DeltaError(401, {"success": False, "error": {"code": code}})
+
+    assert "whitelist" in err("ip_not_whitelisted_for_api_key").explain()
+    assert "key is wrong" in err("InvalidApiKey").explain()
+    assert "secret" in err("Signature Mismatch").explain()
+    assert "clock" in err("SignatureExpired").explain()
+    assert "Trading" in err("UnauthorizedApiAccess").explain()
+
+
+def test_telegram_reasons_are_explained():
+    from app.live.alerts import explain_telegram
+
+    assert "token" in explain_telegram("Unauthorized")
+    assert "chat id" in explain_telegram("Bad Request: chat not found")
+    assert "Start" in explain_telegram("Forbidden: bot can't initiate conversation with a user")
+
+
+def test_usd_wallet_prefers_available_balance():
+    from app.live.sync import usd_wallet
+
+    w = usd_wallet([{"asset_symbol": "USD", "balance": "500", "available_balance": "320.5"}])
+    assert w == {"balance": 500.0, "available": 320.5}
+    assert usd_wallet([{"asset_symbol": "USD", "balance": "500"}]) == {"balance": 500.0, "available": 500.0}

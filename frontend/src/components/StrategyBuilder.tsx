@@ -1,5 +1,6 @@
 "use client";
 
+import LiveBuilderPanel from "@/components/LiveBuilderPanel";
 import clsx from "clsx";
 import { Minus, Plus, RefreshCw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -296,9 +297,10 @@ export default function StrategyBuilder({ onClose, page = false }: { onClose: ()
               </span>
             </div>
             <div className="mb-2 flex items-center justify-between text-[11px] text-text-mute">
-              <span>Available</span>
+              <span>Available (paper)</span>
               <span className="tnum">{money(balance, currency)}</span>
             </div>
+            <LiveBuilderPanel legs={selected} requiredMargin={margin?.value ?? null} currency={currency} />
             {!feedFresh && (
               <div className="mb-2 rounded-[5px] border border-warn/40 bg-warn/10 px-2.5 py-1.5 text-[11px] text-warn">
                 ⚠ Delta feed is stale — prices may be frozen. Order placement is blocked until it’s live again (so you can’t fill at bad prices).

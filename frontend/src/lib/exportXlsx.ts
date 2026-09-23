@@ -3,6 +3,8 @@
 // (the engine's base unit), so the numbers are chartable straight in Excel.
 
 import * as XLSX from "xlsx";
+import type { LiveJournal } from "./api";
+import { USDINR } from "./store";
 import type { Leg, Position } from "./types";
 
 const legLabel = (l: Leg) => `${l.side === "buy" ? "+" : "-"}${l.strike}${l.type === "call" ? "CE" : "PE"}`;
@@ -74,4 +76,38 @@ export function exportPositionXlsx(p: Position): void {
 
   const safe = p.name.replace(/[^\w]+/g, "_");
   XLSX.writeFile(wb, `${safe}_${p.id.slice(0, 6)}.xlsx`);
+}
+
+// Live trade journal → .xlsx: Trades (one row per trade: times, P&L, max/min MTM, max DD),
+// Legs (every leg's entry/exit), Live log. Money in USD with a ₹ column (fixed 85).
+export function exportLiveJournalXlsx(j: LiveJournal): void {
+  const wb = XLSX.utils.book_new();
+  const sheet = (name: string, rows: (string | number)[][]) =>
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name);
+  const t = (ms: number | null) => (ms ? fmtT(ms) : "");
+  const n = (v: number | null | undefined) => (v == null ? "" : +v.toFixed(4));
+  const inr = (v: number | null | undefined) => (v == null ? "" : Math.round(v * USDINR));
+  const dur = (s: number) => `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+
+  sheet("Trades", [
+    ["Trade", "Status", "Opened", "Closed", "Duration", "P&L $", "P&L ₹", "Fees $", "Max MTM $", "Max MTM ₹",
+      "Max MTM at", "Min MTM $", "Min MTM ₹", "Min MTM at", "Max drawdown $", "Max drawdown ₹", "DD peak at",
+      "DD trough at", "Close reason", "Armed", "Basket SL $", "Legs"],
+    ...j.trades.map((r) => [
+      r.name, r.status, t(r.openedAt), t(r.closedAt), dur(r.durationSeconds), n(r.pnl), inr(r.pnl), n(r.fees),
+      n(r.maxMtm), inr(r.maxMtm), t(r.maxMtmAt), n(r.minMtm), inr(r.minMtm), t(r.minMtmAt),
+      n(r.maxDrawdown), inr(r.maxDrawdown), t(r.drawdownPeakAt), t(r.drawdownTroughAt),
+      r.closeReason ?? "", r.armed ? "yes" : "no", n(r.basketStopLoss), r.legs.length,
+    ]),
+  ]);
+  sheet("Legs", [
+    ["Trade", "Symbol", "Side", "Qty", "Entry", "Exit", "Exit at", "Exit reason", "P&L $", "P&L ₹", "Fees $",
+      "Leg SL $", "Delta stop price", "Status"],
+    ...j.trades.flatMap((r) => r.legs.map((l) => [
+      r.name, l.symbol, l.side, l.qty, l.entry, n(l.exit), t(l.exitAt), l.exitReason ?? "", n(l.pnl), inr(l.pnl),
+      n(l.fees), n(l.stopLoss), n(l.deltaStopPrice), l.status,
+    ])),
+  ]);
+  sheet("Live log", [["Time", "Action", "Detail"], ...j.logs.map((l) => [t(l.t), l.action, l.detail])]);
+  XLSX.writeFile(wb, `live-journal-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
