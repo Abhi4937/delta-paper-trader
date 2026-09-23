@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import {
   type PlaceLegIn,
   type ServerState,
+  type LiveAlert,
   type StateTick,
   addNoteApi,
   closeLegApi,
@@ -146,7 +147,7 @@ function onStateTick(t: StateTick): void {
     const series = res !== undefined ? appendSample(p.series, sample, res, MTM_CAP) : p.series;
     return { ...p, ...fields, series };
   });
-  useStore.setState({ positions, balance: t.balance, tickN: s.tickN + 1 });
+  useStore.setState({ positions, balance: t.balance, tickN: s.tickN + 1, liveAlerts: t.liveAlerts ?? [] });
 }
 
 async function pollFeed(): Promise<void> {
@@ -188,6 +189,7 @@ interface State {
   expiredNotice: string | null; // transient warning when settled legs are auto-dropped
   hydrated: boolean; // true once the first GET /api/state has returned (avoids a "no positions" flash)
   positions: Position[];
+  liveAlerts: LiveAlert[]; // live (real Delta) alerts from the WS tick
   seriesRes: Record<string, number>; // per-position chart resolution (s); set when its series loads
   balance: number;
   currency: Currency;
@@ -269,6 +271,7 @@ export const useStore = create<State>()(
       expiredNotice: null,
       hydrated: false,
       positions: [],
+      liveAlerts: [],
       seriesRes: {},
       balance: START_BALANCE,
       currency: "USD",

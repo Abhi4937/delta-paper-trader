@@ -35,7 +35,7 @@ class MarginRequest(BaseModel):
 async def margin(
     req: MarginRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> MarginQuote:
     delta: DeltaRestClient = request.app.state.delta

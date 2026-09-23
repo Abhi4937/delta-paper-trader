@@ -91,7 +91,8 @@ def _open(pos: Position) -> list[Leg]:
 
 def _mark(mv: MarketView, leg: Leg) -> float:
     q = mv.quote(leg.symbol)
-    return q.mark if (q and q.mark) else leg.entry
+    # a real 0 mark is a real total loss on a long; only a MISSING mark falls back to entry
+    return q.mark if (q and q.mark is not None) else leg.entry
 
 
 def position_pnl(pos: Position, mv: MarketView) -> float:
@@ -123,7 +124,7 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
     leg_rows: dict[str, dict[str, float]] = {}
     for lg in legs:
         q = mv.quote(lg.symbol)
-        mark = q.mark if (q and q.mark) else lg.entry
+        mark = q.mark if (q and q.mark is not None) else lg.entry
         d, th, vg = leg_greeks(lg, q, spot)
         greeks.append(LegGreeks(lg.side, lg.qty, lg.contract_value, d, th, vg))
         sgn = leg_sign(lg.side) * lg.qty * lg.contract_value
@@ -279,8 +280,8 @@ async def close_position(
     session: AsyncSession, user_id: uuid.UUID, app_state: Any, pos_id: uuid.UUID, reason: str | None
 ) -> bool:
     pos = await _get_position(session, user_id, pos_id)
-    if pos is None or pos.status == "closed":
-        return False
+    if pos is None or pos.status == "closed" or pos.source == "live":
+        return False  # live rows are closed only by Delta (app/live), never simulated
     mv = MarketView(app_state.market)
     legs = _open(pos)
     now = datetime.now(UTC)
@@ -291,7 +292,7 @@ async def close_position(
 
     def _exit_price(lg: Leg) -> float:
         q = exit_quotes[lg.symbol]
-        return exit_fill(lg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else lg.entry)
+        return exit_fill(lg.side, q.bid if q else 0, q.ask if q else 0, _mark(mv, lg))
 
     gross = net_pnl(
         [LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _exit_price(lg)) for lg in legs]
@@ -376,8 +377,8 @@ async def close_leg(
     settle_price: float | None = None,
 ) -> bool:
     pos = await _get_position(session, user_id, pos_id)
-    if pos is None or pos.status == "closed":
-        return False
+    if pos is None or pos.status == "closed" or pos.source == "live":
+        return False  # live rows are closed only by Delta (app/live), never simulated
     leg = next((lg for lg in pos.legs if lg.id == leg_id and lg.status == "open"), None)
     if leg is None:
         return False
@@ -393,7 +394,7 @@ async def close_leg(
         fees = 0.0
     else:
         q = mv.quote(leg.symbol)
-        ex = exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, q.mark if q else leg.entry)
+        ex = exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, _mark(mv, leg))
         spot_now = mv.spot(leg.underlying) or leg.spot_at_entry
         fees = leg_fee(leg.entry, leg.spot_at_entry, leg.contract_value, leg.qty) + leg_fee(
             ex, spot_now, leg.contract_value, leg.qty
@@ -584,7 +585,9 @@ async def settle_expired_legs(session: AsyncSession, app_state: Any) -> int:
     (we never close survivors before the expired legs are settled). Returns legs settled."""
     now = datetime.now(UTC)
     res = await session.execute(
-        select(Position).where(Position.status == "open").options(selectinload(Position.legs))
+        select(Position)
+        .where(Position.status == "open", Position.source == "paper")  # Delta settles live
+        .options(selectinload(Position.legs))
     )
     affected = [
         p
@@ -669,8 +672,9 @@ def leg_dict(lg: Leg, mv: MarketView) -> dict[str, Any]:
         "exitReason": lg.exit_reason,
         "exitGross": lg.exit_gross,
         "exitFees": lg.exit_fees,
+        "stopPrice": lg.stop_price,  # live: native stop resting on Delta
         # live book (best-bid/ask/spread) + mark/iv/pnl
-        "mark": q.mark if q else lg.entry,
+        "mark": _mark(mv, lg),
         "iv": q.iv if q else 0.0,
         "bid": q.bid if q else 0.0,
         "ask": q.ask if q else 0.0,
@@ -850,6 +854,8 @@ def position_dict(pos: Position, mv: MarketView, series: list[dict[str, Any]]) -
         "autoExit": pos.auto_exit,
         "autoExitSuspended": pos.auto_exit_suspended,
         "staleHardStop": pos.stale_hard_stop,
+        "source": pos.source,
+        "exiting": pos.exiting,
         "closedAt": _ms(pos.closed_at),
         "closeReason": pos.close_reason,
         "series": series,
@@ -871,6 +877,8 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
         "margin": pos.margin,
         "marginBadge": pos.margin_badge,
         "autoExitSuspended": pos.auto_exit_suspended,
+        "exiting": pos.exiting,
+        "autoExit": pos.auto_exit,
         "closedAt": _ms(pos.closed_at),
         "closeReason": pos.close_reason,
         "legs": [leg_dict(lg, mv) for lg in pos.legs],

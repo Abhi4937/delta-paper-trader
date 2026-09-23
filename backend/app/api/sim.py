@@ -48,7 +48,7 @@ async def _state(request: Request, session: AsyncSession, user_id: uuid.UUID) ->
 
 @router.get("/me")
 async def me(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     """The authenticated user's identity + admin flag + whether they hold live trade keys
@@ -74,7 +74,7 @@ async def _account(session: AsyncSession, user_id: uuid.UUID) -> Account:
 
 @router.get("/draft")
 async def get_draft(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     """The user's saved builder draft basket (syncs across their devices)."""
@@ -85,7 +85,7 @@ async def get_draft(
 @router.put("/draft")
 async def put_draft(
     body: DraftIn,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     acct = await _account(session, user_id)
@@ -97,7 +97,7 @@ async def put_draft(
 @router.get("/state")
 async def get_state(
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     return await _state(request, session, user_id)
@@ -107,7 +107,7 @@ async def get_state(
 async def get_position_series(
     pos_id: uuid.UUID,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     res = await session.execute(
@@ -133,7 +133,7 @@ async def get_position_series(
 async def place(
     req: PlaceRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     if not req.legs:
@@ -150,7 +150,7 @@ async def close(
     pos_id: uuid.UUID,
     req: CloseRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     ok = await service.close_position(session, user_id, request.app.state, pos_id, req.reason)
@@ -165,7 +165,7 @@ async def close_leg(
     leg_id: uuid.UUID,
     req: CloseRequest,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     ok = await service.close_leg(session, user_id, request.app.state, pos_id, leg_id, req.reason)
@@ -179,9 +179,13 @@ async def position_risk(
     pos_id: uuid.UUID,
     patch: PositionRiskPatch,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
+    pos = await session.get(Position, pos_id)
+    if pos is not None and pos.source == "live" and patch.auto_exit is not None:
+        # arming a real-money group must pass the SL-vs-liquidation check (2FA-gated)
+        raise HTTPException(409, "arm live groups via POST /api/live/groups/{id}/arm")
     ok = await service.set_position_risk(session, user_id, pos_id, patch)
     if not ok:
         raise HTTPException(404, "position not found")
@@ -193,7 +197,7 @@ async def leg_risk(
     leg_id: uuid.UUID,
     patch: LegRiskPatch,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     ok = await service.set_leg_risk(session, user_id, leg_id, patch)
@@ -207,7 +211,7 @@ async def add_note(
     pos_id: uuid.UUID,
     note: NoteIn,
     request: Request,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     ok = await service.add_note(session, user_id, pos_id, note.kind, note.body)
@@ -254,6 +258,9 @@ async def ws_state(websocket: WebSocket) -> None:
                     "openIds": [str(p.id) for p in positions],
                     "positions": [service.position_live_dict(p, mv, now) for p in positions],
                 }
+                live = getattr(websocket.app.state, "live", None)
+                if live is not None:
+                    payload["liveAlerts"] = live.alerts.active(user_id)
             # keep series rings from growing unbounded for closed positions
             _ = store
             await websocket.send_json(payload)

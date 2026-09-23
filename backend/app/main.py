@@ -22,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app import __version__
 from app.api import admin as admin_api
 from app.api import chain as chain_api
+from app.api import live as live_api
 from app.api import margin as margin_api
 from app.api import payoff as payoff_api
 from app.api import settings as settings_api
@@ -34,6 +35,7 @@ from app.ratelimit import RateLimiter
 from app.services import chain as chain_svc
 from app.services.margin import MarginService
 from app.services.market_data import MarketDataIngestor
+from app.live.sync import LiveSync
 from app.sim.ticker import SimTicker
 from app.sim.user import ensure_stub_user
 
@@ -58,9 +60,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await session.commit()
     app.state.sim_ticker = SimTicker(app)
     await app.state.sim_ticker.start()
+    app.state.live = LiveSync(app)
+    await app.state.live.start()
     try:
         yield
     finally:
+        await app.state.live.stop()
         await app.state.sim_ticker.stop()
         await app.state.market.stop()
         await app.state.delta.aclose()
@@ -74,6 +79,7 @@ app.include_router(payoff_api.router)
 app.include_router(sim_api.router)
 app.include_router(settings_api.router)
 app.include_router(admin_api.router)
+app.include_router(live_api.router)
 
 if settings.rate_limit_enabled:
     app.add_middleware(BaseHTTPMiddleware, dispatch=RateLimiter(settings.rate_limit_per_min))

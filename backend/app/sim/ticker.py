@@ -99,17 +99,19 @@ class SimTicker:
 
             for p in positions:
                 uid = p.user_id
-                decision = service.evaluate_position_exit(p, mv)
-                p.auto_exit_suspended = decision.kind == "suspended"
-                if decision.kind == "close-strategy":
-                    await service.close_position(
-                        session, uid, self.app.state, p.id, decision.reason
-                    )
-                elif decision.kind == "close-legs":
-                    for lid in decision.leg_ids:
-                        await service.close_leg(
-                            session, uid, self.app.state, p.id, uuid.UUID(lid), decision.reason
+                live = p.source == "live"  # app/live owns live exits + margin; sample only
+                if not live:
+                    decision = service.evaluate_position_exit(p, mv)
+                    p.auto_exit_suspended = decision.kind == "suspended"
+                    if decision.kind == "close-strategy":
+                        await service.close_position(
+                            session, uid, self.app.state, p.id, decision.reason
                         )
+                    elif decision.kind == "close-legs":
+                        for lid in decision.leg_ids:
+                            await service.close_leg(
+                                session, uid, self.app.state, p.id, uuid.UUID(lid), decision.reason
+                            )
 
                 if p.status != "open":
                     continue
@@ -142,7 +144,7 @@ class SimTicker:
                         )
                     )
 
-                if refresh_margin:
+                if refresh_margin and not live:
                     open_legs = [
                         (lg.product_id, lg.side, lg.qty) for lg in p.legs if lg.status == "open"
                     ]

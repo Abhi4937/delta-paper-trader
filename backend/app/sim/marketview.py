@@ -14,7 +14,7 @@ from app.services.market_data import MarketDataIngestor
 
 @dataclass(frozen=True)
 class Quote:
-    mark: float
+    mark: float | None  # None = the feed sent no mark; 0.0 = a genuinely worthless option
     bid: float
     ask: float
     iv: float
@@ -35,8 +35,9 @@ class MarketView:
             return None
         q = t.get("quotes") or {}
         g = t.get("greeks") or {}
+        raw_mark = t.get("mark_price")
         return Quote(
-            mark=float(t.get("mark_price") or 0),
+            mark=None if raw_mark is None or raw_mark == "" else float(str(raw_mark)),
             bid=float(q.get("best_bid") or 0),
             ask=float(q.get("best_ask") or 0),
             iv=float(q.get("mark_iv") or 0),
