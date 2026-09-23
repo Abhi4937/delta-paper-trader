@@ -71,7 +71,7 @@ def positions():
 
 @app.get("/v2/wallet/balances")
 def wallet():
-    return ok([{"asset_symbol": "USD", "balance": "5000"}])
+    return ok([{"asset_symbol": "USD", "balance": "5000", "available_balance": "4200"}])
 
 
 @app.get("/v2/orders")

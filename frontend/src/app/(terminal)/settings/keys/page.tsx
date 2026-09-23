@@ -3,7 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { type KeyStatus, fetchKeys, saveKeys, testTelegram } from "@/lib/api";
+import { type KeyStatus, fetchKeys, saveKeys, testDeltaKey, testTelegram } from "@/lib/api";
 import { ensureStepUp, hasTotp, unenrollTotp } from "@/lib/auth";
 
 const SLOTS: { kind: string; label: string; hint: string }[] = [
@@ -130,11 +130,28 @@ export default function ApiKeysPage() {
               className="rounded-[6px] bg-accent px-4 py-2 text-[13px] font-semibold text-base disabled:opacity-50">
               {busy ? "Saving…" : "Save changes"}
             </button>
+            {status.delta_trade_key && status.delta_trade_secret && (
+              <button
+                onClick={async () => {
+                  setMsg("Testing Delta key…");
+                  const r = await testDeltaKey();
+                  setMsg(
+                    r.ok
+                      ? `Delta key works ✓ · balance $${(r.data.balance ?? 0).toFixed(2)} · available $${(r.data.available ?? 0).toFixed(2)} · ${r.data.openPositions} open position(s). (Trading permission is only proven by a real order.)`
+                      : r.error,
+                  );
+                }}
+                disabled={busy}
+                className="rounded-[6px] border border-line px-3 py-2 text-[12px] text-text-dim hover:text-text disabled:opacity-50"
+              >
+                Test Delta key
+              </button>
+            )}
             {status.telegram_bot_token && status.telegram_chat_id && (
               <button
                 onClick={async () => {
                   const r = await testTelegram();
-                  setMsg(r.ok ? "Test alert sent to Telegram." : `Telegram: ${r.error}`);
+                  setMsg(r.ok ? "Test alert sent to Telegram." : r.error);
                 }}
                 disabled={busy}
                 className="rounded-[6px] border border-line px-3 py-2 text-[12px] text-text-dim hover:text-text disabled:opacity-50"

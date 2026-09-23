@@ -434,7 +434,9 @@ function LiqPanel({ check, currency }: { check?: LiveCheck; currency: Currency }
   }
   const tone = check.verdict === "green" ? "text-pos" : check.verdict === "yellow" ? "text-warn" : "text-neg";
   const label =
-    check.verdict === "green"
+    check.verdict === "green" && check.sl_spot == null
+      ? "No liquidation within a ±50% move (SL not reached either)"
+      : check.verdict === "green"
       ? "SL fires well before liquidation"
       : check.verdict === "yellow"
         ? "SL is close to liquidation"

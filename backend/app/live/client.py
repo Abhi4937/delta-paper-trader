@@ -39,6 +39,22 @@ class DeltaError(Exception):
         err = self.body.get("error") if isinstance(self.body, dict) else None
         return str(err.get("code", "")) if isinstance(err, dict) else ""
 
+    def explain(self) -> str:
+        """Delta's error code plus what to do about it."""
+        c = self.code or str(self.status)
+        low = c.lower()
+        if "ip_not_whitelisted" in low:
+            return f"{c} — whitelist this server's IP on the Delta API key"
+        if "invalidapikey" in low or "invalid_api_key" in low:
+            return f"{c} — the API key is wrong (or was deleted on Delta)"
+        if "signature" in low and "expired" in low:
+            return f"{c} — this server's clock is off; request timestamp rejected"
+        if "signature" in low:
+            return f"{c} — the API secret doesn't match the key; paste the secret again"
+        if "unauthorized" in low or "permission" in low:
+            return f"{c} — the key lacks a permission (enable Trading on Delta)"
+        return c
+
 
 class LiveClient:
     def __init__(

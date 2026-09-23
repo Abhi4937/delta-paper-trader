@@ -189,9 +189,39 @@ def scenario_journal():
     )
 
 
+def scenario_account_and_precheck():
+    r = c.post(f"{API}/api/live/test-key")
+    check("[account] Test Delta key passes", r.status_code == 200 and r.json()["ok"], r.text[:160])
+    a = c.get(f"{API}/api/live/account").json()
+    check(
+        "[account] wallet read: balance + available",
+        a == {"balance": 5000.0, "available": 4200.0},
+        str(a),
+    )
+    c.post(f"{FAKE}/fake/reset")
+    g = wait(live_group)
+    legs = [{"symbol": lg["symbol"], "side": "sell", "qty": 10} for lg in g["legs"]]
+    r = c.post(f"{API}/api/live/precheck", json={"legs": legs, "basket_sl": 20})
+    ok = r.status_code == 200 and r.json()["check"]["verdict"] in ("green", "yellow", "red")
+    check("[precheck] small basket with SL gets a verdict", ok, r.text[:200])
+    check(
+        "[precheck] small basket is green",
+        ok and r.json()["check"]["verdict"] == "green",
+        r.json()["check"]["reason"] if ok else "",
+    )
+    big = [{**lg, "qty": 50000} for lg in legs]
+    r = c.post(f"{API}/api/live/precheck", json={"legs": big, "basket_sl": None})
+    check(
+        "[precheck] huge basket with no SL is red",
+        r.status_code == 200 and r.json()["check"]["verdict"] == "red",
+        r.text[:200],
+    )
+
+
 if __name__ == "__main__":
     scenario_server_sl()
     scenario_native_stop()
     scenario_journal()
+    scenario_account_and_precheck()
     print("FAILURES:", fails)
     sys.exit(1 if fails else 0)

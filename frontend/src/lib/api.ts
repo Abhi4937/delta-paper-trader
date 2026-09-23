@@ -627,3 +627,22 @@ export interface LiveJournal {
   logs: { t: number; action: string; detail: string; tone: string | null }[];
 }
 export const fetchLiveJournal = (): Promise<LiveJournal | null> => authedJson<LiveJournal>("/api/live/journal");
+
+// Read-only key check (wallet + positions); Delta's exact reason on failure.
+export const testDeltaKey = () =>
+  livePost<{ ok: boolean; balance: number | null; available: number | null; openPositions: number }>("/api/live/test-key");
+
+// Real Delta USD wallet: total and free-for-margin. Error text surfaces 2FA/key problems.
+export async function fetchLiveAccount(): Promise<{ ok: true; balance: number; available: number } | { ok: false; status: number; error: string }> {
+  try {
+    const r = await fetch(`${API}/api/live/account`, { headers: await authHeaders() });
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, ...j } : { ok: false, status: r.status, error: String(j.detail ?? `HTTP ${r.status}`) };
+  } catch (e) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+
+// Before placing on Delta: would the planned basket SL fire before liquidation?
+export const livePrecheck = (legs: { symbol: string; side: "buy" | "sell"; qty: number }[], basketSlUsd: number | null) =>
+  livePost<{ check: LiveCheck; balance: number; available: number }>("/api/live/precheck", { legs, basket_sl: basketSlUsd });

@@ -28,8 +28,15 @@ def mtm_stats(samples: list[Sample]) -> dict[str, Any]:
     against the peak reached BEFORE it (and the bar's open) — never against its own high.
     """
     if not samples:
-        return {"maxMtm": None, "maxMtmAt": None, "minMtm": None, "minMtmAt": None,
-                "maxDrawdown": 0.0, "drawdownPeakAt": None, "drawdownTroughAt": None}
+        return {
+            "maxMtm": None,
+            "maxMtmAt": None,
+            "minMtm": None,
+            "minMtmAt": None,
+            "maxDrawdown": 0.0,
+            "drawdownPeakAt": None,
+            "drawdownTroughAt": None,
+        }
     hi = max(samples, key=lambda s: s[2])
     lo = min(samples, key=lambda s: s[3])
     peak, peak_at = samples[0][1], samples[0][0]
@@ -41,8 +48,15 @@ def mtm_stats(samples: list[Sample]) -> dict[str, Any]:
             dd, dd_peak_at, dd_trough_at = peak - low, peak_at, t
         if h > peak:
             peak, peak_at = h, t
-    return {"maxMtm": hi[2], "maxMtmAt": hi[0], "minMtm": lo[3], "minMtmAt": lo[0],
-            "maxDrawdown": dd, "drawdownPeakAt": dd_peak_at, "drawdownTroughAt": dd_trough_at}
+    return {
+        "maxMtm": hi[2],
+        "maxMtmAt": hi[0],
+        "minMtm": lo[3],
+        "minMtmAt": lo[0],
+        "maxDrawdown": dd,
+        "drawdownPeakAt": dd_peak_at,
+        "drawdownTroughAt": dd_trough_at,
+    }
 
 
 def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, Any]:
@@ -55,23 +69,45 @@ def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, 
             gross, fee = lg.exit_gross or 0.0, lg.exit_fees or 0.0
             realized += gross - fee
             fees += fee
-        legs.append({
-            "symbol": lg.symbol, "side": lg.side, "qty": lg.qty, "type": lg.type,
-            "strike": lg.strike, "expiry": lg.expiry, "entry": lg.entry,
-            "exit": lg.exit_price, "exitAt": _ms(lg.exit_at), "exitReason": lg.exit_reason,
-            "pnl": (lg.exit_gross or 0.0) - (lg.exit_fees or 0.0) if lg.status == "closed" else None,
-            "fees": lg.exit_fees, "stopLoss": lg.stop_pnl, "deltaStopPrice": lg.stop_price,
-            "status": lg.status,
-        })
+        legs.append(
+            {
+                "symbol": lg.symbol,
+                "side": lg.side,
+                "qty": lg.qty,
+                "type": lg.type,
+                "strike": lg.strike,
+                "expiry": lg.expiry,
+                "entry": lg.entry,
+                "exit": lg.exit_price,
+                "exitAt": _ms(lg.exit_at),
+                "exitReason": lg.exit_reason,
+                "pnl": (lg.exit_gross or 0.0) - (lg.exit_fees or 0.0)
+                if lg.status == "closed"
+                else None,
+                "fees": lg.exit_fees,
+                "stopLoss": lg.stop_pnl,
+                "deltaStopPrice": lg.stop_price,
+                "status": lg.status,
+            }
+        )
     return {
-        "id": str(pos.id), "name": pos.name, "underlying": pos.underlying, "expiry": pos.expiry,
-        "status": pos.status, "openedAt": _ms(pos.opened_at), "closedAt": _ms(pos.closed_at),
+        "id": str(pos.id),
+        "name": pos.name,
+        "underlying": pos.underlying,
+        "expiry": pos.expiry,
+        "status": pos.status,
+        "openedAt": _ms(pos.opened_at),
+        "closedAt": _ms(pos.closed_at),
         "durationSeconds": int((end - pos.opened_at).total_seconds()),
-        "closeReason": pos.close_reason, "armed": pos.auto_exit,
-        "basketStopLoss": pos.stop_loss_amount, "basketStopLossPctOfMargin": pos.stop_loss_pct_of_margin,
+        "closeReason": pos.close_reason,
+        "armed": pos.auto_exit,
+        "basketStopLoss": pos.stop_loss_amount,
+        "basketStopLossPctOfMargin": pos.stop_loss_pct_of_margin,
         # final P&L: realised on close; for an open trade the last recorded MTM
         "pnl": realized if closed else (samples[-1][4] if samples else None),
-        "fees": fees, "legs": legs, **mtm_stats(samples),
+        "fees": fees,
+        "legs": legs,
+        **mtm_stats(samples),
     }
 
 
@@ -80,15 +116,27 @@ async def load_samples(
 ) -> list[Sample]:
     """Every durable 10s MTM bar for the position, plus any newer 1s ring samples."""
     rows = await session.execute(
-        select(StrategySeries.time, StrategySeries.pnl, StrategySeries.pnl_open,
-               StrategySeries.pnl_high, StrategySeries.pnl_low)
+        select(
+            StrategySeries.time,
+            StrategySeries.pnl,
+            StrategySeries.pnl_open,
+            StrategySeries.pnl_high,
+            StrategySeries.pnl_low,
+        )
         .where(StrategySeries.position_id == pos.id)
         .order_by(StrategySeries.time)
     )
     out: list[Sample] = []
     for t, c, o, h, low in rows.all():
-        out.append((_ms(t) or 0, o if o is not None else c, h if h is not None else c,
-                    low if low is not None else c, c))
+        out.append(
+            (
+                _ms(t) or 0,
+                o if o is not None else c,
+                h if h is not None else c,
+                low if low is not None else c,
+                c,
+            )
+        )
     last = out[-1][0] if out else 0
     for s in ring or []:
         if s["t"] > last:
