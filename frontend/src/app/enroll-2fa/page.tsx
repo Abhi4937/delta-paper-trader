@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { getAAL, signOut } from "@/lib/auth";
+import { safeNext } from "@/lib/safeNext";
 import { supabase } from "@/lib/supabase";
 
 type Phase = "loading" | "enroll" | "challenge";
@@ -25,7 +26,7 @@ export default function Enroll2FAPage() {
     }
     const aal = await getAAL();
     if (aal.current === "aal2") {
-      router.replace("/chain");
+      router.replace(safeNext(window.location.search, "/chain"));
       return;
     }
     const { data: factors } = await supabase.auth.mfa.listFactors();
@@ -64,7 +65,7 @@ export default function Enroll2FAPage() {
     try {
       const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
       if (error) throw error;
-      router.replace("/chain");
+      router.replace(safeNext(window.location.search, "/chain"));
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "Invalid code");
     } finally {

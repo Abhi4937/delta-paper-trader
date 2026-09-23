@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { type KeyStatus, fetchKeys, saveKeys, testTelegram } from "@/lib/api";
-import { hasTotp, unenrollTotp } from "@/lib/auth";
+import { ensureStepUp, hasTotp, unenrollTotp } from "@/lib/auth";
 
 const SLOTS: { kind: string; label: string; hint: string }[] = [
   { kind: "delta_trade_key", label: "Delta trade API key", hint: "Reads your real positions and places ONLY reduce-only stops/closes (can never open a position). Needs Trading permission on Delta." },
@@ -22,7 +22,12 @@ export default function ApiKeysPage() {
   const [mfa, setMfa] = useState<boolean | null>(null);
 
   useEffect(() => {
-    hasTotp().then(setMfa);
+    // 2FA set up but not entered this session → prompt for the code first (the server
+    // refuses to save keys otherwise), then come back here
+    hasTotp().then(async (has) => {
+      if (!has) setMfa(false);
+      else if (await ensureStepUp("/settings/keys")) setMfa(true); // else: redirecting, stay loading
+    });
     fetchKeys().then((s) => s && setStatus(s));
   }, []);
 

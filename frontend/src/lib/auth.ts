@@ -36,3 +36,13 @@ export async function unenrollTotp(): Promise<void> {
     await supabase.auth.mfa.unenroll({ factorId: f.id });
   }
 }
+
+// Live features (saving keys, /live) need THIS session to have passed 2FA — the server
+// rejects aal1 with 403. If 2FA is set up but not yet entered this session, send the user
+// to the code prompt and bring them back. Returns true when the session is already aal2.
+export async function ensureStepUp(returnTo: string): Promise<boolean> {
+  if (process.env.NEXT_PUBLIC_E2E === "1") return true;
+  if ((await getAAL()).current === "aal2") return true;
+  window.location.replace(`/enroll-2fa?next=${encodeURIComponent(returnTo)}`);
+  return false;
+}
