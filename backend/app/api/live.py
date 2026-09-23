@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -19,9 +19,9 @@ from sqlalchemy.orm import selectinload
 from app.auth.deps import require_mfa
 from app.auth.vault import get_secret
 from app.config import get_settings
-from app.db.models import Position
+from app.db.models import Log, Position
 from app.db.session import get_session
-from app.live import risk
+from app.live import journal, risk
 from app.live.alerts import send_telegram
 from app.live.sync import LiveSync, _mark, basket_floor, risk_legs, usd_balance
 from app.sim.marketview import MarketView
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api/live", tags=["live"])
 
 
 def _sync(request: Request) -> LiveSync:
-    return request.app.state.live
+    return cast(LiveSync, request.app.state.live)
 
 
 class ArmIn(BaseModel):
@@ -134,3 +134,35 @@ async def telegram_test(
     if not ok:
         raise HTTPException(502, "Telegram rejected the message — check the token and chat id")
     return {"sent": True}
+
+
+@router.get("/journal")
+async def live_journal(
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    """Every live trade (snapshot frozen at close; running stats while open) + the live log.
+    Separate from the paper Logs page."""
+    rings = getattr(request.app.state, "sim_series", {})
+    res = await session.execute(
+        select(Position)
+        .where(Position.user_id == user_id, Position.source == "live")
+        .options(selectinload(Position.legs))
+        .order_by(Position.opened_at.desc())
+    )
+    trades = [await journal.trade_summary(session, p, rings.get(str(p.id))) for p in res.scalars()]
+    logs = await session.execute(
+        select(Log)
+        .where(Log.user_id == user_id, Log.action.like("LIVE%"))
+        .order_by(Log.t.desc())
+        .limit(5000)
+    )
+    return {
+        "trades": trades,
+        "logs": [
+            {"t": int(lg.t.timestamp() * 1000), "action": lg.action, "detail": lg.detail,
+             "tone": lg.tone}
+            for lg in logs.scalars()
+        ],
+    }

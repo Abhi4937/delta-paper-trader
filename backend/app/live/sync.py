@@ -33,7 +33,7 @@ from app.auth.vault import get_secret
 from app.db.models import Leg, Log, Position, UserSecret
 from app.db.session import SessionLocal
 from app.engines.money import leg_pnl
-from app.live import risk
+from app.live import journal, risk
 from app.live.alerts import AlertBook, send_telegram
 from app.live.client import DeltaError, LiveClient, OrderRefused
 from app.live.executor import ExitTarget, exit_group
@@ -433,6 +433,15 @@ class LiveSync:
                 pos.status, pos.closed_at = "closed", now
                 pos.close_reason = pos.close_reason or (
                     "SL exit" if pos.exiting else "closed on Delta"
+                )
+                ring = getattr(self.app.state, "sim_series", {}).get(str(pos.id))
+                pos.summary = journal.summarize(pos, await journal.load_samples(s, pos, ring), now)
+                await self._journal(
+                    s, uid, "LIVE_CLOSE",
+                    f"{pos.name}: closed · P&L ${pos.summary['pnl']:,.2f} · "
+                    f"max ${pos.summary['maxMtm'] or 0:,.2f} · min ${pos.summary['minMtm'] or 0:,.2f} · "
+                    f"max DD ${pos.summary['maxDrawdown']:,.2f} · {pos.close_reason}",
+                    "info",
                 )
                 self.liq.get(uid, {}).pop(str(pos.id), None)
                 self.alerts.clear(uid, f"exit:{pos.id}")

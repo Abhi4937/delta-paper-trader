@@ -150,8 +150,48 @@ def scenario_native_stop():
     check("[native] exit reasons recorded", "native stop" in reasons, str(reasons))
 
 
+def scenario_journal():
+    j = c.get(f"{API}/api/live/journal").json()
+    closed = [t for t in j["trades"] if t["status"] == "closed"]
+    check("[journal] closed trades have a frozen snapshot", bool(closed), str(len(closed)))
+    t = closed[0]
+    keys = [
+        "openedAt",
+        "closedAt",
+        "durationSeconds",
+        "pnl",
+        "fees",
+        "maxMtm",
+        "minMtm",
+        "maxDrawdown",
+        "closeReason",
+        "legs",
+    ]
+    check(
+        "[journal] snapshot has every field",
+        all(k in t for k in keys),
+        str([k for k in keys if k not in t]),
+    )
+    check(
+        "[journal] legs carry entry + exit",
+        all(lg["exit"] is not None and lg["entry"] for lg in t["legs"]),
+    )
+    check(
+        "[journal] realised P&L = sum of leg P&L",
+        abs(t["pnl"] - sum(lg["pnl"] for lg in t["legs"])) < 1e-9,
+        f"{t['pnl']}",
+    )
+    check("[journal] live log present", any(lg["action"] == "LIVE_CLOSE" for lg in j["logs"]))
+    paper_logs = c.get(f"{API}/api/state").json()["logs"]
+    check(
+        "[journal] paper logs contain no live entries",
+        not any(lg["action"].startswith("LIVE") for lg in paper_logs),
+    )
+
+
 if __name__ == "__main__":
     scenario_server_sl()
     scenario_native_stop()
+    scenario_journal()
     print("FAILURES:", fails)
     sys.exit(1 if fails else 0)

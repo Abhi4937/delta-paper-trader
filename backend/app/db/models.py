@@ -145,6 +145,8 @@ class Position(Base):
     source: Mapped[str] = mapped_column(String(5), default="paper", server_default="paper")
     # live only: an exit is in flight — the trigger has fired once and is never re-evaluated.
     exiting: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
+    # live only: the trade-journal snapshot frozen at close (app/live/journal.py)
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     legs: Mapped[list[Leg]] = relationship(back_populates="position", cascade="all, delete-orphan")
     notes: Mapped[list[Note]] = relationship(
