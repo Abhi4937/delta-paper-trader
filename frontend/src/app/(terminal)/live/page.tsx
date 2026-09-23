@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import PositionCard from "@/components/PositionCard";
 import { type KeyStatus, type LiveStatus, fetchKeys, fetchLiveStatus } from "@/lib/api";
-import { hasTotp } from "@/lib/auth";
+import { ensureStepUp, hasTotp } from "@/lib/auth";
 import { useStore } from "@/lib/store";
 
 export default function LivePage() {
@@ -13,7 +13,10 @@ export default function LivePage() {
   const [keys, setKeys] = useState<KeyStatus | null>(null);
 
   useEffect(() => {
-    hasTotp().then(setMfa);
+    hasTotp().then(async (has) => {
+      if (!has) setMfa(false);
+      else if (await ensureStepUp("/live")) setMfa(true); // else: redirecting, stay loading
+    });
     fetchKeys().then(setKeys);
   }, []);
 
