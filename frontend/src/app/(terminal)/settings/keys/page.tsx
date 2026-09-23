@@ -3,13 +3,15 @@
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { type KeyStatus, fetchKeys, saveKeys } from "@/lib/api";
+import { type KeyStatus, fetchKeys, saveKeys, testTelegram } from "@/lib/api";
 import { hasTotp, unenrollTotp } from "@/lib/auth";
 
 const SLOTS: { kind: string; label: string; hint: string }[] = [
-  { kind: "delta_trade_key", label: "Delta trade API key", hint: "Used ONLY for live auto-close (reduce-only). Stored encrypted; not used yet." },
+  { kind: "delta_trade_key", label: "Delta trade API key", hint: "Reads your real positions and places ONLY reduce-only stops/closes (can never open a position). Needs Trading permission on Delta." },
   { kind: "delta_trade_secret", label: "Delta trade API secret", hint: "Paired secret for the trade key." },
   { kind: "delta_web_jwt", label: "Delta web session token", hint: "Optional — for the exact Strategy-Builder margin number (else a local estimate is used)." },
+  { kind: "telegram_bot_token", label: "Telegram bot token", hint: "Optional — live SL / liquidation alerts to your phone. Create a bot with @BotFather." },
+  { kind: "telegram_chat_id", label: "Telegram chat id", hint: "Your chat id (message the bot, then read it from @userinfobot)." },
 ];
 
 export default function ApiKeysPage() {
@@ -123,6 +125,18 @@ export default function ApiKeysPage() {
               className="rounded-[6px] bg-accent px-4 py-2 text-[13px] font-semibold text-base disabled:opacity-50">
               {busy ? "Saving…" : "Save changes"}
             </button>
+            {status.telegram_bot_token && status.telegram_chat_id && (
+              <button
+                onClick={async () => {
+                  const r = await testTelegram();
+                  setMsg(r.ok ? "Test alert sent to Telegram." : `Telegram: ${r.error}`);
+                }}
+                disabled={busy}
+                className="rounded-[6px] border border-line px-3 py-2 text-[12px] text-text-dim hover:text-text disabled:opacity-50"
+              >
+                Send test alert
+              </button>
+            )}
             {msg && <span className="text-[12px] text-text-dim">{msg}</span>}
           </div>
 

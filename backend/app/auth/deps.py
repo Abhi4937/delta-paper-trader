@@ -69,14 +69,14 @@ def _bearer(request: Request) -> str | None:
 
 
 async def current_user(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request, session: AsyncSession = Depends(get_session, scope="function")
 ) -> uuid.UUID:
     user = await _user_from_token(session, _bearer(request))
     return user.id
 
 
 async def require_admin(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request, session: AsyncSession = Depends(get_session, scope="function")
 ) -> uuid.UUID:
     user = await _user_from_token(session, _bearer(request))
     if not user.is_admin:
@@ -85,14 +85,15 @@ async def require_admin(
 
 
 async def require_mfa(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request, session: AsyncSession = Depends(get_session, scope="function")
 ) -> uuid.UUID:
     """Gate for live/real-money actions: require a 2FA-cleared (aal2) session. 2FA is
     optional for paper trading, so wire this onto live endpoints (sub-project B/C) and
     the live-key save path when they land."""
     token = _bearer(request)
     if not token:
-        raise HTTPException(401, "missing bearer token")
+        # dev bypass (opt-in, never in prod) resolves to the stub user, as current_user does
+        return (await _user_from_token(session, None)).id
     try:
         claims = verify_supabase_token(token)
     except AuthError as e:

@@ -63,6 +63,7 @@ export interface Leg {
   exitReason: string | null; // "manual" | "leg TP/SL" | "combined SL" | ...
   exitGross: number | null; // gross PnL at exit fill (before fees)
   exitFees: number | null; // entry + exit fee for this leg
+  stopPrice?: number | null; // live: reduce-only stop-market resting on Delta (premium)
   // live values the server stamps onto each leg (undefined on a client-only basket
   // leg until it's placed; read via legMark/legIv which fall back to the chain feed).
   mark?: number; // live mark
@@ -126,6 +127,8 @@ export interface Position {
   theta?: number; // net theta (USD/day)
   vega?: number; // net vega (USD per 1 vol-point)
   entrySlippage?: number; // server's entry-slippage (we recompute client-side too)
+  source?: "paper" | "live"; // live = mirrored from the real Delta account
+  exiting?: boolean; // live: SL fired once; reduce-only closes in flight
 }
 
 export interface LedgerEntry {

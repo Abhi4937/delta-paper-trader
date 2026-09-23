@@ -441,6 +441,7 @@ export interface StateTick {
   currency: string;
   openIds: string[];
   positions: (Partial<Position> & { id: string; sample?: import("./types").SeriesSample })[];
+  liveAlerts?: LiveAlert[];
 }
 
 /** Connect the live state WS (~1s tick). Returns a disconnect fn. */
@@ -561,3 +562,47 @@ export const fetchDraft = (): Promise<{ legs: Leg[] } | null> =>
   authedJson<{ legs: Leg[] }>("/api/draft");
 export const saveDraft = (legs: Leg[]): Promise<{ ok: boolean } | null> =>
   authedJson<{ ok: boolean }>("/api/draft", { method: "PUT", body: { legs } });
+
+// --- live (real Delta) — every route is 2FA-gated server-side --------------- //
+export interface LiveAlert {
+  key: string;
+  level: "info" | "warning" | "critical" | "emergency";
+  message: string;
+  t: number;
+}
+export interface LiveCheck {
+  verdict: "green" | "yellow" | "red";
+  sl_spot: number | null;
+  liq_spot: number | null;
+  equity: number;
+  maintenance_margin: number;
+  usage: number | null;
+  max_scale: number;
+  reason: string;
+}
+export interface LiveStatus {
+  tradingEnabled: boolean;
+  alerts: LiveAlert[];
+  checks: Record<string, LiveCheck>;
+  usage: number | null;
+}
+export const fetchLiveStatus = (): Promise<LiveStatus | null> => authedJson<LiveStatus>("/api/live/status");
+
+// POSTs that surface the server's refusal reason (e.g. "not armed: liquidation comes first")
+async function livePost<T>(path: string, body?: unknown): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  try {
+    const r = await fetch(`${API}${path}`, {
+      method: "POST",
+      headers: await authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body ?? {}),
+    });
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true, data: j as T } : { ok: false, error: String(j.detail ?? `HTTP ${r.status}`) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+export const armLiveGroup = (id: string, armed: boolean) =>
+  livePost<{ armed: boolean; check: LiveCheck | null }>(`/api/live/groups/${id}/arm`, { armed });
+export const exitLiveGroup = (id: string) => livePost<{ started: boolean }>(`/api/live/groups/${id}/exit`);
+export const testTelegram = () => livePost<{ sent: boolean }>("/api/live/telegram/test");

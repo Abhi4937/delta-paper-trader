@@ -28,7 +28,7 @@ class AllowlistIn(BaseModel):
 
 @router.get("/users")
 async def list_users(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     _admin: uuid.UUID = Depends(require_admin),
 ) -> list[dict[str, Any]]:
     res = await session.execute(select(User).order_by(User.created_at))
@@ -49,7 +49,7 @@ async def list_users(
 @router.get("/users/{user_id}/logs")
 async def user_logs(
     user_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     _admin: uuid.UUID = Depends(require_admin),
 ) -> list[dict[str, Any]]:
     res = await session.execute(
@@ -68,7 +68,7 @@ async def user_logs(
 
 @router.get("/allowlist")
 async def list_allowlist(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     _admin: uuid.UUID = Depends(require_admin),
 ) -> list[dict[str, Any]]:
     res = await session.execute(select(AllowedEmail).order_by(AllowedEmail.created_at))
@@ -85,7 +85,7 @@ async def list_allowlist(
 @router.post("/allowlist")
 async def add_allowlist(
     body: AllowlistIn,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     admin_id: uuid.UUID = Depends(require_admin),
 ) -> dict[str, str]:
     email = body.email.strip().lower()
@@ -104,7 +104,7 @@ async def add_allowlist(
 @router.delete("/allowlist/{email}")
 async def remove_allowlist(
     email: str,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     _admin: uuid.UUID = Depends(require_admin),
 ) -> dict[str, str]:
     row = await session.get(AllowedEmail, email.strip().lower())

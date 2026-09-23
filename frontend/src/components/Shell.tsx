@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { type Me, fetchMe } from "@/lib/api";
 import { type Currency, money, startStream, useStore } from "@/lib/store";
 import type { Underlying } from "@/lib/types";
+import LiveAlertBar from "./LiveAlertBar";
 import UserMenu from "./UserMenu";
 
 const NAV = [
@@ -160,7 +161,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      <main className="order-2 min-h-0 flex-1 overflow-y-auto lg:order-none lg:col-start-2 lg:row-start-2 lg:flex-none lg:overflow-hidden">{children}</main>
+      <main className="order-2 flex min-h-0 flex-1 flex-col overflow-y-auto lg:order-none lg:col-start-2 lg:row-start-2 lg:flex-none lg:overflow-hidden">
+        <LiveAlertBar />
+        <div className="min-h-0 flex-1">{children}</div>
+      </main>
       </div>
     </div>
   );

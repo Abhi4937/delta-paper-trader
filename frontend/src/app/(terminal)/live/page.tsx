@@ -2,9 +2,11 @@
 
 import { Check, Lock, Radio } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { type KeyStatus, fetchKeys } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
+import PositionCard from "@/components/PositionCard";
+import { type KeyStatus, type LiveStatus, fetchKeys, fetchLiveStatus } from "@/lib/api";
 import { hasTotp } from "@/lib/auth";
+import { useStore } from "@/lib/store";
 
 export default function LivePage() {
   const [mfa, setMfa] = useState<boolean | null>(null);
@@ -30,16 +32,7 @@ export default function LivePage() {
         {loading ? (
           <div className="grid h-full place-items-center text-[12px] text-text-mute">Loading…</div>
         ) : ready ? (
-          <div className="grid h-full place-items-center">
-            <div className="max-w-md space-y-3 rounded-xl border border-line bg-surface-2 p-8 text-center">
-              <Radio size={28} className="mx-auto text-accent" />
-              <div className="text-[15px] font-semibold text-text">Live monitoring — coming soon</div>
-              <p className="text-[12px] text-text-mute">
-                You&apos;re all set up. Live position monitoring, P&amp;L, and SL-driven auto-close are in
-                development and will appear here.
-              </p>
-            </div>
-          </div>
+          <LiveBook />
         ) : (
           <div className="mx-auto max-w-lg space-y-3">
             <p className="text-[12px] text-text-mute">
@@ -90,6 +83,56 @@ function Step({
         </Link>
       )}
       {done && <span className="flex-none text-[10px] font-medium text-pos">done</span>}
+    </div>
+  );
+}
+
+// Real Delta positions, auto-grouped by underlying + expiry. Tracking only until armed.
+function LiveBook() {
+  const positions = useStore((s) => s.positions);
+  const currency = useStore((s) => s.currency);
+  useStore((s) => s.tickN);
+  const [status, setStatus] = useState<LiveStatus | null>(null);
+
+  const refresh = useCallback(() => {
+    fetchLiveStatus().then((st) => st && setStatus(st));
+  }, []);
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 5000); // liquidation checks refresh every ~10s server-side
+    return () => clearInterval(t);
+  }, [refresh]);
+
+  const live = positions
+    .filter((p) => p.source === "live")
+    .sort((a, b) => (a.status === b.status ? b.openedAt - a.openedAt : a.status === "open" ? -1 : 1));
+
+  return (
+    <div className="space-y-3">
+      {status && !status.tradingEnabled && (
+        <div className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-[11px] text-warn">
+          Live orders are switched OFF on the server (LIVE_TRADING_ENABLED=false). Positions are tracked
+          and SLs evaluated, but no stop or close is sent to Delta — hits are only journaled.
+        </div>
+      )}
+      {live.length === 0 ? (
+        <div className="grid h-40 place-items-center text-center text-[12px] text-text-mute">
+          <div>
+            <Radio size={22} className="mx-auto mb-2 text-accent" />
+            No open option positions on your Delta account yet.
+            <div className="mt-1 text-[11px]">Trades you place on Delta appear here within a few seconds.</div>
+          </div>
+        </div>
+      ) : (
+        live.map((p) => (
+          <PositionCard
+            key={p.id}
+            p={p}
+            currency={currency}
+            live={{ check: status?.checks[p.id], tradingEnabled: !!status?.tradingEnabled, onChanged: refresh }}
+          />
+        ))
+      )}
     </div>
   );
 }

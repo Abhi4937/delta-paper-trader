@@ -24,6 +24,7 @@ export async function signOut(): Promise<void> {
 // True once the user has a verified TOTP factor (2FA is set up). Independent of whether
 // the current session has stepped up to aal2.
 export async function hasTotp(): Promise<boolean> {
+  if (process.env.NEXT_PUBLIC_E2E === "1") return true; // same compile-time bypass as AuthGate
   const { data } = await supabase.auth.mfa.listFactors();
   return (data?.totp ?? []).some((f) => f.status === "verified");
 }

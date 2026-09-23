@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     delta_web_base: str = "https://cdn.india.deltaex.org"
     delta_web_jwt: str = ""
 
+    # GLOBAL KILL SWITCH for real-money orders (app/live). Off by default: live positions
+    # are tracked and SLs evaluated, but every order is refused and only journaled.
+    live_trading_enabled: bool = False
+
     # Infra
     database_url: str = "postgresql+asyncpg://paper:paper@localhost:5432/paper_trader"
     redis_url: str = "redis://localhost:6379/0"

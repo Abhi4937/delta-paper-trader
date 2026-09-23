@@ -28,6 +28,8 @@ SECRET_KINDS: tuple[str, ...] = (
     "delta_trade_key",
     "delta_trade_secret",
     "delta_web_jwt",
+    "telegram_bot_token",
+    "telegram_chat_id",
 )
 
 

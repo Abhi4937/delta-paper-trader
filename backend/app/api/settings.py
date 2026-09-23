@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import vault
-from app.auth.deps import current_user
+from app.auth.deps import current_user, require_mfa
 from app.db.session import get_session
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -28,11 +28,13 @@ class SecretsIn(BaseModel):
     delta_trade_key: str | None = None
     delta_trade_secret: str | None = None
     delta_web_jwt: str | None = None
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
 
 
 @router.get("/keys")
 async def get_keys(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, bool]:
     return await vault.secret_status(session, user_id)
@@ -41,8 +43,8 @@ async def get_keys(
 @router.put("/keys")
 async def put_keys(
     body: SecretsIn,
-    session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID = Depends(current_user),
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
 ) -> dict[str, bool]:
     for kind, value in body.model_dump().items():
         if value is not None:  # null => leave unchanged

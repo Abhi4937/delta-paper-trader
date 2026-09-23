@@ -141,6 +141,10 @@ class Position(Base):
     )
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     close_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # paper = simulated; live = mirrored from the user's real Delta account (app/live).
+    source: Mapped[str] = mapped_column(String(5), default="paper", server_default="paper")
+    # live only: an exit is in flight — the trigger has fired once and is never re-evaluated.
+    exiting: Mapped[bool] = mapped_column(Boolean, default=False, server_default=sa_false())
 
     legs: Mapped[list[Leg]] = relationship(back_populates="position", cascade="all, delete-orphan")
     notes: Mapped[list[Note]] = relationship(
@@ -183,6 +187,9 @@ class Leg(Base):
     exit_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
     exit_gross: Mapped[float | None] = mapped_column(Float, nullable=True)
     exit_fees: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # live only: the reduce-only stop-market order resting on Delta for this leg.
+    stop_order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     position: Mapped[Position] = relationship(back_populates="legs")
 
