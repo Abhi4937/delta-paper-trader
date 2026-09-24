@@ -107,9 +107,21 @@ function LiveBook() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  const live = positions
-    .filter((p) => p.source === "live")
-    .sort((a, b) => (a.status === b.status ? b.openedAt - a.openedAt : a.status === "open" ? -1 : 1));
+  const [showClosed, setShowClosed] = useState(true);
+  const live = positions.filter((p) => p.source === "live");
+  const open = live.filter((p) => p.status === "open").sort((a, b) => b.openedAt - a.openedAt);
+  // closed Delta trades in their own section, most recently closed first
+  const closed = live
+    .filter((p) => p.status === "closed")
+    .sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0));
+  const card = (p: (typeof live)[number]) => (
+    <PositionCard
+      key={p.id}
+      p={p}
+      currency={currency}
+      live={{ check: status?.checks[p.id], tradingEnabled: !!status?.tradingEnabled, onChanged: refresh }}
+    />
+  );
 
   return (
     <div className="space-y-3">
@@ -119,23 +131,30 @@ function LiveBook() {
           and SLs evaluated, but no stop or close is sent to Delta — hits are only journaled.
         </div>
       )}
-      {live.length === 0 ? (
-        <div className="grid h-40 place-items-center text-center text-[12px] text-text-mute">
+      <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-mute">Open · {open.length}</h2>
+      {open.length === 0 ? (
+        <div className="grid h-32 place-items-center text-center text-[12px] text-text-mute">
           <div>
             <Radio size={22} className="mx-auto mb-2 text-accent" />
-            No open option positions on your Delta account yet.
+            No open option positions on your Delta account.
             <div className="mt-1 text-[11px]">Trades you place on Delta appear here within a few seconds.</div>
           </div>
         </div>
       ) : (
-        live.map((p) => (
-          <PositionCard
-            key={p.id}
-            p={p}
-            currency={currency}
-            live={{ check: status?.checks[p.id], tradingEnabled: !!status?.tradingEnabled, onChanged: refresh }}
-          />
-        ))
+        open.map(card)
+      )}
+
+      {closed.length > 0 && (
+        <section className="space-y-3 pt-2">
+          <button
+            onClick={() => setShowClosed((v) => !v)}
+            className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-text-mute hover:text-text-dim"
+            title="Each closed trade: press Analyse for its full P&L / IV / greeks charts, entry to close"
+          >
+            {showClosed ? "▾" : "▸"} Closed trades · {closed.length}
+          </button>
+          {showClosed && closed.map(card)}
+        </section>
       )}
       <LiveJournal currency={currency} />
     </div>

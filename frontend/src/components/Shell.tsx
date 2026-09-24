@@ -56,7 +56,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const connLabel = stale ? "stale" : conn === "live" ? "live" : conn;
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+    <div className="app-shell flex flex-col overflow-hidden">
       {stale && (
         <div className="flex items-center gap-2 border-b border-warn/40 bg-warn/10 px-4 py-1.5 text-[11px] font-medium text-warn">
           ⚠ Delta market-data feed is stale{feedAge != null ? ` (${Math.round(feedAge)}s)` : ""} — prices may be frozen. Order placement is blocked until the feed is live again.
@@ -138,7 +138,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <nav className="order-3 flex items-center justify-around gap-1 overflow-x-auto border-t border-line py-1.5 lg:order-none lg:col-start-1 lg:row-start-2 lg:flex-col lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-r lg:py-3">
+      <nav className="order-3 flex flex-none items-center justify-around gap-1 overflow-x-auto border-t border-line pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] lg:order-none lg:col-start-1 lg:row-start-2 lg:flex-col lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-r lg:py-3">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = path === href;
           return (
@@ -161,9 +161,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
 
-      <main className="order-2 flex min-h-0 flex-1 flex-col overflow-y-auto lg:order-none lg:col-start-2 lg:row-start-2 lg:flex-none lg:overflow-hidden">
+      <main className="order-2 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:order-none lg:col-start-2 lg:row-start-2 lg:flex-none lg:overflow-hidden">
         <LiveAlertBar />
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col [&>*]:min-h-0 [&>*]:flex-1">{children}</div>
       </main>
       </div>
     </div>

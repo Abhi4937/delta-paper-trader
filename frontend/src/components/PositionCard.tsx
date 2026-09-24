@@ -103,27 +103,28 @@ export default function PositionCard({
             {p.closedAt && <span className="ml-1 tnum">· {fmtEntry(p.closedAt)}</span>}
           </span>
         ))}
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-[11px]">
-          <span className="text-text-mute">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 text-[11px] max-[480px]:grid max-[480px]:w-full max-[480px]:grid-cols-2 max-[480px]:gap-x-3 max-[480px]:[&>.stat]:flex max-[480px]:[&>.stat]:justify-between max-[480px]:[&>.acts]:col-span-2 max-[480px]:[&>.acts]:justify-end">
+          <span className="stat text-text-mute">
             Margin <span className="tnum text-text-dim">{money(p.margin, currency)}</span>
           </span>
           {!live && (
             <>
-              <span className="text-text-mute" title="cost of crossing the spread on entry (already in MTM)">
+              <span className="stat text-text-mute" title="cost of crossing the spread on entry (already in MTM)">
                 Entry slip <span className="tnum text-warn">{money(entrySlippage(p), currency)}</span>
               </span>
-              <span className="text-text-mute" title={`Delta options fee (${ACTIVE_FEE.name}): min(${(ACTIVE_FEE.notionalRate * 100).toFixed(3)}% notional, ${(ACTIVE_FEE.premiumCap * 100).toFixed(1)}% premium) +18% GST. Charged to realized PnL on close, not to MTM.`}>
+              <span className="stat text-text-mute" title={`Delta options fee (${ACTIVE_FEE.name}): min(${(ACTIVE_FEE.notionalRate * 100).toFixed(3)}% notional, ${(ACTIVE_FEE.premiumCap * 100).toFixed(1)}% premium) +18% GST. Charged to realized PnL on close, not to MTM.`}>
                 Entry fee <span className="tnum text-text-dim">{money(entryFee(p), currency)}</span>
                 <span className="ml-1 text-[9px] text-accent">{ACTIVE_FEE.name}</span>
               </span>
             </>
           )}
-          <span className="text-text-mute">
+          <span className="stat text-text-mute">
             UPNL{" "}
             <span className={clsx("tnum text-[13px] font-semibold", pnl >= 0 ? "text-pos" : "text-neg")}>
               {pnl >= 0 ? "+" : ""}{money(pnl, currency)}
             </span>
           </span>
+          <div className="acts flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
           <button
             onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
             className={clsx("flex items-center gap-1 rounded-[5px] border px-2 py-1 text-[11px]", analyse ? "border-accent text-accent" : "border-line text-text-mute hover:text-text")}
@@ -147,6 +148,7 @@ export default function PositionCard({
               <X size={12} /> Close
             </button>
           )}
+          </div>
         </div>
       </div>
 

@@ -15,6 +15,113 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Position, StrategySeries
 
 Sample = tuple[int, float, float, float, float]  # (t_ms, open, high, low, close) of net MTM
+CANDLES_PER_CALL = 3000  # Delta returns at most 4000 1m candles per request
+
+
+# --- fills: entry / exit detail --------------------------------------------- #
+def parse_ts(v: Any) -> datetime | None:
+    """Delta timestamps: ISO string or epoch microseconds."""
+    if v is None or v == "":
+        return None
+    if isinstance(v, (int, float)) or str(v).isdigit():
+        return datetime.fromtimestamp(int(v) / 1_000_000, UTC)
+    try:
+        return datetime.fromisoformat(str(v).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def fill_run(fills: list[dict[str, Any]], product_id: int, side: str) -> list[dict[str, Any]]:
+    """Newest-first consecutive fills on one product and side: the fills that built (or
+    closed) the position, stopping at the first fill on the other side."""
+    run = []
+    for f in fills:
+        if int(f.get("product_id") or 0) != product_id:
+            continue
+        if f.get("side") != side:
+            break
+        run.append(f)
+    return run
+
+
+def fill_summary(run: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Size-weighted price, total size and commissions, first/last fill time."""
+    if not run:
+        return None
+    size = sum(abs(float(f.get("size") or 0)) for f in run)
+    price = (
+        sum(abs(float(f.get("size") or 0)) * float(f.get("price") or 0) for f in run) / size
+        if size
+        else float(run[0].get("price") or 0)
+    )
+    times = [t for t in (parse_ts(f.get("created_at")) for f in run) if t is not None]
+    return {
+        "price": price,
+        "size": size,
+        "fees": sum(float(f.get("commission") or 0) for f in run),
+        "first_at": min(times) if times else None,
+        "last_at": max(times) if times else None,
+    }
+
+
+def slippage(
+    side: str, fill: float | None, mark: float | None, qty: float, cv: float
+) -> float | None:
+    """USD cost of the fill vs the mark at that moment (positive = paid, negative = better
+    than mark). `side` is the side of THIS fill: buy above mark / sell below mark costs."""
+    if fill is None or mark is None:
+        return None
+    per_unit = (fill - mark) if side == "buy" else (mark - fill)
+    return per_unit * qty * cv
+
+
+# --- 1-minute mark candles per leg ------------------------------------------ #
+def candle_rows(
+    side: str, entry: float, qty: float, cv: float, candles: list[list[float]]
+) -> list[list[float]]:
+    """[t, o, h, l, c] mark candles -> + leg P&L o/h/l/c. For a sold leg the premium's
+    high is the P&L's low."""
+    sign = 1 if side == "buy" else -1
+
+    def pnl(px: float) -> float:
+        return sign * (px - entry) * qty * cv
+
+    rows = []
+    for t, o, h, lo, c in candles:
+        hi_p, lo_p = (pnl(h), pnl(lo)) if sign > 0 else (pnl(lo), pnl(h))
+        rows.append([t, o, h, lo, c, pnl(o), hi_p, lo_p, pnl(c)])
+    return rows
+
+
+async def fetch_candles(
+    http: Any, base: str, symbol: str, start: datetime, end: datetime
+) -> list[list[float]]:
+    """1m MARK-price candles from Delta's public history, oldest first: [t_ms, o, h, l, c].
+    Paged backwards (Delta caps each call). Empty on any failure — never blocks a close."""
+    out: dict[int, list[float]] = {}
+    lo_s, hi_s = int(start.timestamp()) - 60, int(end.timestamp()) + 60
+    cur = hi_s
+    try:
+        while cur > lo_s:
+            frm = max(lo_s, cur - CANDLES_PER_CALL * 60)
+            r = await http.get(
+                f"{base}/v2/history/candles",
+                params={"resolution": "1m", "symbol": f"MARK:{symbol}", "start": frm, "end": cur},
+                timeout=20.0,
+            )
+            for k in r.json().get("result") or []:
+                t = int(k["time"])
+                out[t] = [
+                    t * 1000,
+                    float(k["open"]),
+                    float(k["high"]),
+                    float(k["low"]),
+                    float(k["close"]),
+                ]
+            cur = frm
+    except Exception:  # noqa: BLE001
+        return [out[t] for t in sorted(out)]
+    return [out[t] for t in sorted(out)]
 
 
 def _ms(dt: datetime | None) -> int | None:
@@ -65,12 +172,26 @@ def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, 
     legs = []
     realized = fees = 0.0
     for lg in pos.legs:
+        # brokerage on both sides (Delta charges entry AND exit commission)
+        leg_fees = (lg.entry_fees or 0.0) + (lg.exit_fees or 0.0 if lg.status == "closed" else 0.0)
+        fees += leg_fees
         if lg.status == "closed":
-            gross, fee = lg.exit_gross or 0.0, lg.exit_fees or 0.0
-            realized += gross - fee
-            fees += fee
+            realized += (lg.exit_gross or 0.0) - leg_fees
+        exit_side = "buy" if lg.side == "sell" else "sell"
         legs.append(
             {
+                "entryAt": _ms(lg.entry_at),
+                "markAtEntry": lg.mark_at_entry,
+                "entrySlippage": slippage(
+                    lg.side, lg.entry, lg.mark_at_entry, lg.qty, lg.contract_value
+                ),
+                "entryFees": lg.entry_fees,
+                "entryMargin": lg.entry_margin,
+                "markAtExit": lg.mark_at_exit,
+                "exitSlippage": slippage(
+                    exit_side, lg.exit_price, lg.mark_at_exit, lg.qty, lg.contract_value
+                ),
+                "exitMargin": lg.last_margin,
                 "symbol": lg.symbol,
                 "side": lg.side,
                 "qty": lg.qty,
@@ -81,10 +202,11 @@ def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, 
                 "exit": lg.exit_price,
                 "exitAt": _ms(lg.exit_at),
                 "exitReason": lg.exit_reason,
-                "pnl": (lg.exit_gross or 0.0) - (lg.exit_fees or 0.0)
+                "pnl": (lg.exit_gross or 0.0) - (lg.entry_fees or 0.0) - (lg.exit_fees or 0.0)
                 if lg.status == "closed"
                 else None,
-                "fees": lg.exit_fees,
+                "grossPnl": lg.exit_gross if lg.status == "closed" else None,
+                "fees": lg.exit_fees,  # exit brokerage (entry brokerage is entryFees)
                 "slPrice": lg.sl_price,
                 "tpPrice": lg.tp_price,
                 "deltaStopPrice": lg.stop_price,

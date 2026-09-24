@@ -34,6 +34,25 @@ html {
   color-scheme: dark;
 }
 
+/* iOS Safari: while the terminal shell is on screen the DOCUMENT must never scroll —
+   otherwise a swipe that reaches the end of the list drags the whole shell (and its bottom
+   tab bar) up the screen, leaving blank space under it. Only the page's own list scrolls.
+   Scoped with :has so login / 2FA screens stay scrollable on small phones. */
+html:has(.app-shell),
+body:has(.app-shell) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* the visible viewport, not 100vh (taller than the visible area on iOS Safari) */
+.app-shell {
+  height: 100vh;
+  height: -webkit-fill-available;
+  height: 100svh;
+  height: 100dvh;
+}
+
 body {
   background: var(--color-base);
   color: var(--color-text);

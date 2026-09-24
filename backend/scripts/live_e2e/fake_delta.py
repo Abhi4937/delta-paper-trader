@@ -7,6 +7,7 @@ Asserts every order is reduce_only. Run from backend/: uv run python scripts/liv
 """
 
 import itertools
+from datetime import UTC, datetime
 
 import httpx
 import uvicorn
@@ -52,7 +53,21 @@ def seed() -> None:
             "size": -10,
             "entry_price": f"{mark:.1f}",
             "mark_price": f"{mark:.1f}",
+            "margin": "3.5",
         }
+        # the opening sells, as Delta's /v2/fills would list them
+        S["fills"].insert(
+            0,
+            {
+                "product_id": t["product_id"],
+                "side": "sell",
+                "size": 10,
+                "price": f"{mark:.1f}",
+                "commission": "0.012",
+                "order_id": next(ids),
+                "created_at": _now(),
+            },
+        )
     print(
         "SEEDED",
         [(p["product_symbol"], p["entry_price"]) for p in S["positions"].values()],
@@ -84,12 +99,25 @@ def fills():
     return ok(S["fills"])
 
 
+def _now() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
 def _fill(pid: int, side: str, size: int, price: float, order_id: int) -> None:
     p = S["positions"][pid]
     size = min(size, abs(p["size"]))  # reduce-only: never flips
     p["size"] += size if side == "buy" else -size
     S["fills"].insert(
-        0, {"product_id": pid, "price": str(price), "order_id": order_id, "commission": "0.01"}
+        0,
+        {
+            "product_id": pid,
+            "side": side,
+            "size": size,
+            "price": str(price),
+            "order_id": order_id,
+            "commission": "0.01",
+            "created_at": _now(),
+        },
     )
 
 
