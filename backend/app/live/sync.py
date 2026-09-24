@@ -36,9 +36,9 @@ from app.engines.money import leg_pnl
 from app.live import journal, risk
 from app.live.alerts import AlertBook, send_telegram
 from app.live.client import DeltaError, LiveClient, OrderRefused
-from app.live.executor import ExitTarget, exit_group
+from app.live.executor import ExitTarget, exit_group, real_sizes
 from app.services.chain import Contract, normalize_contract
-from app.sim.exit_engine import CombinedStop, ExitLeg, combined_floor, evaluate_exit
+from app.sim.exit_engine import CombinedStop, ExitDecision, ExitLeg, combined_floor, evaluate_exit
 from app.sim.marketview import MarketView
 
 log = logging.getLogger("live_sync")
@@ -48,6 +48,7 @@ GUARD_EVERY = 10.0
 USERS_EVERY = 30.0
 DELTA_DOWN_AFTER = 10.0
 STALE_GRACE_S = 30.0
+LEG_STALE_S = 10.0  # one option's mark older than this counts as stale even if the feed is up
 
 
 # --------------------------------------------------------------------------- #
@@ -167,20 +168,41 @@ def basket_floor(pos: Position) -> float | None:
     )
 
 
-def desired_stop(pos: Position, lg: Leg, tick: float) -> float | None:
-    """Native Delta stop premium for one leg of an armed group (None = no stop)."""
-    stop = risk.effective_stop_pnl(lg.stop_pnl, basket_floor(pos))
-    return risk.native_stop_price(lg.side, lg.entry, lg.qty, lg.contract_value, stop, tick)
+def basket_target(pos: Position) -> float | None:
+    """Basket take-profit as a USD profit (amount, or % of margin)."""
+    if pos.target_pnl is not None:
+        return abs(pos.target_pnl)
+    if pos.target_pct_of_margin is not None:
+        return pos.margin * abs(pos.target_pct_of_margin) / 100
+    return None
+
+
+def desired_bracket(pos: Position, lg: Leg, tick: float) -> tuple[float | None, float | None]:
+    """(SL, target) trigger prices for the leg's Delta bracket (None = that side unset)."""
+    sl = risk.bracket_sl_price(
+        lg.side, lg.entry, lg.qty, lg.contract_value, lg.sl_price, basket_floor(pos), tick
+    )
+    return sl, lg.tp_price
 
 
 def evaluate_live(pos: Position, mark_of: Callable[[Leg], float], stale: bool, grace: bool) -> Any:
-    """Shared paper engine with the live rule: every armed leg SL closes the WHOLE group."""
+    """Shared paper engine with the live rules: leg SL/target are premium trigger prices on
+    the mark, and ANY leg SL or target — or the basket SL/target — closes the WHOLE group.
+
+    A trigger price maps exactly onto a P&L threshold (P&L is linear in the mark), so the
+    engine's P&L comparison fires precisely when the mark crosses the price."""
+
+    def at(lg: Leg, price: float | None) -> float | None:
+        return (
+            None if price is None else leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, price)
+        )
+
     legs = [
         ExitLeg(
             id=str(lg.id),
             pnl=leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, mark_of(lg)),
-            target_pnl=None,  # live = protection only; no auto take-profit
-            stop_pnl=lg.stop_pnl,
+            target_pnl=at(lg, lg.tp_price),
+            stop_pnl=at(lg, lg.sl_price),
             auto_exit=True,
             close_scope="strategy",
             status=lg.status,
@@ -188,7 +210,7 @@ def evaluate_live(pos: Position, mark_of: Callable[[Leg], float], stale: bool, g
         for lg in pos.legs
     ]
     net = sum(lp.pnl for lp in legs if lp.status == "open")
-    return evaluate_exit(
+    d = evaluate_exit(
         legs,
         net_pnl=net,
         margin=pos.margin,
@@ -198,6 +220,19 @@ def evaluate_live(pos: Position, mark_of: Callable[[Leg], float], stale: bool, g
         stale_hard_stop=True,
         stale_grace_elapsed=grace,
     )
+    target = basket_target(pos)
+    if d.kind == "none" and not stale and target is not None and net >= target:
+        return ExitDecision("close-strategy", reason="basket target")
+    if d.reason.startswith("leg TP/SL"):  # say which: an SL (loss) or a target (profit)
+        hit_sl = any(
+            risk.sl_crossed(lg.side, mark_of(lg), lg.sl_price)
+            for lg in pos.legs
+            if lg.status == "open"
+        )
+        return ExitDecision(
+            d.kind, reason=d.reason.replace("leg TP/SL", "leg SL" if hit_sl else "leg target")
+        )
+    return d
 
 
 def risk_legs(
@@ -213,7 +248,7 @@ def risk_legs(
             cv=lg.contract_value,
             entry=lg.entry,
             mark=mark_of(lg),
-            stop_pnl=lg.stop_pnl if mine else None,
+            sl_price=lg.sl_price if mine else None,
             in_group=mine,
         )
 
@@ -414,22 +449,29 @@ class LiveSync:
         with contextlib.suppress(Exception):
             for fill in await client.fills([lg.product_id for _, lg in gone]):
                 fills.setdefault(int(fill.get("product_id") or 0), fill)  # newest first
-        stop_fired: set[uuid.UUID] = set()
+        stop_fired: dict[uuid.UUID, str] = {}  # group -> which Delta bracket side fired
         for pos, lg in gone:
             f = fills.get(lg.product_id)
             px = float(f["price"]) if f and f.get("price") else _mark(mv, lg)
-            by_stop = bool(
-                f and lg.stop_order_id and int(f.get("order_id") or 0) == lg.stop_order_id
-            )
+            oid = int(f.get("order_id") or 0) if f else 0
+            by_sl = bool(oid and oid == lg.stop_order_id)
+            by_tp = bool(oid and oid == lg.tp_order_id)
+            by_stop = by_sl or by_tp  # our Delta bracket closed it (SL or target)
             lg.status = "closed"
             lg.exit_price = px
             lg.exit_at = now
             lg.exit_reason = (
-                "native stop" if by_stop else ("SL exit" if pos.exiting else "closed on Delta")
+                "Delta bracket SL"
+                if by_sl
+                else "Delta bracket target"
+                if by_tp
+                else "exit all"
+                if pos.exiting
+                else "closed on Delta"
             )
             lg.exit_gross = leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, px)
             lg.exit_fees = float(f.get("commission") or 0) if f else 0.0
-            lg.stop_order_id = None
+            lg.stop_order_id = lg.tp_order_id = None
             await self._journal(
                 s,
                 uid,
@@ -438,12 +480,12 @@ class LiveSync:
                 "warn" if by_stop else "info",
             )
             if by_stop and pos.auto_exit:
-                stop_fired.add(pos.id)
+                stop_fired[pos.id] = lg.exit_reason
         for pos in {p.id: p for p, _ in gone}.values():
             if not any(lg.status == "open" for lg in pos.legs):
                 pos.status, pos.closed_at = "closed", now
                 pos.close_reason = pos.close_reason or (
-                    "SL exit" if pos.exiting else "closed on Delta"
+                    "exit all" if pos.exiting else "closed on Delta"
                 )
                 ring = getattr(self.app.state, "sim_series", {}).get(str(pos.id))
                 pos.summary = journal.summarize(pos, await journal.load_samples(s, pos, ring), now)
@@ -460,7 +502,7 @@ class LiveSync:
                 self.liq.get(uid, {}).pop(str(pos.id), None)
                 self.alerts.clear(uid, f"exit:{pos.id}")
             elif pos.id in stop_fired:
-                await self._start_exit(s, uid, client, mv, pos, "native stop fired on a leg")
+                await self._start_exit(s, uid, client, mv, pos, stop_fired[pos.id])
 
     # ---- SL trigger ------------------------------------------------------ #
     async def _maybe_trigger(
@@ -470,7 +512,13 @@ class LiveSync:
             return
         age = mv.m.feed_status().get("age_seconds")
         grace = isinstance(age, (int, float)) and age > STALE_GRACE_S
-        d = evaluate_live(p, lambda lg: _mark(mv, lg), stale=not mv.fresh(), grace=grace)
+        ages = [mv.mark_age(lg.symbol) for lg in p.legs if lg.status == "open"]
+        # stale = whole feed down OR any leg's own mark frozen (never trust one dead symbol)
+        leg_stale = any(a is None or a > LEG_STALE_S for a in ages)
+        grace = grace or any(a is not None and a > STALE_GRACE_S for a in ages)
+        d = evaluate_live(
+            p, lambda lg: _mark(mv, lg), stale=not mv.fresh() or leg_stale, grace=grace
+        )
         p.auto_exit_suspended = d.kind == "suspended"
         if d.kind in ("close-strategy", "close-legs"):
             await self._start_exit(s, uid, client, mv, p, d.reason)
@@ -489,12 +537,19 @@ class LiveSync:
         if p.id in self._exits and not self._exits[p.id].done():
             return False
         p.exiting = True
-        p.close_reason = "manual exit" if manual else f"SL: {reason}"
+        # a target (leg or basket) is a profit exit, not an SL — label it so in the journal
+        kind = "Target" if "target" in reason.lower() else "SL"
+        # column is VARCHAR(40): an over-long label must never block the exit it describes
+        p.close_reason = ("manual exit" if manual else f"{kind}: {reason}")[:40]
         await s.commit()  # persist the one-shot flag before any order goes out
         emergency = risk.margin_level(self.usage.get(uid)) == "emergency"
         targets = [
             ExitTarget(
-                lg.product_id, lg.symbol, _tick(self.app.state.market, lg.symbol), lg.stop_order_id
+                lg.product_id,
+                lg.symbol,
+                _tick(self.app.state.market, lg.symbol),
+                lg.stop_order_id,
+                lg.tp_order_id,
             )
             for lg in p.legs
             if lg.status == "open"
@@ -602,7 +657,7 @@ class LiveSync:
         mv: MarketView,
         groups: list[Position],
     ) -> None:
-        await self.sync_stops(s, uid, client, groups)
+        await self.sync_brackets(s, uid, client, groups)
         try:
             balance = usd_balance(await client.wallet())
         except Exception:  # noqa: BLE001
@@ -660,62 +715,85 @@ class LiveSync:
         else:
             self.alerts.clear(uid, "usage")
 
-    async def sync_stops(
+    async def sync_brackets(
         self, s: AsyncSession, uid: uuid.UUID, client: LiveClient, groups: list[Position]
     ) -> None:
-        """One resting reduce-only stop per leg of an armed group; none for disarmed ones."""
+        """One Delta position bracket (SL + target) per leg of an armed group; none for
+        disarmed ones. Only orders this app placed (ids stored on the leg) are ever replaced
+        or cancelled — a bracket you set by hand on Delta is left alone (and Delta will then
+        refuse ours, which alerts)."""
         try:
-            resting = {int(o["id"]): o for o in await client.open_stop_orders()}
+            resting = await client.open_stop_orders()
+            sizes = await real_sizes(client)
         except Exception:  # noqa: BLE001
             return
         market = self.app.state.market
         for g in groups:
             if g.exiting:
-                continue  # stops stay resting until each leg is confirmed flat
+                continue  # brackets stay resting until each leg is confirmed flat
             for lg in g.legs:
                 if lg.status != "open":
                     continue
-                want = desired_stop(g, lg, _tick(market, lg.symbol)) if g.auto_exit else None
-                have = resting.get(lg.stop_order_id) if lg.stop_order_id else None
-                if lg.stop_order_id and have is None and g.auto_exit:
+                if sizes.get(lg.product_id, 0) == 0:
+                    # flat on Delta (e.g. its bracket just fired): the reconcile records the
+                    # fill and cascades; re-placing here would orphan the fill's order id
+                    continue
+                tick = _tick(market, lg.symbol)
+                want_sl, want_tp = desired_bracket(g, lg, tick) if g.auto_exit else (None, None)
+                mine_ids = {i for i in (lg.stop_order_id, lg.tp_order_id) if i}
+                mine = [o for o in resting if int(o.get("id") or 0) in mine_ids]
+                have_sl = next(
+                    (o for o in mine if o.get("stop_order_type") == "stop_loss_order"), None
+                )
+                have_tp = next(
+                    (o for o in mine if o.get("stop_order_type") == "take_profit_order"), None
+                )
+                if mine_ids and not mine and g.auto_exit:
                     await self._alert(
                         s,
                         uid,
                         f"stop:{lg.id}",
                         "critical",
-                        f"{g.name}: native stop for {lg.symbol} disappeared on Delta — "
+                        f"{g.name}: Delta bracket for {lg.symbol} disappeared on Delta — "
                         "re-placing. (Delta cancels all orders in liquidation.)",
                     )
-                ok = (
-                    have is not None
-                    and want is not None
-                    and int(have.get("size") or 0) == int(lg.qty)
-                    and abs(float(have.get("stop_price") or 0) - want) < 1e-9
-                )
-                if ok or (want is None and have is None):
-                    if ok:
+                if _same(have_sl, want_sl) and _same(have_tp, want_tp):
+                    if mine:
                         self.alerts.clear(uid, f"stop:{lg.id}")
-                    if have is None:
-                        lg.stop_order_id = lg.stop_price = None
                     continue
-                if have is not None:
+                for o in mine:
                     with contextlib.suppress(DeltaError):
-                        await client.cancel(lg.product_id, int(have["id"]))
-                lg.stop_order_id = lg.stop_price = None
-                if want is None:
+                        await client.cancel(lg.product_id, int(o["id"]))
+                lg.stop_order_id = lg.tp_order_id = lg.stop_price = None
+                if want_sl is None and want_tp is None:
                     continue
+                foreign = {
+                    int(o.get("id") or 0) for o in resting if o.get("product_id") == lg.product_id
+                }
                 try:
-                    o = await client.place_stop(
-                        lg.product_id, risk.close_side(lg.side), int(lg.qty), want
+                    kind = await client.place_bracket(
+                        lg.product_id, lg.symbol, risk.close_side(lg.side), want_sl, want_tp, tick
                     )
-                    lg.stop_order_id, lg.stop_price = int(o["id"]), want
+                    new = [
+                        o
+                        for o in await client.open_stop_orders()
+                        if o.get("product_id") == lg.product_id
+                        and int(o.get("id") or 0) not in foreign
+                    ]
+                    for o in new:
+                        if o.get("stop_order_type") == "stop_loss_order":
+                            lg.stop_order_id = int(o["id"])
+                        elif o.get("stop_order_type") == "take_profit_order":
+                            lg.tp_order_id = int(o["id"])
+                    lg.stop_price = want_sl
                     self.alerts.clear(uid, f"stop:{lg.id}")
                     await self._journal(
                         s,
                         uid,
                         "LIVE_STOP",
-                        f"{g.name}: {lg.symbol} stop @ {want} (reduce-only, mark)",
-                        "info",
+                        f"{g.name}: {lg.symbol} Delta bracket SL {want_sl} / target {want_tp} "
+                        f"({kind} orders, mark trigger)",
+                        "info" if kind == "market" else "warn",
                     )
                 except OrderRefused as e:
                     await self._alert(
@@ -723,7 +801,7 @@ class LiveSync:
                         uid,
                         "kill-switch",
                         "warning",
-                        f"Native stops NOT placed: {e}. Nothing protects armed legs "
+                        f"Delta brackets NOT placed: {e}. Nothing protects armed legs "
                         "on Delta while the server is down.",
                     )
                     return
@@ -733,8 +811,8 @@ class LiveSync:
                         uid,
                         f"stop:{lg.id}",
                         "critical",
-                        f"{g.name}: Delta rejected the stop for {lg.symbol} "
-                        f"({e.code or e.status}). Leg has NO exchange-side stop.",
+                        f"{g.name}: Delta rejected the bracket for {lg.symbol} ({e.explain()}). "
+                        "Leg has NO exchange-side SL/target.",
                     )
 
     # ---- journal / alerts ------------------------------------------------- #
@@ -765,6 +843,13 @@ class LiveSync:
             )
             if not sent:
                 log.warning("telegram alert not delivered: %s", why)
+
+
+def _same(order: dict[str, Any] | None, want: float | None) -> bool:
+    """Resting order matches the wanted trigger (both absent counts as a match)."""
+    if order is None or want is None:
+        return order is None and want is None
+    return abs(float(order.get("stop_price") or 0) - want) < 1e-9
 
 
 def _mark(mv: MarketView, lg: Leg) -> float:

@@ -1,6 +1,6 @@
 """Pure risk math for live Delta positions — no I/O, fully unit-tested.
 
-- where each leg's native Delta stop sits (derived from its USD stop / the basket floor)
+- leg SL/target trigger checks, and where each leg's Delta bracket SL sits
 - the widening IOC price band used to close without "skipping" the exit
 - margin-usage alert levels
 - SL-vs-liquidation: does the stop fire before Delta's liquidation (equity <= MM)?
@@ -27,14 +27,6 @@ USAGE_LEVELS: tuple[tuple[float, str], ...] = (
 )
 
 
-def effective_stop_pnl(leg_stop: float | None, basket_floor: float | None) -> float | None:
-    """USD loss (negative) at which one leg must be cut. A leg's own stop, else the basket
-    floor — so with our server down no single leg can lose more than the basket limit.
-    With both, the tighter (closer to zero) wins."""
-    stops = [-abs(s) for s in (leg_stop, basket_floor) if s is not None]
-    return max(stops) if stops else None
-
-
 def native_stop_price(
     side: Side, entry: float, qty: float, cv: float, stop_pnl: float | None, tick: float
 ) -> float | None:
@@ -50,6 +42,65 @@ def native_stop_price(
     return _round_tick(price, tick, up=False) if price > tick else None
 
 
+# --- leg brackets: SL / target as premium trigger prices on the mark (like Delta) ------- #
+def sl_crossed(side: Side, mark: float, sl: float | None) -> bool:
+    """A bought leg's SL fires when the premium FALLS to it; a sold leg's when it RISES."""
+    if sl is None:
+        return False
+    return mark <= sl if side == "buy" else mark >= sl
+
+
+def tp_crossed(side: Side, mark: float, tp: float | None) -> bool:
+    """A bought leg's target fires when the premium RISES to it; a sold leg's when it FALLS."""
+    if tp is None:
+        return False
+    return mark >= tp if side == "buy" else mark <= tp
+
+
+def trigger_buffer(mark: float, tick: float) -> float:
+    """Minimum distance of a new trigger from the current mark, so bid/ask flicker can't fire
+    it the moment it is saved: 1% of the mark, at least 2 ticks."""
+    return max(0.01 * mark, 2 * tick)
+
+
+def check_trigger(side: Side, kind: str, price: float, mark: float, tick: float) -> str | None:
+    """Reason a new SL/target is refused (already crossed or too close to the mark), or None."""
+    if price <= 0:
+        return f"{kind} must be a positive premium"
+    buf = trigger_buffer(mark, tick)
+    below = (kind == "SL") == (side == "buy")  # buy SL and sell target sit BELOW the mark
+    if below and price > mark - buf:
+        return (
+            f"{kind} {price:g} must be below the current mark {mark:g} by at least {buf:.1f} "
+            f"(else it fires immediately)"
+        )
+    if not below and price < mark + buf:
+        return (
+            f"{kind} {price:g} must be above the current mark {mark:g} by at least {buf:.1f} "
+            f"(else it fires immediately)"
+        )
+    return None
+
+
+def bracket_sl_price(
+    side: Side,
+    entry: float,
+    qty: float,
+    cv: float,
+    sl_price: float | None,
+    basket_floor: float | None,
+    tick: float,
+) -> float | None:
+    """SL price for the leg's Delta bracket: the tighter of its own SL and the premium at
+    which this leg ALONE would lose the basket SL — so with the server down no leg can lose
+    more than the basket limit. Tighter = higher for a bought leg, lower for a sold one."""
+    basket = native_stop_price(side, entry, qty, cv, basket_floor, tick)
+    cands = [p for p in (sl_price, basket) if p is not None]
+    if not cands:
+        return None
+    return max(cands) if side == "buy" else min(cands)
+
+
 def close_side(side: Side) -> Side:
     return "buy" if side == "sell" else "sell"
 
@@ -60,6 +111,12 @@ def ioc_limit_price(side_to_send: Side, mark: float, band: float, tick: float) -
     if side_to_send == "buy":  # a 0 mark would price the buy-back at 0 and never fill
         return _round_tick(max(mark, tick) * (1 + band), tick, up=True)
     return max(_round_tick(mark * (1 - band), tick, up=False), tick)
+
+
+def balance_after_fill(balance: float, new_legs: list[RiskLeg]) -> float:
+    """Wallet balance once not-yet-placed legs fill at their entry price: selling credits
+    the premium, buying debits it. Without this a what-if short looks poorer than it is."""
+    return balance - sum(lg.sign * lg.qty * lg.cv * lg.entry for lg in new_legs)
 
 
 def margin_level(usage: float | None) -> str | None:
@@ -92,7 +149,7 @@ class RiskLeg:
     cv: float
     entry: float
     mark: float
-    stop_pnl: float | None = None  # this leg's own USD stop (negative)
+    sl_price: float | None = None  # this leg's SL as a premium trigger price (mark)
     in_group: bool = True  # False = another live position on the same account
 
     @property
@@ -208,8 +265,7 @@ def _scan(
                     for i in group
                 }
                 leg_hit = any(
-                    (stop := legs[i].stop_pnl) is not None and leg_pnls[i] <= -abs(stop)
-                    for i in group
+                    sl_crossed(legs[i].side, t_prices[i], legs[i].sl_price) for i in group
                 )
                 basket_hit = floor is not None and sum(leg_pnls.values()) <= floor
                 if leg_hit or basket_hit:

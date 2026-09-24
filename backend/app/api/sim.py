@@ -18,7 +18,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth import vault
 from app.auth.deps import current_user, resolve_ws_user
-from app.db.models import Account, Position, User
+from app.db.models import Account, Leg, Position, User
 from app.db.session import SessionLocal, get_session
 from app.sim import service
 from app.sim.marketview import MarketView
@@ -67,9 +67,7 @@ async def me(
 
 
 async def _account(session: AsyncSession, user_id: uuid.UUID) -> Account:
-    return (
-        await session.execute(select(Account).where(Account.user_id == user_id))
-    ).scalar_one()
+    return (await session.execute(select(Account).where(Account.user_id == user_id))).scalar_one()
 
 
 @router.get("/draft")
@@ -183,9 +181,9 @@ async def position_risk(
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
     pos = await session.get(Position, pos_id)
-    if pos is not None and pos.source == "live" and patch.auto_exit is not None:
-        # arming a real-money group must pass the SL-vs-liquidation check (2FA-gated)
-        raise HTTPException(409, "arm live groups via POST /api/live/groups/{id}/arm")
+    if pos is not None and pos.source == "live":
+        # real-money SL/target edits are validated + 2FA-gated on the live routes
+        raise HTTPException(409, "edit live groups via /api/live (basket / arm)")
     ok = await service.set_position_risk(session, user_id, pos_id, patch)
     if not ok:
         raise HTTPException(404, "position not found")
@@ -200,6 +198,10 @@ async def leg_risk(
     session: AsyncSession = Depends(get_session, scope="function"),
     user_id: uuid.UUID = Depends(current_user),
 ) -> dict[str, Any]:
+    leg = await session.get(Leg, leg_id)
+    pos = await session.get(Position, leg.position_id) if leg is not None else None
+    if pos is not None and pos.source == "live":
+        raise HTTPException(409, "edit live legs via PATCH /api/live/legs/{id}/bracket")
     ok = await service.set_leg_risk(session, user_id, leg_id, patch)
     if not ok:
         raise HTTPException(404, "leg not found")

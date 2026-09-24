@@ -102,10 +102,10 @@ export function exportLiveJournalXlsx(j: LiveJournal): void {
   ]);
   sheet("Legs", [
     ["Trade", "Symbol", "Side", "Qty", "Entry", "Exit", "Exit at", "Exit reason", "P&L $", "P&L ₹", "Fees $",
-      "Leg SL $", "Delta stop price", "Status"],
+      "SL trigger (premium)", "Target trigger (premium)", "Delta bracket SL", "Status"],
     ...j.trades.flatMap((r) => r.legs.map((l) => [
       r.name, l.symbol, l.side, l.qty, l.entry, n(l.exit), t(l.exitAt), l.exitReason ?? "", n(l.pnl), inr(l.pnl),
-      n(l.fees), n(l.stopLoss), n(l.deltaStopPrice), l.status,
+      n(l.fees), n(l.slPrice), n(l.tpPrice), n(l.deltaStopPrice), l.status,
     ])),
   ]);
   sheet("Live log", [["Time", "Action", "Detail"], ...j.logs.map((l) => [t(l.t), l.action, l.detail])]);

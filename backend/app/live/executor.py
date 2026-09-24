@@ -27,6 +27,7 @@ class ExitTarget:
     symbol: str
     tick: float
     stop_order_id: int | None
+    tp_order_id: int | None = None
 
 
 @dataclass
@@ -89,9 +90,10 @@ async def exit_group(
 
     if res.flat:
         for t in targets:
-            if t.stop_order_id:
-                try:
-                    await client.cancel(t.product_id, t.stop_order_id)
-                except DeltaError:
-                    pass  # already gone with the position — nothing to protect
+            for oid in (t.stop_order_id, t.tp_order_id):
+                if oid:
+                    try:
+                        await client.cancel(t.product_id, oid)
+                    except DeltaError:
+                        pass  # already gone with the position — nothing to protect
     return res

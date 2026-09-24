@@ -6,6 +6,7 @@ underlying from the in-memory WS cache. No order path — read-only.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import date
 
@@ -47,6 +48,11 @@ class MarketView:
             vega=float(g.get("vega") or 0),
             greeks_present=g.get("delta") is not None,
         )
+
+    def mark_age(self, symbol: str) -> float | None:
+        """Seconds since this symbol's mark last updated (None = never seen on the WS)."""
+        at = (self.m.tickers.get(symbol) or {}).get("_mark_at")
+        return None if at is None else time.monotonic() - float(at)
 
     def spot(self, underlying: str) -> float:
         for t in self.m.tickers.values():

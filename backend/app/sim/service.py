@@ -672,7 +672,10 @@ def leg_dict(lg: Leg, mv: MarketView) -> dict[str, Any]:
         "exitReason": lg.exit_reason,
         "exitGross": lg.exit_gross,
         "exitFees": lg.exit_fees,
-        "stopPrice": lg.stop_price,  # live: native stop resting on Delta
+        "stopPrice": lg.stop_price,  # live: SL of the Delta bracket resting on Delta
+        "slPrice": lg.sl_price,  # live: leg SL / target as premium trigger prices (mark)
+        "tpPrice": lg.tp_price,
+        "tpOrderId": lg.tp_order_id,
         # live book (best-bid/ask/spread) + mark/iv/pnl
         "mark": _mark(mv, lg),
         "iv": q.iv if q else 0.0,
@@ -851,6 +854,7 @@ def position_dict(pos: Position, mv: MarketView, series: list[dict[str, Any]]) -
         "targetPnl": pos.target_pnl,
         "stopLossAmount": pos.stop_loss_amount,
         "stopLossPctOfMargin": pos.stop_loss_pct_of_margin,
+        "targetPctOfMargin": pos.target_pct_of_margin,
         "autoExit": pos.auto_exit,
         "autoExitSuspended": pos.auto_exit_suspended,
         "staleHardStop": pos.stale_hard_stop,

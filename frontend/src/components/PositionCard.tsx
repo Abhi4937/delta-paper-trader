@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { ChevronDown, ChevronRight, Download, LineChart, Power, RefreshCw, ShieldAlert, X } from "lucide-react";
 import PayoffPanel from "@/components/PayoffPanel";
 import PositionCharts from "@/components/PositionCharts";
-import { type LiveCheck, armLiveGroup, exitLiveGroup } from "@/lib/api";
+import { type LiveCheck, armLiveGroup, exitLiveGroup, setLiveBasket, setLiveLegBracket } from "@/lib/api";
 import { exportPositionXlsx } from "@/lib/exportXlsx";
 import { legPnl } from "@/lib/engine";
 import { combinedFloor } from "@/lib/exit";
@@ -81,7 +81,7 @@ export default function PositionCard({
               "rounded-[3px] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
               p.exiting ? "bg-neg/20 text-neg" : p.autoExit ? "bg-pos/15 text-pos" : "bg-surface-3 text-text-mute",
             )}
-            title={p.autoExit ? "SL armed: server watches leg + basket SL; a reduce-only stop rests on Delta per leg" : "Tracking only — no SL will act"}
+            title={p.autoExit ? "Armed: the server watches leg + basket SL/target every second, and a Delta position bracket (SL + target on mark) rests on each leg" : "Tracking only — no SL/target will act"}
           >
             {p.exiting ? "exiting all legs" : p.autoExit ? "armed" : "tracking only"}
           </span>
@@ -219,7 +219,7 @@ export default function PositionCard({
 
       {/* Risk & exit (SL/TP) — above the analytics charts */}
       {!closed && live && <LiqPanel check={live.check} currency={currency} />}
-      {!closed && <RiskPanel p={p} currency={currency} live={!!live} />}
+      {!closed && (live ? <LiveRiskPanel p={p} currency={currency} /> : <RiskPanel p={p} currency={currency} />)}
 
       {/* Position analytics: stacked MTM / IV / Δ / Θ / Vega. Open positions show them
           on expand; CLOSED positions show them behind the "Analyse" button (entry→close).
@@ -245,7 +245,7 @@ export default function PositionCard({
 
 // Risk & exit controls for a placed strategy: combined net-capital SL (₹/$ or
 // % of margin) + per-leg TP/SL, close-scope, auto-exit, and a per-leg Close.
-function RiskPanel({ p, currency, live }: { p: Position; currency: Currency; live: boolean }) {
+function RiskPanel({ p, currency }: { p: Position; currency: Currency }) {
   const closeLeg = useStore((s) => s.closeLeg);
   const setStop = useStore((s) => s.setPositionStop);
   const setLegRisk = useStore((s) => s.setPositionLegRisk);
@@ -261,7 +261,7 @@ function RiskPanel({ p, currency, live }: { p: Position; currency: Currency; liv
     <div className="space-y-2 border-t border-line/60 px-4 py-2.5">
       {/* combined net-capital stop */}
       <div className="flex flex-wrap items-center gap-2.5 text-[11px]">
-        <span className="text-[9px] uppercase tracking-wider text-text-mute">{live ? "Basket SL (exit all)" : "Combined SL"}</span>
+        <span className="text-[9px] uppercase tracking-wider text-text-mute">Combined SL</span>
         <Seg2
           value={slMode}
           onChange={setSlMode}
@@ -273,12 +273,6 @@ function RiskPanel({ p, currency, live }: { p: Position; currency: Currency; liv
           <NumInput value={p.stopLossPctOfMargin} placeholder="% margin" onChange={(n) => setStop(p.id, { stopLossPctOfMargin: n, stopLossAmount: null })} />
         )}
         {floor != null && <span className="tnum text-[10px] text-text-mute">floor {money(floor, currency)}</span>}
-        {live && (
-          <span className="text-[10px] text-text-mute">
-            Any leg SL or the basket SL closes <b className="text-text-dim">every</b> leg (reduce-only). Arm to activate.
-          </span>
-        )}
-        {!live && (<>
         <label className="flex cursor-pointer items-center gap-1 text-text-mute">
           <input type="checkbox" checked={p.autoExit} onChange={(e) => setStop(p.id, { autoExit: e.target.checked })} className="accent-accent" />
           Auto-exit
@@ -290,22 +284,12 @@ function RiskPanel({ p, currency, live }: { p: Position; currency: Currency; liv
           <input type="checkbox" checked={p.staleHardStop} onChange={(e) => setStop(p.id, { staleHardStop: e.target.checked })} className="accent-warn" />
           Stale hard-stop
         </label>
-        </>)}
       </div>
 
       {/* per-leg TP/SL + close (open legs only) */}
       {p.legs.filter((l) => l.status === "open").map((l) => (
         <div key={l.id} className="flex flex-wrap items-center gap-2 text-[11px]">
           <span className="w-16 font-medium">{l.strike} {l.type === "call" ? "CE" : "PE"}</span>
-          {live ? (
-            <>
-              <span className="text-[9px] uppercase text-text-mute">SL loss</span>
-              <NumInput key={currency} value={shown(l.stopPnl == null ? null : Math.abs(l.stopPnl))} placeholder={cur} onChange={(n) => setLegRisk(p.id, l.id, { stopPnl: n == null ? null : -Math.abs(usd(n) as number) })} />
-              <span className="tnum text-[10px] text-text-mute" title="Reduce-only stop-market resting on Delta (mark-price trigger). Fires even if this server is down.">
-                {l.stopPrice != null ? <>Delta stop @ <span className="text-text-dim">{l.stopPrice}</span></> : p.autoExit ? <span className="text-warn">no stop on Delta</span> : "no stop (disarmed)"}
-              </span>
-            </>
-          ) : (<>
           <span className="text-[9px] uppercase text-text-mute">TP</span>
           <NumInput key={currency} value={shown(l.targetPnl)} placeholder={cur} onChange={(n) => setLegRisk(p.id, l.id, { targetPnl: usd(n) })} />
           <span className="text-[9px] uppercase text-text-mute">SL</span>
@@ -325,10 +309,120 @@ function RiskPanel({ p, currency, live }: { p: Position; currency: Currency; liv
           >
             <X size={10} /> Close leg
           </button>
-          </>)}
         </div>
       ))}
     </div>
+  );
+}
+
+// Live (real Delta) SL / target. Leg SL and target are PREMIUM trigger prices on the mark,
+// exactly like Delta's bracket, independent of lot count (sold at 200: SL 400 fires when the
+// mark reaches 400, for 1 lot or 100). Basket SL / target are ₹ / $ / % of margin. Any of
+// them closes EVERY leg. The server refuses a trigger that is already crossed.
+function LiveRiskPanel({ p, currency }: { p: Position; currency: Currency }) {
+  const reload = useStore((s) => s.reloadState);
+  const [err, setErr] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0); // remount inputs so a refused edit shows the saved value
+  const floor = combinedFloor({ lossAmount: p.stopLossAmount, lossPctOfMargin: p.stopLossPctOfMargin }, p.margin);
+
+  async function save(r: Promise<{ ok: true } | { ok: false; error: string }>) {
+    const res = await r;
+    setErr(res.ok ? null : res.error);
+    await reload();
+    setNonce((n) => n + 1);
+  }
+
+  return (
+    <div className="space-y-2 border-t border-line/60 px-4 py-2.5 text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <BasketInput
+          key={"sl" + nonce}
+          label="Basket SL"
+          amount={p.stopLossAmount}
+          pct={p.stopLossPctOfMargin}
+          currency={currency}
+          onSave={(amt, pct) => save(setLiveBasket(p.id, amt !== undefined ? { sl_amount: amt } : { sl_pct: pct }))}
+        />
+        {floor != null && <span className="tnum text-[10px] text-text-mute">exit all at {money(floor, currency)}</span>}
+        <BasketInput
+          key={"tp" + nonce}
+          label="Basket target"
+          amount={p.targetPnl}
+          pct={p.targetPctOfMargin ?? null}
+          currency={currency}
+          onSave={(amt, pct) => save(setLiveBasket(p.id, amt !== undefined ? { tp_amount: amt } : { tp_pct: pct }))}
+        />
+      </div>
+      <div className="text-[10px] text-text-mute">
+        Leg SL / target are <b className="text-text-dim">premium trigger prices</b> on the mark (like Delta), for any lot size.
+        Any leg SL or target, or the basket SL / target, closes <b className="text-text-dim">every</b> leg.
+      </div>
+      {err && <div className="rounded-[4px] border border-neg/40 bg-neg/10 px-2 py-1 text-neg">{err}</div>}
+
+      {p.legs.filter((l) => l.status === "open").map((l) => {
+        const mark = legMark(l);
+        const onDelta = l.stopPrice != null || l.tpOrderId != null;
+        return (
+          <div key={l.id} className="flex flex-wrap items-center gap-2">
+            <span className={clsx("grid h-4 w-4 place-items-center rounded-[4px] text-[9px] font-bold", l.side === "buy" ? "bg-pos/15 text-pos" : "bg-neg/15 text-neg")}>
+              {l.side === "buy" ? "B" : "S"}
+            </span>
+            <span className="w-16 font-medium">{l.strike} {l.type === "call" ? "CE" : "PE"}</span>
+            <span className="tnum w-32 text-[10px] text-text-mute">entry {l.entry} · mark {mark.toFixed(1)}</span>
+            <span className="text-[9px] uppercase text-text-mute">SL @</span>
+            <NumInput
+              key={"s" + l.id + nonce}
+              value={l.slPrice ?? null}
+              placeholder={l.side === "sell" ? "above mark" : "below mark"}
+              onChange={(n) => save(setLiveLegBracket(l.id, { sl_price: n }))}
+            />
+            <span className="text-[9px] uppercase text-text-mute">Target @</span>
+            <NumInput
+              key={"t" + l.id + nonce}
+              value={l.tpPrice ?? null}
+              placeholder={l.side === "sell" ? "below mark" : "above mark"}
+              onChange={(n) => save(setLiveLegBracket(l.id, { tp_price: n }))}
+            />
+            <span className="tnum text-[10px] text-text-mute" title="Delta position bracket: stop-market on mark, one-cancels-other, resizes with the position. Fires even if this server is down.">
+              {onDelta ? (
+                <>
+                  Delta bracket: SL <span className="text-text-dim">{l.stopPrice ?? "—"}</span>
+                  {l.tpPrice != null && <> · target <span className="text-text-dim">{l.tpPrice}</span></>}
+                </>
+              ) : p.autoExit ? (
+                <span className="text-warn">not on Delta</span>
+              ) : (
+                "disarmed"
+              )}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Basket amount in ₹ / $ (stored as USD, fixed 85) or % of margin.
+function BasketInput({
+  label, amount, pct, currency, onSave,
+}: {
+  label: string; amount: number | null; pct: number | null; currency: Currency;
+  onSave: (amountUsd: number | null | undefined, pct: number | null | undefined) => void;
+}) {
+  const [unit, setUnit] = useState<"inr" | "usd" | "pct">(pct != null ? "pct" : currency === "INR" ? "inr" : "usd");
+  const rate = unit === "inr" ? USDINR : 1;
+  const value = unit === "pct" ? pct : amount == null ? null : +(Math.abs(amount) * rate).toFixed(2);
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-[9px] uppercase tracking-wider text-text-mute">{label}</span>
+      <Seg2 value={unit} onChange={setUnit} opts={[{ v: "inr", label: "₹" }, { v: "usd", label: "$" }, { v: "pct", label: "%" }]} />
+      <NumInput
+        key={unit}
+        value={value}
+        placeholder={unit === "pct" ? "% margin" : unit === "inr" ? "₹" : "$"}
+        onChange={(n) => (unit === "pct" ? onSave(undefined, n) : onSave(n == null ? null : Math.abs(n) / rate, undefined))}
+      />
+    </span>
   );
 }
 

@@ -132,6 +132,7 @@ class Position(Base):
     target_pnl: Mapped[float | None] = mapped_column(Float, nullable=True)
     stop_loss_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     stop_loss_pct_of_margin: Mapped[float | None] = mapped_column(Float, nullable=True)
+    target_pct_of_margin: Mapped[float | None] = mapped_column(Float, nullable=True)
     auto_exit: Mapped[bool] = mapped_column(Boolean, default=False)
     auto_exit_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
     # opt-in: keep enforcing the LOSS stops on the last-known marks during a stale feed
@@ -148,7 +149,14 @@ class Position(Base):
     # live only: the trade-journal snapshot frozen at close (app/live/journal.py)
     summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
-    legs: Mapped[list[Leg]] = relationship(back_populates="position", cascade="all, delete-orphan")
+    # Fixed leg order: Postgres returns rows in physical order, and an UPDATE moves a row to
+    # the end — so live legs (updated every sync) would swap places on screen between a click
+    # and a keystroke, putting an SL on the wrong leg.
+    legs: Mapped[list[Leg]] = relationship(
+        back_populates="position",
+        cascade="all, delete-orphan",
+        order_by=lambda: (Leg.expiry, Leg.strike, Leg.type, Leg.side),
+    )
     notes: Mapped[list[Note]] = relationship(
         back_populates="position", cascade="all, delete-orphan"
     )
@@ -189,9 +197,13 @@ class Leg(Base):
     exit_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
     exit_gross: Mapped[float | None] = mapped_column(Float, nullable=True)
     exit_fees: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # live only: the reduce-only stop-market order resting on Delta for this leg.
+    # live only: the leg's SL / target as PREMIUM trigger prices on the mark (like Delta's
+    # bracket — independent of lot count), and the Delta bracket orders that hold them.
+    sl_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tp_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     stop_order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)  # SL resting on Delta
+    tp_order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     position: Mapped[Position] = relationship(back_populates="legs")
 

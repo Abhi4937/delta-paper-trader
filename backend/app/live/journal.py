@@ -85,7 +85,8 @@ def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, 
                 if lg.status == "closed"
                 else None,
                 "fees": lg.exit_fees,
-                "stopLoss": lg.stop_pnl,
+                "slPrice": lg.sl_price,
+                "tpPrice": lg.tp_price,
                 "deltaStopPrice": lg.stop_price,
                 "status": lg.status,
             }
@@ -103,6 +104,8 @@ def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, 
         "armed": pos.auto_exit,
         "basketStopLoss": pos.stop_loss_amount,
         "basketStopLossPctOfMargin": pos.stop_loss_pct_of_margin,
+        "basketTarget": pos.target_pnl,
+        "basketTargetPctOfMargin": pos.target_pct_of_margin,
         # final P&L: realised on close; for an open trade the last recorded MTM
         "pnl": realized if closed else (samples[-1][4] if samples else None),
         "fees": fees,

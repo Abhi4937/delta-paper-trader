@@ -611,7 +611,7 @@ export const testTelegram = () => livePost<{ sent: boolean }>("/api/live/telegra
 export interface LiveTradeLeg {
   symbol: string; side: "buy" | "sell"; qty: number; type: string; strike: number; expiry: string;
   entry: number; exit: number | null; exitAt: number | null; exitReason: string | null;
-  pnl: number | null; fees: number | null; stopLoss: number | null; deltaStopPrice: number | null;
+  pnl: number | null; fees: number | null; slPrice: number | null; tpPrice: number | null; deltaStopPrice: number | null;
   status: string;
 }
 export interface LiveTrade {
@@ -646,3 +646,27 @@ export async function fetchLiveAccount(): Promise<{ ok: true; balance: number; a
 // Before placing on Delta: would the planned basket SL fire before liquidation?
 export const livePrecheck = (legs: { symbol: string; side: "buy" | "sell"; qty: number }[], basketSlUsd: number | null) =>
   livePost<{ check: LiveCheck; balance: number; available: number }>("/api/live/precheck", { legs, basket_sl: basketSlUsd });
+
+// Live SL / target edits. Refusals (crossed trigger, already-reached basket) come back as
+// the server's reason; the previous values stay in force.
+async function livePatch(path: string, body: unknown): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const r = await fetch(`${API}${path}`, {
+      method: "PATCH",
+      headers: await authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body),
+    });
+    const j = await r.json().catch(() => ({}));
+    return r.ok ? { ok: true } : { ok: false, error: String(j.detail ?? `HTTP ${r.status}`) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "network error" };
+  }
+}
+// Premium trigger prices on the mark (like Delta's bracket). Omit = unchanged, null = clear.
+export const setLiveLegBracket = (legId: string, patch: { sl_price?: number | null; tp_price?: number | null }) =>
+  livePatch(`/api/live/legs/${legId}/bracket`, patch);
+// Basket SL / target: USD amount or % of margin. Omit = unchanged, null = clear.
+export const setLiveBasket = (
+  id: string,
+  patch: { sl_amount?: number | null; sl_pct?: number | null; tp_amount?: number | null; tp_pct?: number | null },
+) => livePatch(`/api/live/groups/${id}/basket`, patch);
