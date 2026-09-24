@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, ChevronRight, Download, LineChart, Power, RefreshCw, ShieldAlert, X } from "lucide-react";
 import PayoffPanel from "@/components/PayoffPanel";
 import PositionCharts from "@/components/PositionCharts";
 import { type LiveCheck, armLiveGroup, exitLiveGroup, setLiveBasket, setLiveLegBracket } from "@/lib/api";
 import { exportPositionXlsx } from "@/lib/exportXlsx";
-import { legPnl } from "@/lib/engine";
+import { groupPnlAtTrigger, legPnl, legPnlAtTrigger } from "@/lib/engine";
 import { combinedFloor } from "@/lib/exit";
 import { legColorMap } from "@/lib/legColors";
-import { ACTIVE_FEE, type Currency, USDINR, entryFee, entrySlippage, legIv, legMark, money, positionPnl, spotOf, useStore } from "@/lib/store";
-import type { Position } from "@/lib/types";
+import { ACTIVE_FEE, type Currency, USDINR, entryFee, legFee, entrySlippage, legIv, legMark, money, positionPnl, spotOf, useStore } from "@/lib/store";
+import type { Leg, Position } from "@/lib/types";
 
 // entry date + time, e.g. "09 Jun 14:36" (legs are placed at position open)
 function fmtEntry(ms: number): string {
@@ -345,7 +345,11 @@ function LiveRiskPanel({ p, currency }: { p: Position; currency: Currency }) {
           currency={currency}
           onSave={(amt, pct) => save(setLiveBasket(p.id, amt !== undefined ? { sl_amount: amt } : { sl_pct: pct }))}
         />
-        {floor != null && <span className="tnum text-[10px] text-text-mute">exit all at {money(floor, currency)}</span>}
+        {floor != null && (
+          <span className="tnum text-[10px] text-text-mute">
+            exit all at {money(floor, currency)} · now {money(positionPnl(p), currency)}
+          </span>
+        )}
         <BasketInput
           key={"tp" + nonce}
           label="Basket target"
@@ -364,6 +368,7 @@ function LiveRiskPanel({ p, currency }: { p: Position; currency: Currency }) {
       {p.legs.filter((l) => l.status === "open").map((l) => {
         const mark = legMark(l);
         const onDelta = l.stopPrice != null || l.tpOrderId != null;
+        const sold = l.side === "sell";
         return (
           <div key={l.id} className="flex flex-wrap items-center gap-2">
             <span className={clsx("grid h-4 w-4 place-items-center rounded-[4px] text-[9px] font-bold", l.side === "buy" ? "bg-pos/15 text-pos" : "bg-neg/15 text-neg")}>
@@ -375,20 +380,27 @@ function LiveRiskPanel({ p, currency }: { p: Position; currency: Currency }) {
             <NumInput
               key={"s" + l.id + nonce}
               value={l.slPrice ?? null}
-              placeholder={l.side === "sell" ? "above mark" : "below mark"}
+              placeholder="close at"
+              title={`Exact premium to close at (${sold ? "sold leg: above" : "bought leg: below"} the mark). Any SL closes every leg.`}
               onChange={(n) => save(setLiveLegBracket(l.id, { sl_price: n }))}
+              preview={(n) => <TriggerPnl p={p} leg={l} price={n} currency={currency} />}
             />
             <span className="text-[9px] uppercase text-text-mute">Target @</span>
             <NumInput
               key={"t" + l.id + nonce}
               value={l.tpPrice ?? null}
-              placeholder={l.side === "sell" ? "below mark" : "above mark"}
+              placeholder="close at"
+              title={`Exact premium to close at (${sold ? "sold leg: below" : "bought leg: above"} the mark). Any target closes every leg.`}
               onChange={(n) => save(setLiveLegBracket(l.id, { tp_price: n }))}
+              preview={(n) => <TriggerPnl p={p} leg={l} price={n} currency={currency} />}
             />
             <span className="tnum text-[10px] text-text-mute" title="Delta position bracket: stop-market on mark, one-cancels-other, resizes with the position. Fires even if this server is down.">
               {onDelta ? (
                 <>
                   Delta bracket: SL <span className="text-text-dim">{l.stopPrice ?? "—"}</span>
+                  {l.stopPrice != null && l.slPrice == null && (
+                    <> (<TriggerPnl p={p} leg={l} price={l.stopPrice} currency={currency} compact />)</>
+                  )}
                   {l.tpPrice != null && <> · target <span className="text-text-dim">{l.tpPrice}</span></>}
                 </>
               ) : p.autoExit ? (
@@ -401,6 +413,31 @@ function LiveRiskPanel({ p, currency }: { p: Position; currency: Currency }) {
         );
       })}
     </div>
+  );
+}
+
+// What closing at `price` locks in: this leg (net of estimated exit brokerage) and, since any
+// SL / target closes every leg, the whole group with the other legs at their current marks.
+function TriggerPnl({
+  p, leg, price, currency, compact,
+}: { p: Position; leg: Leg; price: number | null; currency: Currency; compact?: boolean }) {
+  if (price == null || price <= 0) return null;
+  const spot = spotOf(leg.underlying) || leg.spotAtEntry;
+  const feeOf = (l: Leg, px: number) => legFee(px, spotOf(l.underlying) || l.spotAtEntry, l.contractValue, l.qty);
+  const fee = feeOf(leg, price);
+  const legNet = legPnlAtTrigger(leg, price, fee);
+  const group = groupPnlAtTrigger(p.legs, leg.id, price, legMark, feeOf);
+  const tone = (v: number) => (v >= 0 ? "text-pos" : "text-neg");
+  const fmtS = (v: number) => `${v >= 0 ? "+" : "−"}${money(Math.abs(v), currency)}`;
+  const tip =
+    `Closing this leg at ${price}: ${fmtS(legNet)} (incl. ~${money(fee, currency)} exit fee, spot ${Math.round(spot)}). ` +
+    `Whole group ≈ ${fmtS(group)}: other legs at their current marks, which will keep moving until the exit.`;
+  if (compact) return <span className={clsx("tnum", tone(legNet))} title={tip}>{fmtS(legNet)}</span>;
+  return (
+    <span className="tnum text-[10px] text-text-mute" title={tip}>
+      → <span className={tone(legNet)}>{fmtS(legNet)}</span> leg · group ≈{" "}
+      <span className={tone(group)}>{fmtS(group)}</span>
+    </span>
   );
 }
 
@@ -431,24 +468,39 @@ function BasketInput({
 // number input that maps empty → null (for optional TP/SL levels). Commits on Enter/blur
 // only: per-keystroke saves would race each other and briefly arm half-typed stops (typing
 // "8500" would pass through 8 and 85 — a live SL that could fire mid-typing).
-function NumInput({ value, onChange, placeholder }: { value: number | null; onChange: (n: number | null) => void; placeholder?: string }) {
+function NumInput({
+  value, onChange, placeholder, title, preview,
+}: {
+  value: number | null;
+  onChange: (n: number | null) => void;
+  placeholder?: string;
+  title?: string;
+  preview?: (n: number | null) => ReactNode; // shown next to the box, from what is typed now
+}) {
   const [v, setV] = useState(value == null ? "" : String(value));
+  const parse = (t: string) => {
+    const n = t === "" || t === "-" || t === "." ? null : Number(t);
+    return n != null && Number.isFinite(n) ? n : null;
+  };
   const commit = () => {
-    const n = v === "" || v === "-" || v === "." ? null : Number(v);
-    const next = n != null && Number.isFinite(n) ? n : null;
+    const next = parse(v);
     if (next !== value) onChange(next);
   };
   return (
-    <input
-      type="text"
-      inputMode="decimal"
-      value={v}
-      placeholder={placeholder}
-      onChange={(e) => setV(e.target.value.replace(/[^0-9.-]/g, ""))}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-      className="tnum w-16 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text outline-none placeholder:text-text-mute focus:ring-1 focus:ring-accent"
-    />
+    <>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={v}
+        placeholder={placeholder}
+        title={title}
+        onChange={(e) => setV(e.target.value.replace(/[^0-9.-]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className="tnum w-16 rounded bg-surface-2 px-1.5 py-0.5 text-[11px] text-text outline-none placeholder:text-text-mute focus:ring-1 focus:ring-accent"
+      />
+      {preview?.(parse(v))}
+    </>
   );
 }
 
