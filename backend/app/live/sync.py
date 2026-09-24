@@ -133,6 +133,8 @@ def reconcile(
             qty=float(abs(size)),
             entry=entry,
             mark_at_entry=c.mark_price or entry,
+            entry_bid=c.quote.bid if c.quote else None,
+            entry_ask=c.quote.ask if c.quote else None,
             spot_at_entry=spot_of(underlying),
             auto_exit=False,
             close_scope="strategy",
@@ -505,7 +507,7 @@ class LiveSync:
                 )
                 ring = getattr(self.app.state, "sim_series", {}).get(str(pos.id))
                 summary = journal.summarize(pos, await journal.load_samples(s, pos, ring), now)
-                await self._attach_candles(summary, pos)
+                await self._attach_candles(summary, pos, s)
                 pos.summary = summary
                 await self._journal(
                     s,
@@ -522,16 +524,21 @@ class LiveSync:
             elif pos.id in stop_fired:
                 await self._start_exit(s, uid, client, mv, pos, stop_fired[pos.id])
 
-    async def _attach_candles(self, summary: dict[str, Any], pos: Position) -> None:
+    async def _attach_candles(
+        self, summary: dict[str, Any], pos: Position, s: AsyncSession
+    ) -> None:
         """Freeze each leg's 1m mark candles (+ leg P&L OHLC) into the snapshot: Delta's
         history for an expired option isn't guaranteed to stay available."""
         base = self.app.state.delta.settings.delta_api_base
+        ring = getattr(self.app.state, "sim_series", {}).get(str(pos.id))
+        book = await journal.load_book(s, pos, ring)
         for row, lg in zip(summary["legs"], pos.legs, strict=True):
             start = lg.entry_at or pos.opened_at
             end = lg.exit_at or datetime.now(UTC)
             candles = await journal.fetch_candles(self.app.state.http, base, lg.symbol, start, end)
-            row["candles"] = journal.candle_rows(
-                lg.side, lg.entry, lg.qty, lg.contract_value, candles
+            row["candles"] = journal.with_book(
+                journal.candle_rows(lg.side, lg.entry, lg.qty, lg.contract_value, candles),
+                journal.book_ohlc(book.get(str(lg.id), [])),
             )
 
     # ---- SL trigger ------------------------------------------------------ #

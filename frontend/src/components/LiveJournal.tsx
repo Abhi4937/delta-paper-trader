@@ -24,7 +24,7 @@ export default function LiveJournal({ currency }: { currency: Currency }) {
   async function download() {
     if (!j) return;
     setExporting(true);
-    const candles: Record<string, { symbol: string; candles: number[][] }[]> = {};
+    const candles: Record<string, { symbol: string; candles: (number | null)[][] }[]> = {};
     for (const r of j.trades) {
       const c = await fetchLiveTradeCandles(r.id);
       if (c) candles[r.id] = c.legs;

@@ -93,6 +93,60 @@ def candle_rows(
     return rows
 
 
+def book_ohlc(samples: list[tuple[int, float, float]]) -> dict[int, list[float]]:
+    """(t_ms, bid, ask) snapshots -> per minute {minute_t_ms: [bid o,h,l,c, ask o,h,l,c]}.
+    Delta publishes no bid/ask history, so this comes from our own 10s (and 1s) snapshots.
+    Empty sides of the book (0) are skipped."""
+    by_min: dict[int, dict[str, list[float]]] = {}
+    for t, bid, ask in sorted(samples):
+        m = by_min.setdefault(t - t % 60_000, {"bid": [], "ask": []})
+        if bid:
+            m["bid"].append(bid)
+        if ask:
+            m["ask"].append(ask)
+
+    def ohlc(xs: list[float]) -> list[float]:
+        return [xs[0], max(xs), min(xs), xs[-1]] if xs else [0.0, 0.0, 0.0, 0.0]
+
+    return {t: ohlc(m["bid"]) + ohlc(m["ask"]) for t, m in by_min.items()}
+
+
+def with_book(rows: list[list[float]], book: dict[int, list[float]]) -> list[list[float | None]]:
+    """Append [bid o,h,l,c, ask o,h,l,c] to each 1m candle row (None where no snapshot)."""
+    out: list[list[float | None]] = []
+    for r in rows:
+        got = book.get(int(r[0]) - int(r[0]) % 60_000)
+        extra: list[float | None] = [*got] if got else [None] * 8
+        out.append([*r, *extra])
+    return out
+
+
+async def load_book(
+    session: AsyncSession, pos: Position, ring: Iterable[dict[str, Any]] | None
+) -> dict[str, list[tuple[int, float, float]]]:
+    """Per leg id: (t_ms, bid, ask) from the durable 10s rows + the newer 1s ring."""
+    rows = await session.execute(
+        select(StrategySeries.time, StrategySeries.legs)
+        .where(StrategySeries.position_id == pos.id)
+        .order_by(StrategySeries.time)
+    )
+    out: dict[str, list[tuple[int, float, float]]] = {}
+    last = 0
+    for t, legs in rows.all():
+        last = _ms(t) or 0
+        for lid, v in (legs or {}).items():
+            out.setdefault(lid, []).append(
+                (last, float(v.get("bid") or 0), float(v.get("ask") or 0))
+            )
+    for s in ring or []:
+        if s["t"] > last:
+            for lid, v in (s.get("legs") or {}).items():
+                out.setdefault(lid, []).append(
+                    (s["t"], float(v.get("bid") or 0), float(v.get("ask") or 0))
+                )
+    return out
+
+
 async def fetch_candles(
     http: Any, base: str, symbol: str, start: datetime, end: datetime
 ) -> list[list[float]]:
@@ -181,6 +235,8 @@ def summarize(pos: Position, samples: list[Sample], now: datetime) -> dict[str, 
         legs.append(
             {
                 "entryAt": _ms(lg.entry_at),
+                "entryBid": lg.entry_bid,
+                "entryAsk": lg.entry_ask,
                 "markAtEntry": lg.mark_at_entry,
                 "entrySlippage": slippage(
                     lg.side, lg.entry, lg.mark_at_entry, lg.qty, lg.contract_value

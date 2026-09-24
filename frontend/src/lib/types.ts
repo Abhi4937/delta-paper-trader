@@ -64,6 +64,9 @@ export interface Leg {
   exitGross: number | null; // gross PnL at exit fill (before fees)
   exitFees: number | null; // entry + exit fee for this leg
   stopPrice?: number | null; // live: SL of the Delta bracket resting on Delta (premium)
+  entryBid?: number | null; // best bid / ask when the leg was entered
+  entryAsk?: number | null;
+  exitPnl?: number | null; // P&L if closed now at the book (short buys ask, long sells bid)
   slPrice?: number | null; // live: leg SL as a premium trigger price on the mark
   tpPrice?: number | null; // live: leg target as a premium trigger price on the mark
   tpOrderId?: number | null; // live: target order of the Delta bracket
@@ -130,6 +133,7 @@ export interface Position {
   theta?: number; // net theta (USD/day)
   vega?: number; // net vega (USD per 1 vol-point)
   entrySlippage?: number; // server's entry-slippage (we recompute client-side too)
+  exitPnl?: number; // close-now P&L: entry fills vs exiting every leg at the book now
   source?: "paper" | "live"; // live = mirrored from the real Delta account
   exiting?: boolean; // live: SL fired once; reduce-only closes in flight
   targetPctOfMargin?: number | null; // live: basket target as % of margin

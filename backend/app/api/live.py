@@ -504,6 +504,8 @@ async def journal_candles(
     if frozen and all("candles" in lg for lg in frozen):
         return {"legs": [{"symbol": lg["symbol"], "candles": lg["candles"]} for lg in frozen]}
     base = request.app.state.delta.settings.delta_api_base
+    rings = getattr(request.app.state, "sim_series", {})
+    book = await journal.load_book(session, p, rings.get(str(p.id)))
     out = []
     for lg in p.legs:
         candles = await journal.fetch_candles(
@@ -516,8 +518,9 @@ async def journal_candles(
         out.append(
             {
                 "symbol": lg.symbol,
-                "candles": journal.candle_rows(
-                    lg.side, lg.entry, lg.qty, lg.contract_value, candles
+                "candles": journal.with_book(
+                    journal.candle_rows(lg.side, lg.entry, lg.qty, lg.contract_value, candles),
+                    journal.book_ohlc(book.get(str(lg.id), [])),
                 ),
             }
         )

@@ -83,7 +83,7 @@ export function exportPositionXlsx(p: Position): void {
 // `candles`: per trade id, each leg's 1m mark candles (+ leg P&L OHLC) from the server.
 export function exportLiveJournalXlsx(
   j: LiveJournal,
-  candles: Record<string, { symbol: string; candles: number[][] }[]> = {},
+  candles: Record<string, { symbol: string; candles: (number | null)[][] }[]> = {},
 ): void {
   const wb = XLSX.utils.book_new();
   const sheet = (name: string, rows: (string | number)[][]) =>
@@ -106,22 +106,25 @@ export function exportLiveJournalXlsx(
   ]);
   sheet("Legs", [
     ["Trade", "Symbol", "Side", "Qty",
-      "Entry time", "Entry price", "Mark at entry", "Entry slippage $", "Entry brokerage $", "Margin at entry $",
+      "Entry time", "Entry price", "Mark at entry", "Best bid at entry", "Best ask at entry", "Entry slippage $", "Entry brokerage $", "Margin at entry $",
       "Exit time", "Exit price", "Mark at exit", "Exit slippage $", "Exit brokerage $", "Margin before exit $",
       "Exit reason", "Gross P&L $", "Net P&L $", "Net P&L ₹",
       "SL trigger (premium)", "Target trigger (premium)", "Delta bracket SL", "Status"],
     ...j.trades.flatMap((r) => r.legs.map((l) => [
       r.name, l.symbol, l.side, l.qty,
-      t(l.entryAt), l.entry, n(l.markAtEntry), n(l.entrySlippage), n(l.entryFees), n(l.entryMargin),
+      t(l.entryAt), l.entry, n(l.markAtEntry), n(l.entryBid), n(l.entryAsk), n(l.entrySlippage), n(l.entryFees), n(l.entryMargin),
       t(l.exitAt), n(l.exit), n(l.markAtExit), n(l.exitSlippage), n(l.fees), n(l.exitMargin),
       l.exitReason ?? "", n(l.grossPnl), n(l.pnl), inr(l.pnl),
       n(l.slPrice), n(l.tpPrice), n(l.deltaStopPrice), l.status,
     ])),
   ]);
   sheet("Leg OHLC 1m", [
-    ["Trade", "Symbol", "Time", "Open", "High", "Low", "Close", "P&L open $", "P&L high $", "P&L low $", "P&L close $"],
+    ["Trade", "Symbol", "Time", "Mark open", "Mark high", "Mark low", "Mark close",
+      "P&L open $", "P&L high $", "P&L low $", "P&L close $",
+      "Bid open", "Bid high", "Bid low", "Bid close", "Ask open", "Ask high", "Ask low", "Ask close"],
     ...j.trades.flatMap((r) => (candles[r.id] ?? []).flatMap((lg) => lg.candles.map((k) => [
       r.name, lg.symbol, t(k[0]), n(k[1]), n(k[2]), n(k[3]), n(k[4]), n(k[5]), n(k[6]), n(k[7]), n(k[8]),
+      n(k[9]), n(k[10]), n(k[11]), n(k[12]), n(k[13]), n(k[14]), n(k[15]), n(k[16]),
     ]))),
   ]);
   sheet("Live log", [["Time", "Action", "Detail"], ...j.logs.map((l) => [t(l.t), l.action, l.detail])]);
