@@ -172,6 +172,53 @@ class LiveClient:
             }
         )
 
+    async def place_bracket(
+        self,
+        product_id: int,
+        symbol: str,
+        close_side: Side,
+        sl: float | None,
+        tp: float | None,
+        tick: float,
+    ) -> str:
+        """Position bracket on Delta (SL + target on the mark, one-cancels-other, auto-resizes
+        with the position). Returns "market" or "limit" — which kind Delta accepted.
+
+        Close-only by construction: a position bracket can only close the position it is
+        attached to (Delta has no reduce_only flag on this endpoint). Still kill-switched.
+        Market first (can't be skipped); if Delta refuses market brackets, fall back to a
+        limit so far through the book it fills like one: sell at 1 tick, buy at 3x trigger.
+        ponytail: 3x may exceed Delta's price band on some strikes — the rejection then alerts.
+        """
+        if not self.settings.live_trading_enabled:
+            raise OrderRefused("live trading disabled (LIVE_TRADING_ENABLED=false)")
+
+        def side_order(trigger: float, limit: bool) -> dict[str, Any]:
+            o: dict[str, Any] = {"order_type": "market_order", "stop_price": _px(trigger)}
+            if limit:
+                far = tick if close_side == "sell" else trigger * 3
+                o.update(order_type="limit_order", limit_price=_px(far))
+            return o
+
+        def body(limit: bool) -> dict[str, Any]:
+            b: dict[str, Any] = {
+                "product_id": product_id,
+                "product_symbol": symbol,
+                "bracket_stop_trigger_method": "mark_price",
+            }
+            if sl is not None:
+                b["stop_loss_order"] = side_order(sl, limit)
+            if tp is not None:
+                b["take_profit_order"] = side_order(tp, limit)
+            return b
+
+        try:
+            await self._call("POST", "/v2/orders/bracket", body=body(limit=False))
+            return "market"
+        except DeltaError:
+            await self._call("POST", "/v2/orders/bracket", body=body(limit=True))
+            return "limit"
+
     async def cancel(self, product_id: int, order_id: int) -> None:
         # Cancelling only ever REMOVES risk-reducing orders we placed; no kill-switch gate so
         # a disabled switch can still clean up.

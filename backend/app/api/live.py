@@ -21,11 +21,20 @@ from app.auth.vault import get_secret
 from app.config import get_settings
 from app.db.models import Log, Position
 from app.db.session import get_session
-from app.engines.money import entry_fill
+from app.engines.money import entry_fill, leg_pnl
 from app.live import journal, risk
 from app.live.alerts import explain_telegram, send_telegram
 from app.live.client import DeltaError
-from app.live.sync import LiveSync, _mark, basket_floor, risk_legs, usd_balance, usd_wallet
+from app.live.sync import (
+    LiveSync,
+    _mark,
+    _tick,
+    basket_floor,
+    basket_target,
+    risk_legs,
+    usd_balance,
+    usd_wallet,
+)
 from app.sim.marketview import MarketView
 
 router = APIRouter(prefix="/api/live", tags=["live"])
@@ -77,10 +86,13 @@ async def arm(
     check: dict[str, Any] | None = None
     if body.armed:
         if basket_floor(g) is None and not any(
-            lg.stop_pnl is not None for lg in g.legs if lg.status == "open"
+            lg.sl_price is not None for lg in g.legs if lg.status == "open"
         ):
             raise HTTPException(400, "set a basket SL or a leg SL before arming")
         mv = MarketView(request.app.state.market)
+        problems = group_problems(g, mv, request.app.state.market)
+        if problems:  # the market may have moved past a trigger since it was saved
+            raise HTTPException(409, "not armed: " + "; ".join(problems))
         try:
             balance = usd_balance(await client.wallet())
         except Exception as e:  # noqa: BLE001
@@ -99,7 +111,7 @@ async def arm(
             raise HTTPException(409, f"not armed: {chk.reason}")
 
     g.auto_exit = body.armed
-    await sync.sync_stops(session, user_id, client, groups)  # place / cancel native stops now
+    await sync.sync_brackets(session, user_id, client, groups)  # place / cancel Delta brackets now
     await session.commit()
     return {"armed": g.auto_exit, "check": check}
 
@@ -298,7 +310,7 @@ async def precheck(
     chk = risk.check_sl_vs_liquidation(
         new + others,
         spot=mv.spot(underlying),
-        balance=wallet["balance"],
+        balance=risk.balance_after_fill(wallet["balance"], new),
         basket_floor=body.basket_sl,
     )
     return {"check": asdict(chk), **wallet}
@@ -322,3 +334,149 @@ def journal_contract(t: dict[str, Any]) -> dict[str, Any]:
         "cv": c.contract_value or 0.001,
         "dte_days": max(dte, 1 / 24),
     }
+
+
+# --- SL / target editing (live) ---------------------------------------------- #
+def group_problems(g: Position, mv: MarketView, market: Any) -> list[str]:
+    """Why the group's current triggers can't be used: a leg SL/target already crossed or
+    too close to the mark, or a basket SL/target already reached. Empty = all good."""
+    out: list[str] = []
+    net = 0.0
+    for lg in g.legs:
+        if lg.status != "open":
+            continue
+        q = mv.quote(lg.symbol)
+        if q is None or q.mark is None:
+            out.append(f"no live mark for {lg.symbol}")
+            continue
+        net += leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, q.mark)
+        for kind, price in (("SL", lg.sl_price), ("Target", lg.tp_price)):
+            if price is not None:
+                why = risk.check_trigger(lg.side, kind, price, q.mark, _tick(market, lg.symbol))
+                if why:
+                    out.append(f"{lg.symbol}: {why}")
+    floor = basket_floor(g)
+    if floor is not None and net <= floor:
+        out.append(f"basket SL {-floor:.2f} already reached (P&L now {net:.2f})")
+    target = basket_target(g)
+    if target is not None and net >= target:
+        out.append(f"basket target {target:.2f} already reached (P&L now {net:.2f})")
+    return out
+
+
+class LegBracketIn(BaseModel):
+    """Premium trigger prices on the mark (like Delta). Omit = unchanged, null = clear."""
+
+    sl_price: float | None = None
+    tp_price: float | None = None
+
+
+class BasketIn(BaseModel):
+    """USD amounts (the UI converts ₹ at 85) or % of margin. Omit = unchanged, null = clear."""
+
+    sl_amount: float | None = None
+    sl_pct: float | None = None
+    tp_amount: float | None = None
+    tp_pct: float | None = None
+
+
+async def _live_groups(session: AsyncSession, user_id: uuid.UUID) -> list[Position]:
+    res = await session.execute(
+        select(Position)
+        .where(Position.user_id == user_id, Position.source == "live", Position.status == "open")
+        .options(selectinload(Position.legs))
+    )
+    return list(res.scalars().all())
+
+
+async def _apply(
+    request: Request,
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    groups: list[Position],
+    g: Position,
+    undo: Any,
+) -> dict[str, Any]:
+    """Validate the edited group; on failure restore the previous values (an armed group
+    must never lose its protection to a bad edit). On success push brackets to Delta now."""
+    problems = group_problems(g, MarketView(request.app.state.market), request.app.state.market)
+    if problems:
+        undo()
+        raise HTTPException(409, "; ".join(problems))
+    sync = _sync(request)
+    client = await sync.client_for(session, user_id)
+    if client is not None and g.auto_exit:
+        await sync.sync_brackets(session, user_id, client, groups)
+    await session.commit()
+    return {"ok": True}
+
+
+@router.patch("/legs/{leg_id}/bracket")
+async def set_leg_bracket(
+    leg_id: uuid.UUID,
+    body: LegBracketIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    groups = await _live_groups(session, user_id)
+    hit = next(
+        ((g, lg) for g in groups for lg in g.legs if lg.id == leg_id and lg.status == "open"), None
+    )
+    if hit is None:
+        raise HTTPException(404, "open live leg not found")
+    g, lg = hit
+    if g.exiting:
+        raise HTTPException(409, "group is already exiting")
+    before = (lg.sl_price, lg.tp_price)
+    if "sl_price" in body.model_fields_set:
+        lg.sl_price = body.sl_price
+    if "tp_price" in body.model_fields_set:
+        lg.tp_price = body.tp_price
+
+    def undo() -> None:
+        lg.sl_price, lg.tp_price = before
+
+    return await _apply(request, session, user_id, groups, g, undo)
+
+
+@router.patch("/groups/{pos_id}/basket")
+async def set_basket(
+    pos_id: uuid.UUID,
+    body: BasketIn,
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    groups = await _live_groups(session, user_id)
+    g = next((p for p in groups if p.id == pos_id), None)
+    if g is None:
+        raise HTTPException(404, "live group not found")
+    if g.exiting:
+        raise HTTPException(409, "group is already exiting")
+    fields = {
+        "sl_amount": "stop_loss_amount",
+        "sl_pct": "stop_loss_pct_of_margin",
+        "tp_amount": "target_pnl",
+        "tp_pct": "target_pct_of_margin",
+    }
+    before = {col: getattr(g, col) for col in fields.values()}
+    for key, col in fields.items():
+        if key in body.model_fields_set:
+            v = getattr(body, key)
+            setattr(g, col, abs(v) if v is not None else None)
+    # one unit per side: setting the amount clears the %, and vice versa
+    if "sl_amount" in body.model_fields_set and body.sl_amount is not None:
+        g.stop_loss_pct_of_margin = None
+    if "sl_pct" in body.model_fields_set and body.sl_pct is not None:
+        g.stop_loss_amount = None
+    if "tp_amount" in body.model_fields_set and body.tp_amount is not None:
+        g.target_pct_of_margin = None
+    if "tp_pct" in body.model_fields_set and body.tp_pct is not None:
+        g.target_pnl = None
+
+    def undo() -> None:
+        for col, v in before.items():
+            setattr(g, col, v)
+
+    return await _apply(request, session, user_id, groups, g, undo)

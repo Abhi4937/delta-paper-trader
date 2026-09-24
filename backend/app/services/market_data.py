@@ -165,17 +165,22 @@ class MarketDataIngestor:
                         if t == "v2/ticker" and "symbol" in m:
                             # keep the live mark if the snapshot's is older
                             sym = m["symbol"]
-                            live = self.tickers.get(sym, {}).get("_live_mark")
+                            prev = self.tickers.get(sym, {})
+                            live = prev.get("_live_mark")
                             self.tickers[sym] = m
                             if live is not None:
                                 m["mark_price"] = live
                                 m["_live_mark"] = live
+                                m["_mark_at"] = prev.get("_mark_at")
+                            else:
+                                m["_mark_at"] = time.monotonic()
                         elif t == "mark_price" and m.get("price") is not None:
                             sym = (m.get("symbol") or "").replace("MARK:", "")
                             tk = self.tickers.get(sym)
                             if tk is not None:
                                 tk["mark_price"] = m["price"]
                                 tk["_live_mark"] = m["price"]
+                                tk["_mark_at"] = time.monotonic()  # per-symbol freshness
             except asyncio.CancelledError:
                 raise
             except Exception as e:  # noqa: BLE001

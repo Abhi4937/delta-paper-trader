@@ -4,8 +4,10 @@ Order: 1) uv run python scripts/live_e2e/fake_delta.py      (fake Delta on :8099
        2) uv run python scripts/live_e2e/run_live_e2e.py    (backend on :8010)
        3) uv run python scripts/live_e2e/drive_e2e.py       (this; exits 1 on any FAIL)
 Stop the runner with Ctrl+C afterwards — it removes the fake key and the test data.
-Checks: tracking, arm refused without an SL, reduce-only native stops, server SL exits ALL
-legs (shorts bought back), leftover stops cancelled, a Delta-side stop cascades the exit.
+Checks: tracking; arm refused without an SL; crossed / too-close SLs refused; leg SL+target
+as premium triggers become a Delta bracket on the mark; the mark crossing a leg SL exits ALL
+legs (reduce-only buy-backs); Delta's bracket SL and target each cascade to the other legs;
+basket target; journal; key test; wallet; pre-trade check.
 """
 
 import sys
@@ -41,113 +43,148 @@ def wait(pred, secs=40):
     return None
 
 
-def clean_slate():
-    """Leftover open groups keep their SL/arm state (correct app behaviour); neutralise them."""
-    st = c.get(f"{API}/api/state").json()
-    for p in st["positions"]:
-        if p.get("source") == "live" and p["status"] == "open" and not p.get("exiting"):
-            c.post(f"{API}/api/live/groups/{p['id']}/arm", json={"armed": False})
-            c.patch(
-                f"{API}/api/strategies/{p['id']}/risk",
-                json={"stop_loss_amount": None, "stop_loss_pct_of_margin": None},
-            )
-            for lg in p["legs"]:
-                c.patch(f"{API}/api/legs/{lg['id']}/risk", json={"stop_pnl": None})
+def fake():
+    return c.get(f"{FAKE}/fake/state").json()
+
+
+def flat():
+    return all(p["size"] == 0 for p in fake()["positions"].values())
+
+
+def set_mark(symbol, price=None):
+    q = {"symbol": symbol} if price is None else {"symbol": symbol, "price": price}
+    return c.post(f"{API}/e2e/mark", params=q)
+
+
+def leg_bracket(leg_id, **kw):
+    return c.patch(f"{API}/api/live/legs/{leg_id}/bracket", json=kw)
+
+
+def basket(gid, **kw):
+    return c.patch(f"{API}/api/live/groups/{gid}/basket", json=kw)
+
+
+def fresh_group():
+    """Reset the fake to two short legs and hand back a clean, disarmed live group."""
+    c.post(f"{FAKE}/fake/reset")
+    time.sleep(3)  # let the sync close the previous group and mirror the new positions
+    g = wait(live_group)
+    for lg in g["legs"]:
+        set_mark(lg["symbol"])
+    if g["autoExit"]:
+        c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": False})
+    basket(g["id"], sl_amount=None, sl_pct=None, tp_amount=None, tp_pct=None)
+    for lg in g["legs"]:
+        leg_bracket(lg["id"], sl_price=None, tp_price=None)
+    return wait(live_group)
 
 
 def scenario_server_sl():
-    if "--no-reset" not in sys.argv:
-        c.post(f"{FAKE}/fake/reset")
-    wait(live_group)
-    clean_slate()
-    g = wait(live_group)
+    g = fresh_group()
     check("live group mirrored from Delta", g is not None)
     status = wait(lambda: (s := c.get(f"{API}/api/live/status").json())["checks"] and s, 30)
-    check(
-        "liquidation check computed by guard",
-        bool(status),
-        str(status and list(status["checks"].values())[0]["verdict"]),
-    )
+    check("liquidation check computed by guard", bool(status))
     check(
         "no false 'untracked' alerts",
         not any(a["key"].startswith("untracked") for a in (status or {}).get("alerts", [])),
     )
-
     r = c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": True})
     check("arming without any SL is refused", r.status_code == 400, r.text)
+    r = c.patch(f"{API}/api/strategies/{g['id']}/risk", json={"stop_loss_amount": 5})
+    check("paper risk route cannot edit a live group", r.status_code == 409, r.text)
 
-    r2 = c.patch(f"{API}/api/strategies/{g['id']}/risk", json={"auto_exit": True})
-    check("paper risk PATCH cannot arm a live group", r2.status_code == 409, r2.text)
-
-    rp = c.patch(f"{API}/api/strategies/{g['id']}/risk", json={"stop_loss_amount": 1000})
-    check("basket SL saved", rp.status_code == 200, f"{rp.status_code} {rp.text[:120]}")
-    r = c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": True})
-    check("arm with basket SL", r.status_code == 200, r.text[:200])
-    fk = c.get(f"{FAKE}/fake/state").json()
-    stops = [o for o in fk["orders"].values() if o["state"] == "open"]
-    check("one resting stop per leg on Delta", len(stops) == 2, str(len(stops)))
+    leg = g["legs"][0]  # a SOLD leg: its SL must sit ABOVE the mark
+    m = leg["mark"]
+    r = leg_bracket(leg["id"], sl_price=round(m * 0.9, 1))
     check(
-        "stops are reduce-only stop-market on mark price",
-        all(
-            o["reduce_only"] is True
-            and o["order_type"] == "market_order"
-            and o["stop_trigger_method"] == "mark_price"
-            and o["side"] == "buy"
-            for o in stops
-        ),
+        "crossed SL refused (sold leg, SL below mark)",
+        r.status_code == 409 and "above" in r.text,
+        r.text[:160],
+    )
+    r = leg_bracket(leg["id"], sl_price=round(m * 1.001, 1))
+    check("SL inside the 1% buffer refused", r.status_code == 409, r.text[:160])
+    sl, tp = round(m * 1.5, 1), round(m * 0.5, 1)
+    r = leg_bracket(leg["id"], sl_price=sl, tp_price=tp)
+    check("valid SL + target (premium triggers) saved", r.status_code == 200, r.text[:160])
+    r = basket(g["id"], sl_amount=1000)
+    check("basket SL saved", r.status_code == 200, r.text[:160])
+    r = c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": True})
+    check("armed", r.status_code == 200, r.text[:160])
+
+    brk = [x["bracket"] for x in fake()["log"] if "bracket" in x]
+    mine = [b for b in brk if b["product_id"] == leg["productId"]]
+    check(
+        "Delta bracket placed on mark with SL + target at the leg's prices",
+        bool(mine)
+        and mine[-1]["bracket_stop_trigger_method"] == "mark_price"
+        and float(mine[-1]["stop_loss_order"]["stop_price"]) == sl
+        and float(mine[-1]["take_profit_order"]["stop_price"]) == tp
+        and mine[-1]["stop_loss_order"]["order_type"] == "market_order",
+        str(mine[-1:]),
+    )
+    other = g["legs"][1]
+    ob = [b for b in brk if b["product_id"] == other["productId"]]
+    check(
+        "leg without its own SL gets the basket-derived SL, no target",
+        bool(ob) and "stop_loss_order" in ob[-1] and "take_profit_order" not in ob[-1],
+        str(ob[-1:]),
     )
     g = live_group()
-    check("stop prices shown on legs", all(lg["stopPrice"] for lg in g["legs"]))
-
-    # tighten one leg's SL below its current loss -> server SL must exit ALL legs
-    worst = min(g["legs"], key=lambda lg: lg["pnl"])
-    print("   leg P&Ls:", [round(lg["pnl"], 4) for lg in g["legs"]])
-    if worst["pnl"] < 0:
-        c.patch(f"{API}/api/legs/{worst['id']}/risk", json={"stop_pnl": -1e-6})
-    else:
-        # both legs in profit: use a basket stop below current P&L instead
-        c.patch(f"{API}/api/strategies/{g['id']}/risk", json={"stop_loss_amount": 0.000001})
-    flat = wait(
-        lambda: all(
-            p["size"] == 0 for p in c.get(f"{FAKE}/fake/state").json()["positions"].values()
-        )
-    )
-    check("SL hit -> every leg closed on Delta", bool(flat))
-    fk = c.get(f"{FAKE}/fake/state").json()
-    closes = [o for o in fk["log"] if "stop_order_type" not in o]
     check(
-        "closes were reduce-only IOC, shorts bought back",
-        closes and all(o["reduce_only"] is True and o["side"] == "buy" for o in closes),
-        str([(o["order_type"], o.get("limit_price")) for o in closes]),
+        "bracket prices shown on legs",
+        g["legs"][0]["stopPrice"] == sl
+        and g["legs"][0]["slPrice"] == sl
+        and g["legs"][0]["tpPrice"] == tp,
     )
-    closed = wait(lambda: live_group() is None, 15)
-    check("group closed in the app", bool(closed))
-    fk = c.get(f"{FAKE}/fake/state").json()
+
+    set_mark(leg["symbol"], sl + 1)  # the market crosses the SL
+    check("mark crosses leg SL -> EVERY leg closed on Delta", bool(wait(flat)))
+    closes = [o for o in fake()["log"] if "bracket" not in o and "stop_order_type" not in o]
     check(
-        "leftover stops cancelled after flat",
-        not [o for o in fk["orders"].values() if o["state"] == "open"],
+        "closes were reduce-only buy-backs",
+        bool(closes) and all(o["reduce_only"] is True and o["side"] == "buy" for o in closes),
+    )
+    check("group closed in the app", bool(wait(lambda: live_group() is None, 15)))
+    check(
+        "leftover brackets cancelled",
+        not [o for o in fake()["orders"].values() if o["state"] == "open"],
+    )
+    set_mark(leg["symbol"])
+
+
+def scenario_delta_bracket(kind):
+    g = fresh_group()
+    leg = g["legs"][0]
+    m = leg["mark"]
+    leg_bracket(leg["id"], sl_price=round(m * 1.5, 1), tp_price=round(m * 0.5, 1))
+    basket(g["id"], sl_amount=1000)
+    c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": True})
+    c.post(f"{FAKE}/fake/fire_stop/{leg['productId']}", params={"kind": kind})
+    label = "SL" if kind == "stop_loss_order" else "target"
+    check(f"[Delta bracket {label}] fired on one leg -> app closed the other", bool(wait(flat)))
+    wait(lambda: live_group() is None, 15)
+    last = [p for p in c.get(f"{API}/api/state").json()["positions"] if p.get("source") == "live"][
+        0
+    ]
+    reasons = [lg["exitReason"] or "" for lg in last["legs"]]
+    check(
+        f"[Delta bracket {label}] exit reason recorded",
+        f"Delta bracket {label}" in reasons,
+        str(reasons),
     )
 
 
-def scenario_native_stop():
-    c.post(f"{FAKE}/fake/reset")
-    g = wait(live_group)
-    check("[native] new group after reset", g is not None)
-    c.patch(f"{API}/api/strategies/{g['id']}/risk", json={"stop_loss_amount": 1000})
-    r = c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": True})
-    check("[native] armed", r.status_code == 200, r.text[:200])
-    pid = g["legs"][0]["productId"]
-    c.post(f"{FAKE}/fake/fire_stop/{pid}")
-    flat = wait(
-        lambda: all(
-            p["size"] == 0 for p in c.get(f"{FAKE}/fake/state").json()["positions"].values()
-        )
-    )
-    check("[native] Delta stop on one leg -> app closed the other leg", bool(flat))
-    st = c.get(f"{API}/api/state").json()
-    last = [p for p in st["positions"] if p.get("source") == "live"][0]
-    reasons = sorted(lg["exitReason"] or "" for lg in last["legs"])
-    check("[native] exit reasons recorded", "native stop" in reasons, str(reasons))
+def scenario_basket_target():
+    g = fresh_group()
+    basket(g["id"], sl_amount=1000)
+    r = basket(g["id"], tp_amount=0.001 if g["pnl"] < 0 else g["pnl"] + 0.001)
+    check("[basket target] valid target saved", r.status_code == 200, r.text[:160])
+    c.post(f"{API}/api/live/groups/{g['id']}/arm", json={"armed": True})
+    for lg in g["legs"]:  # both short: premiums collapse -> profit
+        set_mark(lg["symbol"], round(lg["entry"] * 0.1, 1))
+    check("[basket target] profit reaches target -> every leg closed", bool(wait(flat)))
+    for lg in g["legs"]:
+        set_mark(lg["symbol"])
 
 
 def scenario_journal():
@@ -220,7 +257,9 @@ def scenario_account_and_precheck():
 
 if __name__ == "__main__":
     scenario_server_sl()
-    scenario_native_stop()
+    scenario_delta_bracket("stop_loss_order")
+    scenario_delta_bracket("take_profit_order")
+    scenario_basket_target()
     scenario_journal()
     scenario_account_and_precheck()
     print("FAILURES:", fails)

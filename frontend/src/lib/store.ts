@@ -197,6 +197,7 @@ interface State {
   logs: LogEntry[];
 
   connect: () => void;
+  reloadState: () => Promise<void>; // refetch GET /api/state (after a live SL/target edit)
   setUnderlying: (u: Underlying) => void;
   setExpiry: (e: string) => void;
   setCurrency: (c: Currency) => void;
@@ -278,6 +279,7 @@ export const useStore = create<State>()(
       ledger: [],
       logs: [],
 
+      reloadState: () => hydrate(),
       connect: () => {
         disconnectChain?.();
         set({ conn: "connecting" });

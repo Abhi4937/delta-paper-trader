@@ -152,4 +152,7 @@ def test_usd_wallet_prefers_available_balance():
 
     w = usd_wallet([{"asset_symbol": "USD", "balance": "500", "available_balance": "320.5"}])
     assert w == {"balance": 500.0, "available": 320.5}
-    assert usd_wallet([{"asset_symbol": "USD", "balance": "500"}]) == {"balance": 500.0, "available": 500.0}
+    assert usd_wallet([{"asset_symbol": "USD", "balance": "500"}]) == {
+        "balance": 500.0,
+        "available": 500.0,
+    }

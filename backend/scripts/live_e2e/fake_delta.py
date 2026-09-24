@@ -112,6 +112,34 @@ async def place(req: Request):
     return ok(o)
 
 
+@app.post("/v2/orders/bracket")
+async def bracket(req: Request):
+    """Position bracket: SL and/or target on the mark; closes the whole position; OCO."""
+    b = await req.json()
+    S["log"].append({"bracket": b})
+    pid = b["product_id"]
+    pos = S["positions"][pid]
+    close = "buy" if pos["size"] < 0 else "sell"
+    made = []
+    for kind in ("stop_loss_order", "take_profit_order"):
+        if kind in b:
+            oid = next(ids)
+            S["orders"][oid] = {
+                "id": oid,
+                "product_id": pid,
+                "stop_order_type": kind,
+                "side": close,
+                "size": abs(pos["size"]),
+                "stop_price": b[kind]["stop_price"],
+                "order_type": b[kind]["order_type"],
+                "state": "open",
+                "bracket": True,
+                "reduce_only": True,
+            }
+            made.append(oid)
+    return ok({"ids": made})
+
+
 @app.delete("/v2/orders")
 async def cancel(req: Request):
     b = await req.json()
@@ -122,10 +150,18 @@ async def cancel(req: Request):
 
 
 @app.post("/fake/fire_stop/{pid}")
-def fire(pid: int):
-    o = next(o for o in S["orders"].values() if o["product_id"] == pid and o["state"] == "open")
+def fire(pid: int, kind: str = "stop_loss_order"):
+    """Delta triggers our resting SL (or target, kind=take_profit_order) on that leg."""
+    o = next(
+        o
+        for o in S["orders"].values()
+        if o["product_id"] == pid and o["state"] == "open" and o.get("stop_order_type") == kind
+    )
     o["state"] = "closed"
-    _fill(pid, o["side"], o["size"], float(o["stop_price"]), o["id"])
+    _fill(pid, o["side"], abs(S["positions"][pid]["size"]), float(o["stop_price"]), o["id"])
+    for other in S["orders"].values():  # one-cancels-other within the bracket
+        if other["product_id"] == pid and other["state"] == "open" and other.get("bracket"):
+            other["state"] = "cancelled"
     return {"fired": o["id"]}
 
 

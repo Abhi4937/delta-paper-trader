@@ -3,6 +3,7 @@
 A long option that decays to 0 must show its full premium loss (so a max-loss stop can
 fire); only a MISSING mark falls back to the entry price.
 """
+
 import uuid
 from types import SimpleNamespace
 
@@ -24,8 +25,14 @@ def _mv(ticker) -> MarketView:
 
 def _long(entry=50.0):
     return SimpleNamespace(
-        id=uuid.uuid4(), symbol="C-BTC-90000-260926", side="buy", qty=10,
-        contract_value=0.001, entry=entry, status="open", stop_pnl=None,
+        id=uuid.uuid4(),
+        symbol="C-BTC-90000-260926",
+        side="buy",
+        qty=10,
+        contract_value=0.001,
+        entry=entry,
+        status="open",
+        stop_pnl=None,
     )
 
 
@@ -49,17 +56,36 @@ def test_max_loss_stop_fires_on_a_worthless_long():
     pos = SimpleNamespace(legs=[leg], margin=1.0)
     mv = _mv({"mark_price": "0"})
     d = evaluate_exit(
-        service.exit_legs_of(SimpleNamespace(legs=[SimpleNamespace(
-            **vars(leg), target_pnl=None, auto_exit=True, close_scope="strategy")]), mv),
-        net_pnl=service.position_pnl(pos, mv), margin=1.0,
-        combined_stop=CombinedStop(0.4, None), combined_auto_exit=True, stale=False,
+        service.exit_legs_of(
+            SimpleNamespace(
+                legs=[
+                    SimpleNamespace(
+                        **vars(leg), target_pnl=None, auto_exit=True, close_scope="strategy"
+                    )
+                ]
+            ),
+            mv,
+        ),
+        net_pnl=service.position_pnl(pos, mv),
+        margin=1.0,
+        combined_stop=CombinedStop(0.4, None),
+        combined_auto_exit=True,
+        stale=False,
     )
     assert d.kind == "close-strategy"
 
 
 def test_live_basket_stop_fires_on_a_worthless_long():
     leg = _long(entry=50.0)
-    g = SimpleNamespace(legs=[leg], margin=1.0, stop_loss_amount=0.4, stop_loss_pct_of_margin=None)
+    leg.sl_price = leg.tp_price = None
+    g = SimpleNamespace(
+        legs=[leg],
+        margin=1.0,
+        stop_loss_amount=0.4,
+        stop_loss_pct_of_margin=None,
+        target_pnl=None,
+        target_pct_of_margin=None,
+    )
     assert evaluate_live(g, lambda lg: 0.0, stale=False, grace=False).kind == "close-strategy"
 
 

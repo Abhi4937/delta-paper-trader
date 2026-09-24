@@ -40,6 +40,34 @@ def _init(self, key, secret, settings=None, transport=None):
 
 lc.LiveClient.__init__ = _init
 
+# Test-only: move one option's mark (the real feed can't be moved on demand), so a VALID
+# SL/target can be crossed the way the market would cross it. Lives in this runner only.
+import time as _time  # noqa: E402
+
+import app.sim.marketview as _mvmod  # noqa: E402
+
+MARK_OVERRIDES: dict[str, float] = {}
+_orig_quote = _mvmod.MarketView.quote
+_orig_age = _mvmod.MarketView.mark_age
+
+
+def _quote(self, symbol):
+    q = _orig_quote(self, symbol)
+    if q is not None and symbol in MARK_OVERRIDES:
+        from dataclasses import replace as _replace
+
+        q = _replace(q, mark=MARK_OVERRIDES[symbol])
+    return q
+
+
+def _age(self, symbol):
+    return 0.0 if symbol in MARK_OVERRIDES else _orig_age(self, symbol)
+
+
+_mvmod.MarketView.quote = _quote
+_mvmod.MarketView.mark_age = _age
+_ = _time
+
 
 async def seed_keys() -> None:
     async with SessionLocal() as s:
@@ -80,6 +108,14 @@ if __name__ == "__main__":
         sys.exit(0)
     asyncio.run(seed_keys())
     from app.main import app
+
+    @app.post("/e2e/mark")
+    async def _set_mark(symbol: str, price: float | None = None) -> dict[str, object]:
+        if price is None:
+            MARK_OVERRIDES.pop(symbol, None)
+        else:
+            MARK_OVERRIDES[symbol] = price
+        return {"overrides": MARK_OVERRIDES}
 
     try:
         uvicorn.run(app, host="127.0.0.1", port=8010, log_level="warning")
