@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,6 +17,13 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Delta Paper · Options Terminal",
   description: "Paper-trading terminal for Delta Exchange India options",
+};
+
+// viewport-fit=cover so env(safe-area-inset-*) is reported (tab bar clears the home indicator)
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

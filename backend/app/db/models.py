@@ -204,6 +204,12 @@ class Leg(Base):
     stop_order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     stop_price: Mapped[float | None] = mapped_column(Float, nullable=True)  # SL resting on Delta
     tp_order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # live journal: entry/exit detail from Delta's fills and positions
+    entry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    entry_fees: Mapped[float | None] = mapped_column(Float, nullable=True)  # entry commissions
+    entry_margin: Mapped[float | None] = mapped_column(Float, nullable=True)  # Delta, first seen
+    last_margin: Mapped[float | None] = mapped_column(Float, nullable=True)  # Delta, before exit
+    mark_at_exit: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     position: Mapped[Position] = relationship(back_populates="legs")
 

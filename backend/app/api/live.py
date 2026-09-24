@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict
+from datetime import UTC, datetime
 from typing import Any, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -480,3 +481,44 @@ async def set_basket(
             setattr(g, col, v)
 
     return await _apply(request, session, user_id, groups, g, undo)
+
+
+@router.get("/journal/{pos_id}/candles")
+async def journal_candles(
+    pos_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session, scope="function"),
+    user_id: uuid.UUID = Depends(require_mfa),
+) -> dict[str, Any]:
+    """1m mark OHLC (+ leg P&L OHLC) per leg: frozen in the snapshot for a closed trade,
+    fetched from Delta now for an open one (or an old trade closed before candles existed)."""
+    res = await session.execute(
+        select(Position)
+        .where(Position.id == pos_id, Position.user_id == user_id, Position.source == "live")
+        .options(selectinload(Position.legs))
+    )
+    p = res.scalar_one_or_none()
+    if p is None:
+        raise HTTPException(404, "live trade not found")
+    frozen = (p.summary or {}).get("legs") or []
+    if frozen and all("candles" in lg for lg in frozen):
+        return {"legs": [{"symbol": lg["symbol"], "candles": lg["candles"]} for lg in frozen]}
+    base = request.app.state.delta.settings.delta_api_base
+    out = []
+    for lg in p.legs:
+        candles = await journal.fetch_candles(
+            request.app.state.http,
+            base,
+            lg.symbol,
+            lg.entry_at or p.opened_at,
+            lg.exit_at or datetime.now(UTC),
+        )
+        out.append(
+            {
+                "symbol": lg.symbol,
+                "candles": journal.candle_rows(
+                    lg.side, lg.entry, lg.qty, lg.contract_value, candles
+                ),
+            }
+        )
+    return {"legs": out}

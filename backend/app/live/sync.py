@@ -21,7 +21,7 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
@@ -59,6 +59,7 @@ class Reconciled:
     new_groups: list[Position]
     gone: list[tuple[Position, Leg]]  # legs flat on Delta, still open here
     untracked: list[str]  # non-option / unknown symbols
+    new_legs: list[Leg] = field(default_factory=list)  # need their entry fills looked up
 
 
 def reconcile(
@@ -102,10 +103,13 @@ def reconcile(
         key = (underlying, c.expiry.isoformat())
         side = "sell" if size < 0 else "buy"
         entry = float(dp.get("entry_price") or c.mark_price or 0)
+        margin = float(dp["margin"]) if dp.get("margin") not in (None, "") else None
         hit = open_legs.get(pid)
         if hit is not None and hit[1].side == side:
             if not hit[0].exiting:  # an exit in flight re-reads real sizes itself
                 hit[1].qty, hit[1].entry = float(abs(size)), entry
+            if margin is not None:
+                hit[1].last_margin = margin  # latest before exit, for the journal
             continue
         if hit is not None:  # flipped long<->short: the old leg is closed, a new one opens
             out.gone.append(hit)
@@ -115,27 +119,30 @@ def reconcile(
             pos = _new_group(uid, underlying, key[1], now)
             by_key[key] = pos
             out.new_groups.append(pos)
-        pos.legs.append(
-            Leg(
-                user_id=uid,
-                symbol=symbol,
-                product_id=pid,
-                underlying=underlying,
-                type=c.option_type,
-                strike=c.strike,
-                contract_value=c.contract_value or 0.001,
-                expiry=key[1],
-                dte=max((c.expiry - now.date()).days, 0),
-                side=side,
-                qty=float(abs(size)),
-                entry=entry,
-                mark_at_entry=c.mark_price or entry,
-                spot_at_entry=spot_of(underlying),
-                auto_exit=False,
-                close_scope="strategy",
-                status="open",
-            )
+        leg = Leg(
+            user_id=uid,
+            symbol=symbol,
+            product_id=pid,
+            underlying=underlying,
+            type=c.option_type,
+            strike=c.strike,
+            contract_value=c.contract_value or 0.001,
+            expiry=key[1],
+            dte=max((c.expiry - now.date()).days, 0),
+            side=side,
+            qty=float(abs(size)),
+            entry=entry,
+            mark_at_entry=c.mark_price or entry,
+            spot_at_entry=spot_of(underlying),
+            auto_exit=False,
+            close_scope="strategy",
+            status="open",
+            entry_at=now,  # refined from Delta's fills right after
+            entry_margin=margin,
+            last_margin=margin,
         )
+        pos.legs.append(leg)
+        out.new_legs.append(leg)
     for pid, (pos, lg) in open_legs.items():
         if pid not in seen and pid not in flipped:
             out.gone.append((pos, lg))
@@ -431,6 +438,14 @@ class LiveSync:
                 f"{sym} is open on Delta but not tracked (options only); "
                 "it is not in any SL or liquidation estimate.",
             )
+        if r.new_legs:
+            with contextlib.suppress(Exception):  # detail only; never blocks tracking
+                fills = await client.fills([lg.product_id for lg in r.new_legs])
+                for lg in r.new_legs:
+                    got = journal.fill_summary(journal.fill_run(fills, lg.product_id, lg.side))
+                    if got:
+                        lg.entry_at = got["first_at"] or lg.entry_at
+                        lg.entry_fees = got["fees"]
         if r.gone:
             await self._close_legs(s, uid, client, mv, r.gone, now)
 
@@ -445,21 +460,22 @@ class LiveSync:
     ) -> None:
         """Record legs Delta reports flat (real fill price/fee), close emptied groups, and
         cascade: a leg closed by OUR native stop exits the rest of an armed group."""
-        fills: dict[int, dict[str, Any]] = {}
+        fills: list[dict[str, Any]] = []
         with contextlib.suppress(Exception):
-            for fill in await client.fills([lg.product_id for _, lg in gone]):
-                fills.setdefault(int(fill.get("product_id") or 0), fill)  # newest first
+            fills = await client.fills([lg.product_id for _, lg in gone])  # newest first
         stop_fired: dict[uuid.UUID, str] = {}  # group -> which Delta bracket side fired
         for pos, lg in gone:
-            f = fills.get(lg.product_id)
-            px = float(f["price"]) if f and f.get("price") else _mark(mv, lg)
-            oid = int(f.get("order_id") or 0) if f else 0
-            by_sl = bool(oid and oid == lg.stop_order_id)
-            by_tp = bool(oid and oid == lg.tp_order_id)
+            run = journal.fill_run(fills, lg.product_id, "buy" if lg.side == "sell" else "sell")
+            got = journal.fill_summary(run)
+            lg.mark_at_exit = _mark(mv, lg)
+            px = got["price"] if got else lg.mark_at_exit
+            oids = {int(f.get("order_id") or 0) for f in run}
+            by_sl = bool(lg.stop_order_id and lg.stop_order_id in oids)
+            by_tp = bool(lg.tp_order_id and lg.tp_order_id in oids)
             by_stop = by_sl or by_tp  # our Delta bracket closed it (SL or target)
             lg.status = "closed"
             lg.exit_price = px
-            lg.exit_at = now
+            lg.exit_at = (got["last_at"] if got else None) or now
             lg.exit_reason = (
                 "Delta bracket SL"
                 if by_sl
@@ -470,7 +486,7 @@ class LiveSync:
                 else "closed on Delta"
             )
             lg.exit_gross = leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, px)
-            lg.exit_fees = float(f.get("commission") or 0) if f else 0.0
+            lg.exit_fees = got["fees"] if got else 0.0
             lg.stop_order_id = lg.tp_order_id = None
             await self._journal(
                 s,
@@ -488,7 +504,9 @@ class LiveSync:
                     "exit all" if pos.exiting else "closed on Delta"
                 )
                 ring = getattr(self.app.state, "sim_series", {}).get(str(pos.id))
-                pos.summary = journal.summarize(pos, await journal.load_samples(s, pos, ring), now)
+                summary = journal.summarize(pos, await journal.load_samples(s, pos, ring), now)
+                await self._attach_candles(summary, pos)
+                pos.summary = summary
                 await self._journal(
                     s,
                     uid,
@@ -503,6 +521,18 @@ class LiveSync:
                 self.alerts.clear(uid, f"exit:{pos.id}")
             elif pos.id in stop_fired:
                 await self._start_exit(s, uid, client, mv, pos, stop_fired[pos.id])
+
+    async def _attach_candles(self, summary: dict[str, Any], pos: Position) -> None:
+        """Freeze each leg's 1m mark candles (+ leg P&L OHLC) into the snapshot: Delta's
+        history for an expired option isn't guaranteed to stay available."""
+        base = self.app.state.delta.settings.delta_api_base
+        for row, lg in zip(summary["legs"], pos.legs, strict=True):
+            start = lg.entry_at or pos.opened_at
+            end = lg.exit_at or datetime.now(UTC)
+            candles = await journal.fetch_candles(self.app.state.http, base, lg.symbol, start, end)
+            row["candles"] = journal.candle_rows(
+                lg.side, lg.entry, lg.qty, lg.contract_value, candles
+            )
 
     # ---- SL trigger ------------------------------------------------------ #
     async def _maybe_trigger(
@@ -679,7 +709,9 @@ class LiveSync:
                 continue
             spot = mv.spot(g.underlying)
             legs = risk_legs(g, groups, mark_of)
-            g.margin = g.entry_margin = _group_im(g, spot, mark_of)
+            g.margin = _group_im(g, spot, mark_of)
+            if not g.entry_margin:  # first estimate only — it's the record of margin at entry
+                g.entry_margin = g.margin
             chk = await asyncio.to_thread(
                 risk.check_sl_vs_liquidation,
                 legs,

@@ -611,7 +611,9 @@ export const testTelegram = () => livePost<{ sent: boolean }>("/api/live/telegra
 export interface LiveTradeLeg {
   symbol: string; side: "buy" | "sell"; qty: number; type: string; strike: number; expiry: string;
   entry: number; exit: number | null; exitAt: number | null; exitReason: string | null;
-  pnl: number | null; fees: number | null; slPrice: number | null; tpPrice: number | null; deltaStopPrice: number | null;
+  pnl: number | null; grossPnl: number | null; fees: number | null; slPrice: number | null; tpPrice: number | null; deltaStopPrice: number | null;
+  entryAt: number | null; markAtEntry: number | null; entrySlippage: number | null; entryFees: number | null; entryMargin: number | null;
+  markAtExit: number | null; exitSlippage: number | null; exitMargin: number | null;
   status: string;
 }
 export interface LiveTrade {
@@ -670,3 +672,7 @@ export const setLiveBasket = (
   id: string,
   patch: { sl_amount?: number | null; sl_pct?: number | null; tp_amount?: number | null; tp_pct?: number | null },
 ) => livePatch(`/api/live/groups/${id}/basket`, patch);
+
+// Per-leg 1m mark candles for one live trade: [t_ms, o, h, l, c, pnlO, pnlH, pnlL, pnlC].
+export const fetchLiveTradeCandles = (id: string) =>
+  authedJson<{ legs: { symbol: string; candles: number[][] }[] }>(`/api/live/journal/${id}/candles`);

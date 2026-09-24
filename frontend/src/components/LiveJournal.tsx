@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
-import { type LiveJournal as Journal, fetchLiveJournal } from "@/lib/api";
+import { type LiveJournal as Journal, fetchLiveJournal, fetchLiveTradeCandles } from "@/lib/api";
 import { exportLiveJournalXlsx } from "@/lib/exportXlsx";
 import { type Currency, money } from "@/lib/store";
 
@@ -18,6 +18,20 @@ const dur = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.floor((
 export default function LiveJournal({ currency }: { currency: Currency }) {
   const [j, setJ] = useState<Journal | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Journal + each trade's 1m leg candles (frozen at close; fetched from Delta if open).
+  async function download() {
+    if (!j) return;
+    setExporting(true);
+    const candles: Record<string, { symbol: string; candles: number[][] }[]> = {};
+    for (const r of j.trades) {
+      const c = await fetchLiveTradeCandles(r.id);
+      if (c) candles[r.id] = c.legs;
+    }
+    exportLiveJournalXlsx(j, candles);
+    setExporting(false);
+  }
 
   useEffect(() => {
     const load = () => fetchLiveJournal().then((r) => r && setJ(r));
@@ -44,12 +58,12 @@ export default function LiveJournal({ currency }: { currency: Currency }) {
           {showLog ? "Hide" : "Show"} live log{j ? ` · ${j.logs.length}` : ""}
         </button>
         <button
-          onClick={() => j && exportLiveJournalXlsx(j)}
-          disabled={!j}
+          onClick={download}
+          disabled={!j || exporting}
           className="flex items-center gap-1 rounded-[5px] border border-line px-2 py-1 text-[11px] text-text-mute hover:text-text disabled:opacity-50"
-          title="Trades + every leg + the live log, as Excel"
+          title="Trades, every leg's entry/exit detail, 1-minute OHLC per leg, and the live log, as Excel"
         >
-          <Download size={12} /> Download journal
+          <Download size={12} /> {exporting ? "Preparing…" : "Download journal"}
         </button>
       </div>
 

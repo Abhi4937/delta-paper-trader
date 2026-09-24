@@ -219,6 +219,32 @@ def scenario_journal():
         f"{t['pnl']}",
     )
     check("[journal] live log present", any(lg["action"] == "LIVE_CLOSE" for lg in j["logs"]))
+    lg0 = t["legs"][0]
+    detail = [
+        "entryAt",
+        "entryFees",
+        "entryMargin",
+        "entrySlippage",
+        "exitSlippage",
+        "exitMargin",
+        "markAtExit",
+    ]
+    check(
+        "[journal] entry/exit detail recorded",
+        all(lg0.get(k) is not None for k in detail),
+        str({k: lg0.get(k) for k in detail}),
+    )
+    check(
+        "[journal] net P&L subtracts entry + exit brokerage",
+        abs(lg0["pnl"] - (lg0["grossPnl"] - lg0["entryFees"] - lg0["fees"])) < 1e-9,
+    )
+    cd = c.get(f"{API}/api/live/journal/{t['id']}/candles").json()
+    rows = cd["legs"][0]["candles"] if cd.get("legs") else []
+    check(
+        "[journal] 1m candles per leg (mark OHLC + P&L OHLC) frozen at close",
+        bool(rows) and len(rows[0]) == 9,
+        f"{len(rows)} candles",
+    )
     paper_logs = c.get(f"{API}/api/state").json()["logs"]
     check(
         "[journal] paper logs contain no live entries",

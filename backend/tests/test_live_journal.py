@@ -52,6 +52,13 @@ def test_closed_trade_summary_snapshot():
             tp_price=None,
             stop_price=140,
             status="closed",
+            contract_value=0.001,
+            entry_at=opened,
+            entry_fees=0.01,
+            entry_margin=5.0,
+            last_margin=6.0,
+            mark_at_entry=99,
+            mark_at_exit=148,
         ),
         SimpleNamespace(
             symbol="P-BTC-1",
@@ -71,6 +78,13 @@ def test_closed_trade_summary_snapshot():
             tp_price=None,
             stop_price=None,
             status="closed",
+            contract_value=0.001,
+            entry_at=opened,
+            entry_fees=0.01,
+            entry_margin=5.0,
+            last_margin=4.0,
+            mark_at_entry=101,
+            mark_at_exit=61,
         ),
     ]
     pos = SimpleNamespace(
@@ -91,7 +105,44 @@ def test_closed_trade_summary_snapshot():
     )
     s = summarize(pos, [(T0, 0, 0.2, -0.3, -0.14)], datetime.now(UTC))
     assert s["durationSeconds"] == 1800
-    assert round(s["pnl"], 4) == -0.14  # realised: (-0.5-0.02) + (0.4-0.02)
-    assert round(s["fees"], 4) == 0.04
+    # net: gross (-0.5 + 0.4) minus entry (0.01+0.01) AND exit (0.02+0.02) brokerage
+    assert round(s["pnl"], 4) == -0.16
+    assert round(s["fees"], 4) == 0.06
+    call = s["legs"][0]
+    assert (call["entryFees"], call["entryMargin"], call["exitMargin"]) == (0.01, 5.0, 6.0)
+    # sold at 100 vs mark 99: +0.01/unit better than mark => negative (favourable) slippage
+    assert round(call["entrySlippage"], 4) == -0.01
+    # bought back at 150 vs mark 148: paid 2/unit x 10 x 0.001 = 0.02
+    assert round(call["exitSlippage"], 4) == 0.02
     assert s["maxMtm"] == 0.2 and s["minMtm"] == -0.3
     assert [lg["exit"] for lg in s["legs"]] == [150, 60]
+
+
+def test_fill_run_stops_at_the_other_side_and_summarizes():
+    from app.live.journal import fill_run, fill_summary
+
+    fills = [  # newest first
+        {"product_id": 7, "side": "buy", "size": 4, "price": "150", "commission": "0.01",
+         "created_at": "2026-09-24T10:05:00Z", "order_id": 11},
+        {"product_id": 9, "side": "sell", "size": 1, "price": "1", "commission": "0"},
+        {"product_id": 7, "side": "buy", "size": 6, "price": "160", "commission": "0.02",
+         "created_at": 1790244000000000, "order_id": 12},
+        {"product_id": 7, "side": "sell", "size": 10, "price": "100", "commission": "0.03"},
+    ]
+    run = fill_run(fills, 7, "buy")
+    assert [f["order_id"] for f in run] == [11, 12]  # stops at the opening sell
+    got = fill_summary(run)
+    assert got["size"] == 10 and round(got["price"], 4) == 156.0  # (4*150 + 6*160) / 10
+    assert round(got["fees"], 4) == 0.03
+    assert got["first_at"] < got["last_at"]
+    assert fill_summary([]) is None
+
+
+def test_candles_carry_leg_pnl_with_high_low_flipped_for_sold_legs():
+    from app.live.journal import candle_rows
+
+    c = [[1, 100, 150, 80, 120]]  # t, o, h, l, c (premium)
+    (_, *_, po, ph, pl, pc), = candle_rows("sell", 100, 10, 0.001, c)
+    assert (round(po, 3), round(ph, 3), round(pl, 3), round(pc, 3)) == (0.0, 0.2, -0.5, -0.2)
+    (_, *_, po, ph, pl, pc), = candle_rows("buy", 100, 10, 0.001, c)
+    assert (round(ph, 3), round(pl, 3)) == (0.5, -0.2)
