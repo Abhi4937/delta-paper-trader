@@ -546,7 +546,7 @@ export const FEE_SCHEDULES = {
 export const ACTIVE_FEE: FeeSchedule = FEE_SCHEDULES.optionsCarnival;
 const GST = 0.18; // 18% GST on the fee
 export const FEE_DISCOUNT = 0; // DELTAEARN referral 10% — account not eligible
-function legFee(price: number, spot: number, cv: number, qty: number): number {
+export function legFee(price: number, spot: number, cv: number, qty: number): number {
   const base = Math.min(
     ACTIVE_FEE.notionalRate * spot * cv * qty,
     ACTIVE_FEE.premiumCap * price * cv * qty,

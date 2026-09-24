@@ -92,3 +92,26 @@ export function estimateMargin(legs: Leg[], spot: number): number {
   }
   return Math.max(Math.max(risk, floor), longPrem);
 }
+
+// P&L a leg locks in if it is closed at `price` (its SL / target trigger premium), net of the
+// estimated exit brokerage. A sold leg loses as the premium rises, a bought leg as it falls.
+export function legPnlAtTrigger(leg: Leg, price: number, exitFee = 0): number {
+  return legPnl(leg, price) - exitFee;
+}
+
+// Whole group if `legId` closes at `price` and every other open leg closes at its current
+// mark (any live SL / target closes ALL legs). An estimate: the others keep moving until exit.
+export function groupPnlAtTrigger(
+  legs: Leg[],
+  legId: string,
+  price: number,
+  markOf: (l: Leg) => number,
+  feeOf: (l: Leg, px: number) => number,
+): number {
+  return legs
+    .filter((l) => l.status === "open")
+    .reduce((s, l) => {
+      const px = l.id === legId ? price : markOf(l);
+      return s + legPnlAtTrigger(l, px, feeOf(l, px));
+    }, 0);
+}
