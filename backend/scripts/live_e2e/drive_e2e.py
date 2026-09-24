@@ -82,6 +82,11 @@ def fresh_group():
 def scenario_server_sl():
     g = fresh_group()
     check("live group mirrored from Delta", g is not None)
+    check(
+        "close-now P&L sent for the open group (book-based, below mark P&L)",
+        isinstance(g.get("exitPnl"), (int, float)) and g["exitPnl"] <= g["pnl"] + 1e-9,
+        f"mark {g.get('pnl')} close-now {g.get('exitPnl')}",
+    )
     status = wait(lambda: (s := c.get(f"{API}/api/live/status").json())["checks"] and s, 30)
     check("liquidation check computed by guard", bool(status))
     check(
@@ -241,9 +246,14 @@ def scenario_journal():
     cd = c.get(f"{API}/api/live/journal/{t['id']}/candles").json()
     rows = cd["legs"][0]["candles"] if cd.get("legs") else []
     check(
-        "[journal] 1m candles per leg (mark OHLC + P&L OHLC) frozen at close",
-        bool(rows) and len(rows[0]) == 9,
-        f"{len(rows)} candles",
+        "[journal] 1m candles per leg: mark OHLC + P&L OHLC + bid/ask OHLC, frozen at close",
+        bool(rows) and len(rows[0]) == 17 and any(r[9] is not None for r in rows),
+        f"{len(rows)} candles, first={rows[0] if rows else None}",
+    )
+    check(
+        "[journal] best bid/ask at entry recorded",
+        lg0.get("entryBid") is not None and lg0.get("entryAsk") is not None,
+        str((lg0.get("entryBid"), lg0.get("entryAsk"))),
     )
     paper_logs = c.get(f"{API}/api/state").json()["logs"]
     check(

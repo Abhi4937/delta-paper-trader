@@ -612,7 +612,7 @@ export interface LiveTradeLeg {
   symbol: string; side: "buy" | "sell"; qty: number; type: string; strike: number; expiry: string;
   entry: number; exit: number | null; exitAt: number | null; exitReason: string | null;
   pnl: number | null; grossPnl: number | null; fees: number | null; slPrice: number | null; tpPrice: number | null; deltaStopPrice: number | null;
-  entryAt: number | null; markAtEntry: number | null; entrySlippage: number | null; entryFees: number | null; entryMargin: number | null;
+  entryAt: number | null; entryBid: number | null; entryAsk: number | null; markAtEntry: number | null; entrySlippage: number | null; entryFees: number | null; entryMargin: number | null;
   markAtExit: number | null; exitSlippage: number | null; exitMargin: number | null;
   status: string;
 }
@@ -675,4 +675,4 @@ export const setLiveBasket = (
 
 // Per-leg 1m mark candles for one live trade: [t_ms, o, h, l, c, pnlO, pnlH, pnlL, pnlC].
 export const fetchLiveTradeCandles = (id: string) =>
-  authedJson<{ legs: { symbol: string; candles: number[][] }[] }>(`/api/live/journal/${id}/candles`);
+  authedJson<{ legs: { symbol: string; candles: (number | null)[][] }[] }>(`/api/live/journal/${id}/candles`);

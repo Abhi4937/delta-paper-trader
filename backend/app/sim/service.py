@@ -95,6 +95,23 @@ def _mark(mv: MarketView, leg: Leg) -> float:
     return q.mark if (q and q.mark is not None) else leg.entry
 
 
+def _exit_price(mv: MarketView, leg: Leg) -> float:
+    """Where closing this leg right now would fill: a short buys back at the best ask, a long
+    sells at the best bid (the mark when that side of the book is empty)."""
+    q = mv.quote(leg.symbol)
+    return exit_fill(leg.side, q.bid if q else 0, q.ask if q else 0, _mark(mv, leg))
+
+
+def close_now_pnl(pos: Position, mv: MarketView) -> float:
+    """P&L if every open leg were closed at the book now: entry fill (already carries the
+    entry slippage) vs the exit fill (carries the exit slippage). Mark P&L is what Delta shows
+    and what SLs trigger on; this is what you'd actually realise, before fees."""
+    return sum(
+        leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _exit_price(mv, lg))
+        for lg in _open(pos)
+    )
+
+
 def position_pnl(pos: Position, mv: MarketView) -> float:
     legs = [
         LegQuote(lg.side, lg.qty, lg.contract_value, lg.entry, _mark(mv, lg)) for lg in _open(pos)
@@ -136,6 +153,7 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
             "vega": sgn * vg,
             "bid": q.bid if q else 0.0,
             "ask": q.ask if q else 0.0,
+            "exitPnl": leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _exit_price(mv, lg)),
         }
     ng = net_greeks(greeks)
     atm_iv = {e: mv.atm_iv(pos.underlying, e) for e in {lg.expiry for lg in legs}}
@@ -153,6 +171,7 @@ def build_sample(pos: Position, mv: MarketView, now: datetime) -> dict[str, Any]
         "vega": ng["vega"],
         "atmIv": atm_iv,
         "legs": leg_rows,
+        "exitPnl": sum(r["exitPnl"] for r in leg_rows.values()),
     }
 
 
@@ -194,6 +213,8 @@ async def place_strategy(
                 qty=spec.qty,
                 entry=fill,
                 mark_at_entry=q.mark or fill,
+                entry_bid=q.bid or None,
+                entry_ask=q.ask or None,
                 spot_at_entry=mv.spot(spec.underlying) or 0.0,
                 target_pnl=None,
                 stop_pnl=None,
@@ -407,8 +428,10 @@ async def close_leg(
         try:
             web_jwt = await get_secret(session, user_id, "delta_web_jwt")
             mq = await quote_margin(
-                app_state, pos.underlying,
-                [(lg.product_id, lg.side, lg.qty) for lg in remaining], web_jwt=web_jwt,
+                app_state,
+                pos.underlying,
+                [(lg.product_id, lg.side, lg.qty) for lg in remaining],
+                web_jwt=web_jwt,
             )
             new_margin, badge = mq.margin, mq.badge
         except ValueError:
@@ -672,6 +695,11 @@ def leg_dict(lg: Leg, mv: MarketView) -> dict[str, Any]:
         "exitReason": lg.exit_reason,
         "exitGross": lg.exit_gross,
         "exitFees": lg.exit_fees,
+        "entryBid": lg.entry_bid,
+        "entryAsk": lg.entry_ask,
+        "exitPnl": None
+        if closed
+        else leg_pnl(lg.side, lg.qty, lg.contract_value, lg.entry, _exit_price(mv, lg)),
         "stopPrice": lg.stop_price,  # live: SL of the Delta bracket resting on Delta
         "slPrice": lg.sl_price,  # live: leg SL / target as premium trigger prices (mark)
         "tpPrice": lg.tp_price,
@@ -724,9 +752,15 @@ async def _rollup_series(
     return [
         {
             "t": int(r.bucket.timestamp() * 1000),
-            "pnl": r.c, "pnlOpen": r.o, "pnlHigh": r.h, "pnlLow": r.l,
-            "delta": r.delta, "theta": r.theta, "vega": r.vega,
-            "atmIv": r.atm_iv or {}, "legs": r.legs or {},
+            "pnl": r.c,
+            "pnlOpen": r.o,
+            "pnlHigh": r.h,
+            "pnlLow": r.l,
+            "delta": r.delta,
+            "theta": r.theta,
+            "vega": r.vega,
+            "atmIv": r.atm_iv or {},
+            "legs": r.legs or {},
         }
         for r in rows
     ]
@@ -790,8 +824,21 @@ async def build_position_series(
 ) -> list[dict[str, Any]]:
     """Uniform-by-age history body + always-1s live tail (open) for one position."""
     tail = [
-        {k: s[k] for k in ("t", "pnl", "pnlOpen", "pnlHigh", "pnlLow",
-                           "delta", "theta", "vega", "atmIv", "legs")}
+        {
+            k: s[k]
+            for k in (
+                "t",
+                "pnl",
+                "pnlOpen",
+                "pnlHigh",
+                "pnlLow",
+                "delta",
+                "theta",
+                "vega",
+                "atmIv",
+                "legs",
+            )
+        }
         for s in (list(ring_full) if ring_full else [])
     ]
     # span = lifetime for closed, age for open
@@ -865,6 +912,7 @@ def position_dict(pos: Position, mv: MarketView, series: list[dict[str, Any]]) -
         "series": series,
         "notes": [{"kind": n.kind, "body": n.body, "at": _ms(n.at)} for n in pos.notes],
         "pnl": position_pnl(pos, mv),
+        "exitPnl": close_now_pnl(pos, mv),
         "delta": g["delta"],
         "theta": g["theta"],
         "vega": g["vega"],
@@ -887,6 +935,7 @@ def position_live_dict(pos: Position, mv: MarketView, now: datetime) -> dict[str
         "closeReason": pos.close_reason,
         "legs": [leg_dict(lg, mv) for lg in pos.legs],
         "pnl": position_pnl(pos, mv),
+        "exitPnl": close_now_pnl(pos, mv),
         "delta": g["delta"],
         "theta": g["theta"],
         "vega": g["vega"],
@@ -940,7 +989,9 @@ async def get_state(
         (
             await session.execute(
                 select(Log)
-                .where(Log.user_id == user_id, Log.action.notlike("LIVE%"))  # live has its own journal
+                .where(
+                    Log.user_id == user_id, Log.action.notlike("LIVE%")
+                )  # live has its own journal
                 .order_by(Log.t.desc())
             )
         )

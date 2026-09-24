@@ -46,7 +46,7 @@ def test_build_sample_carries_full_leg_and_iv_detail() -> None:
     # one full leg row per open leg (NOT empty — that was the bug)
     assert set(s["legs"].keys()) == {str(lg.id) for lg in legs}
     for row in s["legs"].values():
-        assert set(row.keys()) == {"pnl", "iv", "delta", "theta", "vega", "bid", "ask"}
+        assert set(row.keys()) == {"pnl", "iv", "delta", "theta", "vega", "bid", "ask", "exitPnl"}
         assert row["iv"] == 0.45
         assert row["bid"] == 118.0 and row["ask"] == 122.0
 
@@ -65,3 +65,19 @@ def test_build_sample_skips_closed_legs() -> None:
     pos = SimpleNamespace(underlying="BTC", legs=legs)
     s = service.build_sample(pos, FakeMV(), datetime(2026, 6, 11, tzinfo=UTC))
     assert set(s["legs"].keys()) == {str(legs[0].id)}
+
+
+def test_close_now_pnl_uses_the_book_side_you_would_exit_at() -> None:
+    # sold at 100: buying back at the ASK 122 (mark 120) => -(122-100)*1*0.001
+    legs = [_leg("sell", "2026-06-13")]
+    pos = SimpleNamespace(underlying="BTC", legs=legs)
+    s = service.build_sample(pos, FakeMV(), datetime(2026, 6, 11, tzinfo=UTC))
+    assert round(s["exitPnl"], 6) == round(-(122.0 - 100.0) * 0.001, 6)
+    assert round(s["pnl"], 6) == round(-(120.0 - 100.0) * 0.001, 6)  # mark P&L unchanged
+    # bought at 100: selling at the BID 118
+    s = service.build_sample(
+        SimpleNamespace(underlying="BTC", legs=[_leg("buy", "2026-06-13")]),
+        FakeMV(),
+        datetime(2026, 6, 11, tzinfo=UTC),
+    )
+    assert round(s["exitPnl"], 6) == round((118.0 - 100.0) * 0.001, 6)

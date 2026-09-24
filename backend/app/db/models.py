@@ -206,6 +206,9 @@ class Leg(Base):
     tp_order_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     # live journal: entry/exit detail from Delta's fills and positions
     entry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # best bid / ask at entry (paper: at placement; live: when first seen)
+    entry_bid: Mapped[float | None] = mapped_column(Float, nullable=True)
+    entry_ask: Mapped[float | None] = mapped_column(Float, nullable=True)
     entry_fees: Mapped[float | None] = mapped_column(Float, nullable=True)  # entry commissions
     entry_margin: Mapped[float | None] = mapped_column(Float, nullable=True)  # Delta, first seen
     last_margin: Mapped[float | None] = mapped_column(Float, nullable=True)  # Delta, before exit

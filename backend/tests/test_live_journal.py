@@ -55,6 +55,8 @@ def test_closed_trade_summary_snapshot():
             contract_value=0.001,
             entry_at=opened,
             entry_fees=0.01,
+            entry_bid=None,
+            entry_ask=None,
             entry_margin=5.0,
             last_margin=6.0,
             mark_at_entry=99,
@@ -81,6 +83,8 @@ def test_closed_trade_summary_snapshot():
             contract_value=0.001,
             entry_at=opened,
             entry_fees=0.01,
+            entry_bid=None,
+            entry_ask=None,
             entry_margin=5.0,
             last_margin=4.0,
             mark_at_entry=101,
@@ -122,11 +126,25 @@ def test_fill_run_stops_at_the_other_side_and_summarizes():
     from app.live.journal import fill_run, fill_summary
 
     fills = [  # newest first
-        {"product_id": 7, "side": "buy", "size": 4, "price": "150", "commission": "0.01",
-         "created_at": "2026-09-24T10:05:00Z", "order_id": 11},
+        {
+            "product_id": 7,
+            "side": "buy",
+            "size": 4,
+            "price": "150",
+            "commission": "0.01",
+            "created_at": "2026-09-24T10:05:00Z",
+            "order_id": 11,
+        },
         {"product_id": 9, "side": "sell", "size": 1, "price": "1", "commission": "0"},
-        {"product_id": 7, "side": "buy", "size": 6, "price": "160", "commission": "0.02",
-         "created_at": 1790244000000000, "order_id": 12},
+        {
+            "product_id": 7,
+            "side": "buy",
+            "size": 6,
+            "price": "160",
+            "commission": "0.02",
+            "created_at": 1790244000000000,
+            "order_id": 12,
+        },
         {"product_id": 7, "side": "sell", "size": 10, "price": "100", "commission": "0.03"},
     ]
     run = fill_run(fills, 7, "buy")
@@ -142,7 +160,26 @@ def test_candles_carry_leg_pnl_with_high_low_flipped_for_sold_legs():
     from app.live.journal import candle_rows
 
     c = [[1, 100, 150, 80, 120]]  # t, o, h, l, c (premium)
-    (_, *_, po, ph, pl, pc), = candle_rows("sell", 100, 10, 0.001, c)
+    ((_, *_, po, ph, pl, pc),) = candle_rows("sell", 100, 10, 0.001, c)
     assert (round(po, 3), round(ph, 3), round(pl, 3), round(pc, 3)) == (0.0, 0.2, -0.5, -0.2)
-    (_, *_, po, ph, pl, pc), = candle_rows("buy", 100, 10, 0.001, c)
+    ((_, *_, po, ph, pl, pc),) = candle_rows("buy", 100, 10, 0.001, c)
     assert (round(ph, 3), round(pl, 3)) == (0.5, -0.2)
+
+
+def test_book_ohlc_per_minute_and_merged_into_candles():
+    from app.live.journal import book_ohlc, with_book
+
+    m0 = 1_790_000_040_000 - 1_790_000_040_000 % 60_000
+    snaps = [
+        (m0 + 5_000, 100, 110),
+        (m0 + 15_000, 96, 0),
+        (m0 + 25_000, 104, 118),
+        (m0 + 65_000, 90, 99),
+    ]
+    b = book_ohlc(snaps)
+    # bid o,h,l,c then ask o,h,l,c ; a 0 (empty side) is skipped
+    assert b[m0] == [100, 104, 96, 104, 110, 118, 110, 118]
+    assert b[m0 + 60_000] == [90, 90, 90, 90, 99, 99, 99, 99]
+    rows = with_book([[m0, 1, 2, 0.5, 1.5, 0, 0, 0, 0], [m0 + 120_000, 1, 1, 1, 1, 0, 0, 0, 0]], b)
+    assert rows[0][-8:] == [100, 104, 96, 104, 110, 118, 110, 118]
+    assert rows[1][-8:] == [None] * 8  # no snapshot in that minute

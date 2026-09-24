@@ -118,12 +118,23 @@ export default function PositionCard({
               </span>
             </>
           )}
-          <span className="stat text-text-mute">
+          <span className="stat text-text-mute" title="Mark-based P&L — matches Delta's screen; SLs trigger on the mark">
             UPNL{" "}
             <span className={clsx("tnum text-[13px] font-semibold", pnl >= 0 ? "text-pos" : "text-neg")}>
               {pnl >= 0 ? "+" : ""}{money(pnl, currency)}
             </span>
           </span>
+          {!closed && p.exitPnl != null && (
+            <span
+              className="stat text-text-mute"
+              title={`What you'd realise closing every leg NOW at the book (sold legs buy back at the best ask, bought legs sell at the best bid), before fees. Entry already carries the entry slippage; this adds the exit slippage. Spread cost vs mark: ${money(pnl - p.exitPnl, currency)}.`}
+            >
+              Close-now{" "}
+              <span className={clsx("tnum font-semibold", p.exitPnl >= 0 ? "text-pos" : "text-neg")}>
+                {p.exitPnl >= 0 ? "+" : ""}{money(p.exitPnl, currency)}
+              </span>
+            </span>
+          )}
           <div className="acts flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
           <button
             onClick={() => { setOpen(true); setAnalyse((a) => !a); }}
